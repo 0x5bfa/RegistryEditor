@@ -1,4 +1,7 @@
-﻿namespace RegistryEditor.WinUI
+﻿// Copyright (c) 2025 0x5BFA.
+// Licensed under the MIT License.
+
+namespace RegistryEditor.WinUI
 {
 	public static class Constants
 	{

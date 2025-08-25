@@ -167,9 +167,7 @@
 									Text="Type"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap" />
-								<toolkit:GridSplitter
-									Grid.Column="2"
-									Margin="0,0,0,-4" />
+								<toolkit:GridSplitter Grid.Column="2" Margin="0,0,0,-4" />
 								<TextBlock
 									Grid.Column="3"
 									HorizontalAlignment="Left"
@@ -179,9 +177,7 @@
 									Text="Principal"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap" />
-								<toolkit:GridSplitter
-									Grid.Column="4"
-									Margin="0,0,0,-4" />
+								<toolkit:GridSplitter Grid.Column="4" Margin="0,0,0,-4" />
 								<TextBlock
 									Grid.Column="5"
 									HorizontalAlignment="Left"
@@ -191,9 +187,7 @@
 									Text="Access"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap" />
-								<toolkit:GridSplitter
-									Grid.Column="6"
-									Margin="0,0,0,-4" />
+								<toolkit:GridSplitter Grid.Column="6" Margin="0,0,0,-4" />
 								<TextBlock
 									Grid.Column="7"
 									HorizontalAlignment="Left"
@@ -203,9 +197,7 @@
 									Text="Inherited"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap" />
-								<toolkit:GridSplitter
-									Grid.Column="8"
-									Margin="0,0,0,-4" />
+								<toolkit:GridSplitter Grid.Column="8" Margin="0,0,0,-4" />
 								<TextBlock
 									x:Name="AppliesToLabel"
 									Grid.Column="9"

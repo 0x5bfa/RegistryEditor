@@ -44,7 +44,7 @@ namespace RegistryEditor.WinUI.Services
 			currentApplicationWindow = App.Window;
 
 			// Set TitleBar background color
-			titleBar = App.GetAppWindow(currentApplicationWindow).TitleBar;
+			titleBar = currentApplicationWindow.AppWindow.TitleBar;
 
 			// Apply the desired theme based on what is set in the application settings
 			ApplyTheme();

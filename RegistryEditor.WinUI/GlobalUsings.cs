@@ -1,4 +1,7 @@
-﻿// Default usings
+﻿// Copyright (c) 2025 0x5BFA.
+// Licensed under the MIT License.
+
+// Default usings
 global using global::System;
 global using global::System.Collections.Generic;
 global using global::System.Collections.ObjectModel;

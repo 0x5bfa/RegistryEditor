@@ -1,22 +1,20 @@
-using CommunityToolkit.WinUI;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI;
+// Copyright (c) 2025 0x5BFA.
+// Licensed under the MIT License.
+
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Windowing;
-using Microsoft.Windows.AppLifecycle;
 using RegistryEditor.WinUI.ViewModels;
-using Windows.ApplicationModel;
-using Windows.Storage;
 
 namespace RegistryEditor.WinUI
 {
 	public partial class App : Application
 	{
-		public new static App Current
-			=> (App)Application.Current;
+		public new static App Current => (App)Application.Current;
 
 		public IServiceProvider Services { get; }
+
+		public static MainWindow Window { get; private set; } = null!;
+
+		public static IntPtr WindowHandle { get; private set; }
 
 		public App()
 		{
@@ -53,17 +51,5 @@ namespace RegistryEditor.WinUI
 			Window.Activate();
 			WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(Window);
 		}
-
-		public static AppWindow GetAppWindow(Window w)
-		{
-			var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(w);
-			WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
-
-			return AppWindow.GetFromWindowId(windowId);
-		}
-
-		public static MainWindow Window { get; private set; } = null!;
-
-		public static IntPtr WindowHandle { get; private set; }
 	}
 }

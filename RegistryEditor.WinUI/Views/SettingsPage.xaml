@@ -275,20 +275,6 @@
 					</HyperlinkButton>
 				</settingsui:SettingsBlockControl>
 
-				<TextBlock
-					Margin="0,20,0,0"
-					Style="{StaticResource BodyStrongTextBlockStyle}"
-					Text="Reset" />
-				<settingsui:SettingsBlockControl Title="Reset app" IsClickable="False">
-					<settingsui:SettingsBlockControl.Icon>
-						<FontIcon Glyph="&#xE72C;" />
-					</settingsui:SettingsBlockControl.Icon>
-					<Button
-						x:Name="ResetAppButton"
-						Click="ResetAppButton_Click"
-						Content="Reset" />
-				</settingsui:SettingsBlockControl>
-
 			</StackPanel>
 		</ScrollViewer>
 	</Grid>

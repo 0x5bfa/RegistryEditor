@@ -1,49 +1,23 @@
-﻿using Microsoft.UI.Dispatching;
+﻿// Copyright (c) 2025 0x5BFA.
+// Licensed under the MIT License.
+
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
-using System.Security.Principal;
 
 namespace RegistryEditor.WinUI
 {
 	public class Program
 	{
 		[STAThread]
-		private static async Task<int> Main()
+		private static void Main()
 		{
 			WinRT.ComWrappersSupport.InitializeComWrappers();
 
-			bool isRedirect = await DecideRedirection();
-			if (!isRedirect)
-			{
-				Application.Start((p) =>
-				{
-					var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
-					SynchronizationContext.SetSynchronizationContext(context);
-
-					_ = new App();
-				});
-			}
-
-			return 0;
-		}
-
-		private static bool IsAdministrator()
-		{
-			using var identity = WindowsIdentity.GetCurrent();
-			var principal = new WindowsPrincipal(identity);
-			return principal.IsInRole(WindowsBuiltInRole.Administrator);
-		}
-
-		private static void OnActivated(object? sender, AppActivationArguments args)
-		{
-		}
-
-		private static async Task<bool> DecideRedirection()
-		{
 			bool isRedirect = false;
 			AppActivationArguments args = AppInstance.GetCurrent().GetActivatedEventArgs();
 			ExtendedActivationKind kind = args.Kind;
-			AppInstance keyInstance = AppInstance.FindOrRegisterForKey("RegistryValley");
+			AppInstance keyInstance = AppInstance.FindOrRegisterForKey("RegistryEditor");
 
 			if (keyInstance.IsCurrent)
 			{
@@ -52,10 +26,22 @@ namespace RegistryEditor.WinUI
 			else
 			{
 				isRedirect = true;
-				await keyInstance.RedirectActivationToAsync(args);
+				keyInstance.RedirectActivationToAsync(args).AsTask().Wait();
 			}
 
-			return isRedirect;
+			if (!isRedirect)
+			{
+				Application.Start((p) =>
+				{
+					var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+					SynchronizationContext.SetSynchronizationContext(context);
+					_ = new App();
+				});
+			}
+		}
+
+		private static void OnActivated(object? sender, AppActivationArguments args)
+		{
 		}
 	}
 }
