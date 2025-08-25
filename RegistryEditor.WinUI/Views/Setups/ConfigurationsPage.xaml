@@ -9,7 +9,7 @@
     xmlns:models="using:RegistryValley.App.Models"
     xmlns:root="using:RegistryValley.App"
     xmlns:settingsui="using:RegistryValley.App.UserControls.Settings"
-    xmlns:toolkit="using:CommunityToolkit.WinUI.UI.Controls"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     xmlns:uc="using:RegistryValley.App.UserControls"
     Background="{ThemeResource AppThemeBackgroundBrush}"
     mc:Ignorable="d">

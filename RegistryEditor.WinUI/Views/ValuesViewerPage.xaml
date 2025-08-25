@@ -9,9 +9,9 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:RegistryValley.App.Models"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
-    xmlns:toolkit="using:CommunityToolkit.WinUI.UI.Controls"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     xmlns:uc="using:RegistryValley.App.UserControls"
-    xmlns:ui="using:CommunityToolkit.WinUI.UI"
+    xmlns:ui="using:CommunityToolkit.WinUI"
     DataContext="{x:Bind ViewModel, Mode=OneWay}"
     mc:Ignorable="d">
 
