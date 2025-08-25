@@ -42,6 +42,7 @@ namespace RegistryEditor.WinUI
 
 		private static void OnActivated(object? sender, AppActivationArguments args)
 		{
+			// Do nothing for now.
 		}
 	}
 }

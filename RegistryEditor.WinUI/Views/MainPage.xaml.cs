@@ -1,9 +1,10 @@
-﻿using CommunityToolkit.WinUI.Helpers;
+﻿// Copyright (c) 2025 0x5BFA.
+// Licensed under the MIT License.
+
+using CommunityToolkit.WinUI.Helpers;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using RegistryEditor.WinUI.Extensions;
 using RegistryEditor.WinUI.Helpers;
-using RegistryEditor.WinUI.Models;
 using RegistryEditor.WinUI.Services;
 using RegistryEditor.WinUI.ViewModels;
 
@@ -11,25 +12,17 @@ namespace RegistryEditor.WinUI.Views
 {
 	public sealed partial class MainPage : Page
 	{
+		public MainViewModel ViewModel = App.Current.Services.GetRequiredService<MainViewModel>();
+		public ValuesViewerViewModel ValuesViewerViewModel = App.Current.Services.GetRequiredService<ValuesViewerViewModel>();
+		private UserSettingsServices UserSettingsServices = App.Current.Services.GetRequiredService<UserSettingsServices>();
+
 		public MainPage()
 		{
 			InitializeComponent();
 
-			var provider = App.Current.Services;
-			ViewModel = provider.GetRequiredService<MainViewModel>();
-			ValuesViewerViewModel = provider.GetRequiredService<ValuesViewerViewModel>();
-			UserSettingsServices = App.Current.Services.GetRequiredService<UserSettingsServices>();
-
 			LoadAppResources();
-
 			ContentFrame.Navigate(typeof(ValuesViewerPage));
 		}
-
-		#region Fields and Properties
-		public MainViewModel ViewModel { get; }
-		public ValuesViewerViewModel ValuesViewerViewModel { get; }
-		private UserSettingsServices UserSettingsServices { get; }
-		#endregion
 
 		private void LoadAppResources()
 		{
@@ -65,7 +58,6 @@ namespace RegistryEditor.WinUI.Views
 			}
 		}
 
-		#region CustomMainTreeView Events
 		private void CustomMainTreeView_BaseSelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
 			EnsureCurrentPageIsValuesViewer();
@@ -114,6 +106,5 @@ namespace RegistryEditor.WinUI.Views
 		{
 			PropertyWindowHelpers.CreatePropertyWindow(CustomMainTreeView.GetSelectedItem());
 		}
-		#endregion
 	}
 }

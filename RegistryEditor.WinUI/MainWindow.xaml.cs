@@ -12,13 +12,9 @@ namespace RegistryEditor.WinUI
 {
 	public sealed partial class MainWindow : Window
 	{
-		private bool AlreadyInitialized { get; set; }
-
 		public MainWindow()
 		{
 			InitializeComponent();
-
-			Activated += MainWindow_Activated;
 
 			AppWindow.Title = "Registry Valley";
 			AppWindow.SetIcon(Path.Combine(Windows.ApplicationModel.Package.Current.InstalledLocation.Path, Constants.AssetPaths.Logo));
@@ -27,19 +23,16 @@ namespace RegistryEditor.WinUI
 			AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
 		}
 
-		private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+		public void InitializeContent()
 		{
-			if (!AlreadyInitialized)
+			if (Content is not Frame rootFrame)
 			{
-				if (App.Window.Content is not Frame rootFrame)
-				{
-					rootFrame = new() { CacheSize = 1 };
-					App.Window.Content = rootFrame;
-				}
-
-				if (rootFrame.Content is null)
-					rootFrame.Navigate(typeof(MainPage), null, new SuppressNavigationTransitionInfo());
+				rootFrame = new() { CacheSize = 1 };
+				Content = rootFrame;
 			}
+
+			if (rootFrame.Content is null)
+				rootFrame.Navigate(typeof(MainPage), null, new SuppressNavigationTransitionInfo());
 		}
 	}
 }

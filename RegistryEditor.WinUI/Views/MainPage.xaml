@@ -38,11 +38,10 @@
 		<Grid Grid.Row="1">
 			<Grid.ColumnDefinitions>
 				<ColumnDefinition Width="Auto" MinWidth="144" />
-				<ColumnDefinition Width="6" />
 				<ColumnDefinition Width="*" MinWidth="144" />
 			</Grid.ColumnDefinitions>
 
-			<Grid>
+			<Grid x:Name="RegistryTreePaneGrid">
 				<Grid.RowDefinitions>
 					<RowDefinition Height="*" />
 					<RowDefinition Height="Auto" />
@@ -118,17 +117,19 @@
 
 			</Grid>
 
-			<toolkit:GridSplitter Grid.Column="1" />
-
 			<Grid
-				Grid.Column="2"
-				Margin="-6,0,0,0"
+				Grid.Column="1"
 				Background="{ThemeResource LayerFillColorDefaultBrush}"
 				BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
 				BorderThickness="1,1,0,0"
 				CornerRadius="8,0,0,0">
+				<toolkit:PropertySizer
+					HorizontalAlignment="Left"
+					Binding="{x:Bind RegistryTreePaneGrid.ActualWidth, Mode=TwoWay}"
+					Maximum="440"
+					Minimum="144" />
 
-				<Frame x:Name="ContentFrame" />
+				<Frame x:Name="ContentFrame" Margin="6,0,0,0" />
 			</Grid>
 
 		</Grid>
