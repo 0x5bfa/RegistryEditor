@@ -10,21 +10,21 @@ using Windows.Graphics;
 
 namespace RegistryValley.App.Views.Properties
 {
-    public sealed partial class GeneralPage : Page
-    {
-        public GeneralPage()
-        {
-            InitializeComponent();
+	public sealed partial class GeneralPage : Page
+	{
+		public GeneralPage()
+		{
+			InitializeComponent();
 
-            var provider = App.Current.Services;
-            ViewModel = provider.GetRequiredService<GeneralViewModel>();
-        }
+			var provider = App.Current.Services;
+			ViewModel = provider.GetRequiredService<GeneralViewModel>();
+		}
 
-        public GeneralViewModel ViewModel { get; }
+		public GeneralViewModel ViewModel { get; }
 
-        protected override void OnNavigatedTo(NavigationEventArgs e)
-        {
-            ViewModel.KeyItem = e.Parameter as KeyItem;
-        }
-    }
+		protected override void OnNavigatedTo(NavigationEventArgs e)
+		{
+			ViewModel.KeyItem = e.Parameter as KeyItem;
+		}
+	}
 }

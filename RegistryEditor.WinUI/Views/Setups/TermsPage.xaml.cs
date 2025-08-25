@@ -11,28 +11,28 @@ using RegistryValley.App.Views.Setups;
 
 namespace RegistryValley.App.Views.Setups
 {
-    public sealed partial class TermsPage : Page
-    {
-        public string SourceCodeLicenseStatement = RegistryValley.App.Constants.Terms.SourceCodeLicense;
+	public sealed partial class TermsPage : Page
+	{
+		public string SourceCodeLicenseStatement = RegistryValley.App.Constants.Terms.SourceCodeLicense;
 
-        public TermsPage()
-        {
-            InitializeComponent();
-        }
+		public TermsPage()
+		{
+			InitializeComponent();
+		}
 
-        private void DisagreeButton_Click(object sender, RoutedEventArgs e)
-        {
-            Frame.Navigate(typeof(SetupPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
-        }
+		private void DisagreeButton_Click(object sender, RoutedEventArgs e)
+		{
+			Frame.Navigate(typeof(SetupPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
+		}
 
-        private void AgreeButton_Click(object sender, RoutedEventArgs e)
-        {
-            Frame.Navigate(typeof(ConfigurationsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight });
-        }
+		private void AgreeButton_Click(object sender, RoutedEventArgs e)
+		{
+			Frame.Navigate(typeof(ConfigurationsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight });
+		}
 
-        private void NavigateBackButton_Click(object sender, RoutedEventArgs e)
-        {
-            Frame.Navigate(typeof(SetupPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
-        }
-    }
+		private void NavigateBackButton_Click(object sender, RoutedEventArgs e)
+		{
+			Frame.Navigate(typeof(SetupPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
+		}
+	}
 }

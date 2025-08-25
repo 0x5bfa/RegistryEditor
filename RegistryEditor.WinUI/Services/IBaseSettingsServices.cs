@@ -2,7 +2,7 @@
 
 namespace RegistryValley.App.Services
 {
-    internal interface IBaseSettingsServices
-    {
-    }
+	internal interface IBaseSettingsServices
+	{
+	}
 }

@@ -2,10 +2,10 @@
 
 namespace RegistryValley.App.ViewModels.Properties
 {
-    public class MainPropertyViewModel : ObservableObject
-    {
-        public MainPropertyViewModel()
-        {
-        }
-    }
+	public class MainPropertyViewModel : ObservableObject
+	{
+		public MainPropertyViewModel()
+		{
+		}
+	}
 }

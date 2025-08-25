@@ -11,31 +11,31 @@ using RegistryValley.App.Views.Setups;
 
 namespace RegistryValley.App.Views.Setups
 {
-    public sealed partial class ConfigurationsPage : Page
-    {
-        public string SourceCodeLicenseStatement = Constants.Terms.SourceCodeLicense;
+	public sealed partial class ConfigurationsPage : Page
+	{
+		public string SourceCodeLicenseStatement = Constants.Terms.SourceCodeLicense;
 
-        public ConfigurationsPage()
-        {
-            InitializeComponent();
-        }
+		public ConfigurationsPage()
+		{
+			InitializeComponent();
+		}
 
-        private void BackOnBottomButton_Click(object sender, RoutedEventArgs e)
-        {
-            Frame.Navigate(typeof(TermsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
-        }
+		private void BackOnBottomButton_Click(object sender, RoutedEventArgs e)
+		{
+			Frame.Navigate(typeof(TermsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
+		}
 
-        private void FinishButton_Click(object sender, RoutedEventArgs e)
-        {
-            UserSettingsServices userSettingsServices = App.Current.Services.GetRequiredService<UserSettingsServices>();
-            userSettingsServices.SetupCompleted = true;
+		private void FinishButton_Click(object sender, RoutedEventArgs e)
+		{
+			UserSettingsServices userSettingsServices = App.Current.Services.GetRequiredService<UserSettingsServices>();
+			userSettingsServices.SetupCompleted = true;
 
-            Frame.Navigate(typeof(MainPage));
-        }
+			Frame.Navigate(typeof(MainPage));
+		}
 
-        private void NavigateBackButton_Click(object sender, RoutedEventArgs e)
-        {
-            Frame.Navigate(typeof(TermsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
-        }
-    }
+		private void NavigateBackButton_Click(object sender, RoutedEventArgs e)
+		{
+			Frame.Navigate(typeof(TermsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromLeft });
+		}
+	}
 }

@@ -7,21 +7,21 @@ using RegistryValley.App.ViewModels;
 
 namespace RegistryValley.App.Views
 {
-    public sealed partial class SettingsPage : Page
-    {
-        public SettingsPage()
-        {
-            InitializeComponent();
+	public sealed partial class SettingsPage : Page
+	{
+		public SettingsPage()
+		{
+			InitializeComponent();
 
-            var provider = App.Current.Services;
-            ViewModel = provider.GetRequiredService<SettingsViewModel>();
-        }
+			var provider = App.Current.Services;
+			ViewModel = provider.GetRequiredService<SettingsViewModel>();
+		}
 
-        public SettingsViewModel ViewModel { get; }
+		public SettingsViewModel ViewModel { get; }
 
-        private void ResetAppButton_Click(object sender, RoutedEventArgs e)
-        {
-            App.Window.NavigateFrameTo(typeof(SetupPage));
-        }
-    }
+		private void ResetAppButton_Click(object sender, RoutedEventArgs e)
+		{
+			App.Window.NavigateFrameTo(typeof(SetupPage));
+		}
+	}
 }

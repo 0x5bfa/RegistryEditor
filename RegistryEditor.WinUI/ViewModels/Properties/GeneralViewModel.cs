@@ -5,15 +5,15 @@ using System.Security.AccessControl;
 
 namespace RegistryValley.App.ViewModels.Properties
 {
-    public class GeneralViewModel : ObservableObject
-    {
-        public GeneralViewModel()
-        {
-        }
+	public class GeneralViewModel : ObservableObject
+	{
+		public GeneralViewModel()
+		{
+		}
 
-        #region Fields and Properties
-        private KeyItem _keyItem;
-        public KeyItem KeyItem { get => _keyItem; set => SetProperty(ref _keyItem, value); }
-        #endregion
-    }
+		#region Fields and Properties
+		private KeyItem _keyItem;
+		public KeyItem KeyItem { get => _keyItem; set => SetProperty(ref _keyItem, value); }
+		#endregion
+	}
 }

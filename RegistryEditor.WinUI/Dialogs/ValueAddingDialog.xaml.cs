@@ -15,11 +15,11 @@ using Windows.Foundation.Collections;
 
 namespace RegistryValley.App.Dialogs
 {
-    public sealed partial class ValueAddingDialog : ContentDialog
-    {
-        public ValueAddingDialog()
-        {
-            this.InitializeComponent();
-        }
-    }
+	public sealed partial class ValueAddingDialog : ContentDialog
+	{
+		public ValueAddingDialog()
+		{
+			this.InitializeComponent();
+		}
+	}
 }

@@ -5,57 +5,57 @@ using System.Security.Principal;
 
 namespace RegistryValley.App
 {
-    public class Program
-    {
-        [STAThread]
-        private static async Task<int> Main()
-        {
-            WinRT.ComWrappersSupport.InitializeComWrappers();
+	public class Program
+	{
+		[STAThread]
+		private static async Task<int> Main()
+		{
+			WinRT.ComWrappersSupport.InitializeComWrappers();
 
-            bool isRedirect = await DecideRedirection();
-            if (!isRedirect)
-            {
-                Application.Start((p) =>
-                {
-                    var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
-                    SynchronizationContext.SetSynchronizationContext(context);
+			bool isRedirect = await DecideRedirection();
+			if (!isRedirect)
+			{
+				Application.Start((p) =>
+				{
+					var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+					SynchronizationContext.SetSynchronizationContext(context);
 
-                    _ = new App();
-                });
-            }
+					_ = new App();
+				});
+			}
 
-            return 0;
-        }
+			return 0;
+		}
 
-        private static bool IsAdministrator()
-        {
-            using var identity = WindowsIdentity.GetCurrent();
-            var principal = new WindowsPrincipal(identity);
-            return principal.IsInRole(WindowsBuiltInRole.Administrator);
-        }
+		private static bool IsAdministrator()
+		{
+			using var identity = WindowsIdentity.GetCurrent();
+			var principal = new WindowsPrincipal(identity);
+			return principal.IsInRole(WindowsBuiltInRole.Administrator);
+		}
 
-        private static void OnActivated(object? sender, AppActivationArguments args)
-        {
-        }
+		private static void OnActivated(object? sender, AppActivationArguments args)
+		{
+		}
 
-        private static async Task<bool> DecideRedirection()
-        {
-            bool isRedirect = false;
-            AppActivationArguments args = AppInstance.GetCurrent().GetActivatedEventArgs();
-            ExtendedActivationKind kind = args.Kind;
-            AppInstance keyInstance = AppInstance.FindOrRegisterForKey("RegistryValley");
+		private static async Task<bool> DecideRedirection()
+		{
+			bool isRedirect = false;
+			AppActivationArguments args = AppInstance.GetCurrent().GetActivatedEventArgs();
+			ExtendedActivationKind kind = args.Kind;
+			AppInstance keyInstance = AppInstance.FindOrRegisterForKey("RegistryValley");
 
-            if (keyInstance.IsCurrent)
-            {
-                keyInstance.Activated += OnActivated;
-            }
-            else
-            {
-                isRedirect = true;
-                await keyInstance.RedirectActivationToAsync(args);
-            }
+			if (keyInstance.IsCurrent)
+			{
+				keyInstance.Activated += OnActivated;
+			}
+			else
+			{
+				isRedirect = true;
+				await keyInstance.RedirectActivationToAsync(args);
+			}
 
-            return isRedirect;
-        }
-    }
+			return isRedirect;
+		}
+	}
 }

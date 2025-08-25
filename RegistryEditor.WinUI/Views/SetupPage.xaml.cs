@@ -12,16 +12,16 @@ using WinRT.Interop;
 
 namespace RegistryValley.App.Views
 {
-    public sealed partial class SetupPage : Page
-    {
-        public SetupPage()
-        {
-            InitializeComponent();
-        }
+	public sealed partial class SetupPage : Page
+	{
+		public SetupPage()
+		{
+			InitializeComponent();
+		}
 
-        private void SetupButton_Click(object sender, RoutedEventArgs e)
-        {
-            Frame.Navigate(typeof(TermsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight });
-        }
-    }
+		private void SetupButton_Click(object sender, RoutedEventArgs e)
+		{
+			Frame.Navigate(typeof(TermsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight });
+		}
+	}
 }

@@ -9,229 +9,229 @@ using RegistryValley.App.ViewModels.UserControls;
 
 namespace RegistryValley.App.UserControls
 {
-    public sealed partial class TreeView : UserControl
-    {
-        public TreeView()
-        {
-            InitializeComponent();
+	public sealed partial class TreeView : UserControl
+	{
+		public TreeView()
+		{
+			InitializeComponent();
 
-            var provider = App.Current.Services;
-            ViewModel = provider.GetRequiredService<TreeViewViewModel>();
-            ValuesViewerViewModel = provider.GetRequiredService<ValuesViewerViewModel>();
-            UserSettingsServices = App.Current.Services.GetRequiredService<UserSettingsServices>();
-        }
+			var provider = App.Current.Services;
+			ViewModel = provider.GetRequiredService<TreeViewViewModel>();
+			ValuesViewerViewModel = provider.GetRequiredService<ValuesViewerViewModel>();
+			UserSettingsServices = App.Current.Services.GetRequiredService<UserSettingsServices>();
+		}
 
-        #region Fields and Properties
-        public TreeViewViewModel ViewModel { get; }
-        public ValuesViewerViewModel ValuesViewerViewModel { get; }
-        private UserSettingsServices UserSettingsServices { get; }
+		#region Fields and Properties
+		public TreeViewViewModel ViewModel { get; }
+		public ValuesViewerViewModel ValuesViewerViewModel { get; }
+		private UserSettingsServices UserSettingsServices { get; }
 
-        public event SelectionChangedEventHandler BaseSelectionChanged;
-        public event RoutedEventHandler KeyDeleting;
-        public event RoutedEventHandler KeyExporting;
-        public event RoutedEventHandler KeyRenaming;
-        public event RoutedEventHandler KeyPropertyWindowOpening;
-        #endregion
+		public event SelectionChangedEventHandler BaseSelectionChanged;
+		public event RoutedEventHandler KeyDeleting;
+		public event RoutedEventHandler KeyExporting;
+		public event RoutedEventHandler KeyRenaming;
+		public event RoutedEventHandler KeyPropertyWindowOpening;
+		#endregion
 
-        #region TreeView event methods
-        private void CustomMainTreeView_SelectionChanged(object sender, SelectionChangedEventArgs e)
-            => BaseSelectionChanged?.Invoke(sender, e);
+		#region TreeView event methods
+		private void CustomMainTreeView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+			=> BaseSelectionChanged?.Invoke(sender, e);
 
-        private void ExpandCollapseButton_Click(object sender, RoutedEventArgs e)
-        {
-            var item = (KeyItem)((Button)sender).DataContext;
+		private void ExpandCollapseButton_Click(object sender, RoutedEventArgs e)
+		{
+			var item = (KeyItem)((Button)sender).DataContext;
 
-            if (!item.IsExpanded)
-                ViewModel.ExpandChildren(item);
-            else
-                ViewModel.CollapseChildren(item);
-        }
-        #endregion
+			if (!item.IsExpanded)
+				ViewModel.ExpandChildren(item);
+			else
+				ViewModel.CollapseChildren(item);
+		}
+		#endregion
 
-        #region MenuFlyout event methods
-        private void KeyTreeViewItemMenuFlyout_Opening(object sender, object e)
-        {
-            var flyout = (MenuFlyout)sender;
-            var target = (Grid)flyout.Target;
-            var item = (KeyItem)target.DataContext;
+		#region MenuFlyout event methods
+		private void KeyTreeViewItemMenuFlyout_Opening(object sender, object e)
+		{
+			var flyout = (MenuFlyout)sender;
+			var target = (Grid)flyout.Target;
+			var item = (KeyItem)target.DataContext;
 
-            if (item.SelectedRootComputer && flyout.Items.Count > 5)
-            {
-                // TODO: More reliable way
-                flyout.Items.RemoveAt(1);
-                flyout.Items.RemoveAt(1);
-                flyout.Items.RemoveAt(1);
-                flyout.Items.RemoveAt(1);
-                flyout.Items.RemoveAt(1);
-                flyout.Items.RemoveAt(3);
-                flyout.Items.RemoveAt(3);
-                flyout.Items.RemoveAt(3);
-                return;
-            }
-        }
+			if (item.SelectedRootComputer && flyout.Items.Count > 5)
+			{
+				// TODO: More reliable way
+				flyout.Items.RemoveAt(1);
+				flyout.Items.RemoveAt(1);
+				flyout.Items.RemoveAt(1);
+				flyout.Items.RemoveAt(1);
+				flyout.Items.RemoveAt(1);
+				flyout.Items.RemoveAt(3);
+				flyout.Items.RemoveAt(3);
+				flyout.Items.RemoveAt(3);
+				return;
+			}
+		}
 
-        private void KeyTreeViewItemMenuFlyout_Opened(object sender, object e)
-        {
-            var flyout = (MenuFlyout)sender;
-            var target = (Grid)flyout.Target;
-            var item = (KeyItem)target.DataContext;
+		private void KeyTreeViewItemMenuFlyout_Opened(object sender, object e)
+		{
+			var flyout = (MenuFlyout)sender;
+			var target = (Grid)flyout.Target;
+			var item = (KeyItem)target.DataContext;
 
-            SelectItem(item);
-        }
+			SelectItem(item);
+		}
 
-        private void KeyTreeViewItemMenuFlyoutExpand_Click(object sender, RoutedEventArgs e)
-        {
-            var item = (KeyItem)((MenuFlyoutItem)sender).DataContext;
-            ViewModel.ExpandChildren(item);
-        }
+		private void KeyTreeViewItemMenuFlyoutExpand_Click(object sender, RoutedEventArgs e)
+		{
+			var item = (KeyItem)((MenuFlyoutItem)sender).DataContext;
+			ViewModel.ExpandChildren(item);
+		}
 
-        private void KeyTreeViewItemMenuFlyoutCollapse_Click(object sender, RoutedEventArgs e)
-        {
-            var item = (KeyItem)((MenuFlyoutItem)sender).DataContext;
-            ViewModel.CollapseChildren(item);
-        }
+		private void KeyTreeViewItemMenuFlyoutCollapse_Click(object sender, RoutedEventArgs e)
+		{
+			var item = (KeyItem)((MenuFlyoutItem)sender).DataContext;
+			ViewModel.CollapseChildren(item);
+		}
 
-        private void KeyTreeViewItemMenuFlyoutNew_Click(object sender, RoutedEventArgs e)
-        {
-            var item = (KeyItem)CustomMainTreeView.SelectedItem;
-            var itemIndex = CustomMainTreeView.SelectedIndex + 1;
+		private void KeyTreeViewItemMenuFlyoutNew_Click(object sender, RoutedEventArgs e)
+		{
+			var item = (KeyItem)CustomMainTreeView.SelectedItem;
+			var itemIndex = CustomMainTreeView.SelectedIndex + 1;
 
-            if (!item.IsExpanded && item.HasChildren)
-                ViewModel.ExpandChildren(item);
+			if (!item.IsExpanded && item.HasChildren)
+				ViewModel.ExpandChildren(item);
 
-            item.HasChildren = true;
-             
-            // TODO: Should check if this name is already exist.
-            string keyName = "New Key #1";
+			item.HasChildren = true;
 
-            var defaultNewKeyItem = new KeyItem()
-            {
-                Name = keyName,
-                RootHive = item.RootHive,
-                BasePath = item.Path,
-                IsDeletable = true,
-                IsRenamable = true,
-                IsRenaming = true,
-                HasChildren = false,
-                Image = "ms-appx:///Assets/Images/Folder.png",
-                Depth = item.Depth + 1,
-                Parent = item,
-            };
+			// TODO: Should check if this name is already exist.
+			string keyName = "New Key #1";
 
-            ViewModel.CreatingNewKey = true;
-            ViewModel.FlatKeyItems.Insert(itemIndex, defaultNewKeyItem);
-            CustomMainTreeView.SelectedIndex++;
-        }
+			var defaultNewKeyItem = new KeyItem()
+			{
+				Name = keyName,
+				RootHive = item.RootHive,
+				BasePath = item.Path,
+				IsDeletable = true,
+				IsRenamable = true,
+				IsRenaming = true,
+				HasChildren = false,
+				Image = "ms-appx:///Assets/Images/Folder.png",
+				Depth = item.Depth + 1,
+				Parent = item,
+			};
 
-        private void KeyTreeViewItemMenuFlyoutDelete_Click(object sender, RoutedEventArgs e)
-            => KeyDeleting?.Invoke(sender, e);
+			ViewModel.CreatingNewKey = true;
+			ViewModel.FlatKeyItems.Insert(itemIndex, defaultNewKeyItem);
+			CustomMainTreeView.SelectedIndex++;
+		}
 
-        private void KeyTreeViewItemMenuFlyoutRename_Click(object sender, RoutedEventArgs e)
-            =>((KeyItem)CustomMainTreeView.SelectedItem).IsRenaming = true;
+		private void KeyTreeViewItemMenuFlyoutDelete_Click(object sender, RoutedEventArgs e)
+			=> KeyDeleting?.Invoke(sender, e);
 
-        private void KeyTreeViewItemMenuFlyoutExport_Click(object sender, RoutedEventArgs e)
-            => KeyExporting?.Invoke(sender, e);
+		private void KeyTreeViewItemMenuFlyoutRename_Click(object sender, RoutedEventArgs e)
+			=> ((KeyItem)CustomMainTreeView.SelectedItem).IsRenaming = true;
 
-        private void KeyTreeViewItemMenuFlyoutPermissions_Click(object sender, RoutedEventArgs e)
-            => KeyPropertyWindowOpening?.Invoke(sender, e);
+		private void KeyTreeViewItemMenuFlyoutExport_Click(object sender, RoutedEventArgs e)
+			=> KeyExporting?.Invoke(sender, e);
 
-        private void KeyTreeViewItemMenuFlyoutCopyKeyName_Click(object sender, RoutedEventArgs e)
-        {
-            var item = (KeyItem)((MenuFlyoutItem)sender).DataContext;
-            ClipBoardHelpers.SetContent(item.PathForPwsh);
-        }
-        #endregion
+		private void KeyTreeViewItemMenuFlyoutPermissions_Click(object sender, RoutedEventArgs e)
+			=> KeyPropertyWindowOpening?.Invoke(sender, e);
 
-        #region TextBox event for renaming
-        private void KeyItemNameRenamingTextBox_Loaded(object sender, RoutedEventArgs e)
-        {
-            var textBox = (TextBox)sender;
-            textBox.Focus(FocusState.Programmatic);
-            textBox.SelectAll();
-        }
+		private void KeyTreeViewItemMenuFlyoutCopyKeyName_Click(object sender, RoutedEventArgs e)
+		{
+			var item = (KeyItem)((MenuFlyoutItem)sender).DataContext;
+			ClipBoardHelpers.SetContent(item.PathForPwsh);
+		}
+		#endregion
 
-        private void KeyItemNameRenamingTextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            var textBox = (TextBox)sender;
-            var item = (KeyItem)CustomMainTreeView.SelectedItem;
+		#region TextBox event for renaming
+		private void KeyItemNameRenamingTextBox_Loaded(object sender, RoutedEventArgs e)
+		{
+			var textBox = (TextBox)sender;
+			textBox.Focus(FocusState.Programmatic);
+			textBox.SelectAll();
+		}
 
-            if (item.Name != textBox.Text || ViewModel.CreatingNewKey)
-            {
-                ViewModel.CreatingNewKey = false;
-                ViewModel.LastRenamedNewName = textBox.Text;
+		private void KeyItemNameRenamingTextBox_LostFocus(object sender, RoutedEventArgs e)
+		{
+			var textBox = (TextBox)sender;
+			var item = (KeyItem)CustomMainTreeView.SelectedItem;
 
-                KeyRenaming?.Invoke(textBox.Text, e);
-            }
+			if (item.Name != textBox.Text || ViewModel.CreatingNewKey)
+			{
+				ViewModel.CreatingNewKey = false;
+				ViewModel.LastRenamedNewName = textBox.Text;
 
-            item.IsRenaming = false;
-        }
+				KeyRenaming?.Invoke(textBox.Text, e);
+			}
 
-        private void KeyItemNameRenamingTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-        {
-            if (e.Key == Windows.System.VirtualKey.Enter)
-            {
-                var textBox = (TextBox)sender;
-                var item = (KeyItem)CustomMainTreeView.SelectedItem;
+			item.IsRenaming = false;
+		}
 
-                if (item.Name != textBox.Text)
-                {
-                    ViewModel.CreatingNewKey = false;
-                    ViewModel.LastRenamedNewName = textBox.Text;
+		private void KeyItemNameRenamingTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+		{
+			if (e.Key == Windows.System.VirtualKey.Enter)
+			{
+				var textBox = (TextBox)sender;
+				var item = (KeyItem)CustomMainTreeView.SelectedItem;
 
-                    KeyRenaming?.Invoke(sender, e);
-                }
+				if (item.Name != textBox.Text)
+				{
+					ViewModel.CreatingNewKey = false;
+					ViewModel.LastRenamedNewName = textBox.Text;
 
-                item.IsRenaming = false;
-            }
-        }
-        #endregion
+					KeyRenaming?.Invoke(sender, e);
+				}
 
-        #region Public methods for MainPage
-        public void UnselectItem()
-        {
-            CustomMainTreeView.SelectedIndex = -1;
-        }
+				item.IsRenaming = false;
+			}
+		}
+		#endregion
 
-        public void SelectItem(KeyItem item)
-        {
-            int index = ((ObservableCollection<KeyItem>)CustomMainTreeView.ItemsSource).IndexOf(item);
-            CustomMainTreeView.SelectedIndex = index;
-        }
+		#region Public methods for MainPage
+		public void UnselectItem()
+		{
+			CustomMainTreeView.SelectedIndex = -1;
+		}
 
-        public KeyItem GetSelectedItem()
-        {
-            return (KeyItem)CustomMainTreeView.SelectedItem;
-        }
+		public void SelectItem(KeyItem item)
+		{
+			int index = ((ObservableCollection<KeyItem>)CustomMainTreeView.ItemsSource).IndexOf(item);
+			CustomMainTreeView.SelectedIndex = index;
+		}
 
-        public void RemoveItem(KeyItem item)
-        {
-            ViewModel.FlatKeyItems.Remove(item);
-        }
+		public KeyItem GetSelectedItem()
+		{
+			return (KeyItem)CustomMainTreeView.SelectedItem;
+		}
 
-        public void RemoveItemRecursively(KeyItem item)
-        {
-            int startIndex = ViewModel.FlatKeyItems.IndexOf(item);
-            int depth = item.Depth;
+		public void RemoveItem(KeyItem item)
+		{
+			ViewModel.FlatKeyItems.Remove(item);
+		}
 
-            var list = ViewModel.FlatKeyItems.Where(x => x.Depth > depth && ViewModel.FlatKeyItems.IndexOf(x) > startIndex).ToList();
+		public void RemoveItemRecursively(KeyItem item)
+		{
+			int startIndex = ViewModel.FlatKeyItems.IndexOf(item);
+			int depth = item.Depth;
 
-            if (list.Count != 0)
-            {
-                var lastRemovedItemIndex = ViewModel.FlatKeyItems.IndexOf(list.First());
+			var list = ViewModel.FlatKeyItems.Where(x => x.Depth > depth && ViewModel.FlatKeyItems.IndexOf(x) > startIndex).ToList();
 
-                // Remove children recursively
-                foreach (var listItem in list)
-                {
-                    if (lastRemovedItemIndex == ViewModel.FlatKeyItems.IndexOf(listItem))
-                        ViewModel.FlatKeyItems.Remove(listItem);
-                    else
-                        break;
-                }
-            }
+			if (list.Count != 0)
+			{
+				var lastRemovedItemIndex = ViewModel.FlatKeyItems.IndexOf(list.First());
 
-            // Remove itself
-            RemoveItem(item);
-        }
-        #endregion
-    }
+				// Remove children recursively
+				foreach (var listItem in list)
+				{
+					if (lastRemovedItemIndex == ViewModel.FlatKeyItems.IndexOf(listItem))
+						ViewModel.FlatKeyItems.Remove(listItem);
+					else
+						break;
+				}
+			}
+
+			// Remove itself
+			RemoveItem(item);
+		}
+		#endregion
+	}
 }
