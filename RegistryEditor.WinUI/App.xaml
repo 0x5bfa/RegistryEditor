@@ -26,20 +26,8 @@
 
 			<ResourceDictionary.MergedDictionaries>
 				<XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-				<ResourceDictionary>
-					<ResourceDictionary.ThemeDictionaries>
-						<ResourceDictionary x:Key="Light">
-							<SolidColorBrush x:Key="AppThemeBackgroundBrush" Color="Transparent" />
-						</ResourceDictionary>
-						<ResourceDictionary x:Key="Dark">
-							<SolidColorBrush x:Key="AppThemeBackgroundBrush" Color="Transparent" />
-						</ResourceDictionary>
-						<ResourceDictionary x:Key="HighContrast">
-							<SolidColorBrush x:Key="AppThemeBackgroundBrush" Color="Transparent" />
-						</ResourceDictionary>
-					</ResourceDictionary.ThemeDictionaries>
-				</ResourceDictionary>
 			</ResourceDictionary.MergedDictionaries>
 		</ResourceDictionary>
 	</Application.Resources>
+
 </Application>

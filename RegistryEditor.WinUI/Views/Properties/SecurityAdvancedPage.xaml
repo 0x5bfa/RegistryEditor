@@ -17,26 +17,6 @@
 		<ResourceDictionary>
 			<converters:ObjectToBoolConverter x:Key="ObjectToBoolConverter" />
 			<converters:StringToSurroundedStringConverter x:Key="StringToSurroundedStringConverter" />
-
-			<ResourceDictionary.MergedDictionaries>
-
-				<ResourceDictionary Source="ms-appx:///ResourceDictionaries/DefaultGridSplitterStyle.xaml" />
-
-				<ResourceDictionary>
-					<Style
-						x:Name="HeaderGridSplitterStyle"
-						BasedOn="{StaticResource DefaultGridSplitterStyle}"
-						TargetType="toolkit:GridSplitter">
-						<Setter Property="Background" Value="Transparent" />
-						<Setter Property="Width" Value="12" />
-						<Setter Property="Margin" Value="0,4,0,4" />
-						<Setter Property="Opacity" Value="0.8" />
-						<Setter Property="Canvas.ZIndex" Value="1" />
-					</Style>
-				</ResourceDictionary>
-
-			</ResourceDictionary.MergedDictionaries>
-
 		</ResourceDictionary>
 	</Page.Resources>
 
@@ -189,8 +169,7 @@
 									TextWrapping="NoWrap" />
 								<toolkit:GridSplitter
 									Grid.Column="2"
-									Margin="0,0,0,-4"
-									Style="{StaticResource HeaderGridSplitterStyle}" />
+									Margin="0,0,0,-4" />
 								<TextBlock
 									Grid.Column="3"
 									HorizontalAlignment="Left"
@@ -202,8 +181,7 @@
 									TextWrapping="NoWrap" />
 								<toolkit:GridSplitter
 									Grid.Column="4"
-									Margin="0,0,0,-4"
-									Style="{StaticResource HeaderGridSplitterStyle}" />
+									Margin="0,0,0,-4" />
 								<TextBlock
 									Grid.Column="5"
 									HorizontalAlignment="Left"
@@ -215,8 +193,7 @@
 									TextWrapping="NoWrap" />
 								<toolkit:GridSplitter
 									Grid.Column="6"
-									Margin="0,0,0,-4"
-									Style="{StaticResource HeaderGridSplitterStyle}" />
+									Margin="0,0,0,-4" />
 								<TextBlock
 									Grid.Column="7"
 									HorizontalAlignment="Left"
@@ -228,8 +205,7 @@
 									TextWrapping="NoWrap" />
 								<toolkit:GridSplitter
 									Grid.Column="8"
-									Margin="0,0,0,-4"
-									Style="{StaticResource HeaderGridSplitterStyle}" />
+									Margin="0,0,0,-4" />
 								<TextBlock
 									x:Name="AppliesToLabel"
 									Grid.Column="9"

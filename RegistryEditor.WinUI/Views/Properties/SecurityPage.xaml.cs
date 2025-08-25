@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using RegistryEditor.WinUI.Models;
@@ -41,14 +43,14 @@ namespace RegistryEditor.WinUI.Views.Properties
 				frame.Navigate(typeof(SecurityAdvancedPage), ViewModel.KeyItem, new SuppressNavigationTransitionInfo());
 
 				// Initialize window
-				var propertiesWindow = new WinUIEx.WindowEx()
+				var propertiesWindow = new Window()
 				{
-					IsMinimizable = false,
-					IsMaximizable = false,
+					//IsMinimizable = false,
+					//IsMaximizable = false,
+					//MinWidth = 850,
+					//MinHeight = 550,
 					Content = frame,
-					MinWidth = 850,
-					MinHeight = 550,
-					Backdrop = new WinUIEx.MicaSystemBackdrop(),
+					SystemBackdrop = new MicaBackdrop(),
 				};
 
 				var appWindow = propertiesWindow.AppWindow;

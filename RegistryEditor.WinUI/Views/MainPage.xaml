@@ -10,16 +10,11 @@
 	xmlns:models="using:RegistryEditor.WinUI.Models"
 	xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
 	xmlns:uc="using:RegistryEditor.WinUI.UserControls"
-	Background="{ThemeResource AppThemeBackgroundBrush}"
 	DataContext="{x:Bind ViewModel, Mode=OneWay}"
 	mc:Ignorable="d">
 
 	<Page.Resources>
 		<ResourceDictionary>
-
-			<ResourceDictionary.MergedDictionaries>
-				<ResourceDictionary Source="ms-appx:///ResourceDictionaries/DefaultGridSplitterStyle.xaml" />
-			</ResourceDictionary.MergedDictionaries>
 
 			<converters:ObjectToBoolConverter x:Key="ObjectToBoolConverter" />
 			<converters:BoolToGlyphConverter
@@ -28,17 +23,6 @@
 				ExpandedGlyph="&#xE70D;" />
 
 			<Thickness x:Key="TreeViewItemPresenterPadding">0,0,0,0</Thickness>
-
-			<Style
-				x:Name="HeaderGridSplitterStyle"
-				BasedOn="{StaticResource DefaultGridSplitterStyle}"
-				TargetType="toolkit:GridSplitter">
-				<Setter Property="Background" Value="Transparent" />
-				<Setter Property="Width" Value="12" />
-				<Setter Property="Margin" Value="0,4,0,4" />
-				<Setter Property="Opacity" Value="0.8" />
-				<Setter Property="Canvas.ZIndex" Value="1" />
-			</Style>
 
 		</ResourceDictionary>
 	</Page.Resources>
@@ -56,7 +40,6 @@
 				<ColumnDefinition Width="Auto" MinWidth="144" />
 				<ColumnDefinition Width="6" />
 				<ColumnDefinition Width="*" MinWidth="144" />
-				<ColumnDefinition Width="Auto" />
 			</Grid.ColumnDefinitions>
 
 			<Grid>
@@ -135,11 +118,7 @@
 
 			</Grid>
 
-			<toolkit:GridSplitter
-				Grid.Column="1"
-				Width="6"
-				Canvas.ZIndex="30"
-				Style="{StaticResource InvisibleGridSplitterStyle}" />
+			<toolkit:GridSplitter Grid.Column="1" />
 
 			<Grid
 				Grid.Column="2"

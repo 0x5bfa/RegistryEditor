@@ -1,6 +1,8 @@
 ﻿using Microsoft.UI;
 using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using RegistryEditor.WinUI.Models;
 using RegistryEditor.WinUI.Views.Properties;
@@ -20,15 +22,15 @@ namespace RegistryEditor.WinUI.Helpers
 
 			frame.Navigate(typeof(MainPropertyPage), item, new SuppressNavigationTransitionInfo());
 
-			var propertiesWindow = new WinUIEx.WindowEx
+			var propertiesWindow = new Window
 			{
 				//IsAlwaysOnTop = true,
-				IsMinimizable = false,
-				IsMaximizable = false,
-				MinWidth = 460,
-				MinHeight = 550,
+				//IsMinimizable = false,
+				//IsMaximizable = false,
+				//MinWidth = 460,
+				//MinHeight = 550,
 				Content = frame,
-				Backdrop = new WinUIEx.MicaSystemBackdrop(),
+				SystemBackdrop = new MicaBackdrop(),
 			};
 
 			var appWindow = propertiesWindow.AppWindow;
