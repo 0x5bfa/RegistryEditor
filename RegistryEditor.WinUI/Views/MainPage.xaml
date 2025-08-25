@@ -125,7 +125,7 @@
 				CornerRadius="8,0,0,0">
 				<toolkit:PropertySizer
 					HorizontalAlignment="Left"
-					Binding="{x:Bind RegistryTreePaneGrid.ActualWidth, Mode=TwoWay}"
+					Binding="{x:Bind RegistryTreePaneGrid.Width, Mode=TwoWay}"
 					Maximum="440"
 					Minimum="144" />
 
