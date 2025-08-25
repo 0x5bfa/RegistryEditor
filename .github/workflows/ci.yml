@@ -1,72 +1,31 @@
 # Copyright (c) 2024 0x5BFA
-# Licensed under the MIT License. See the LICENSE.
+# Licensed under the MIT License.
 
-name: FluentRegEdit CI
+name: RegistryEditor CI
 
 on:
   push:
     branches:
       - main
     paths-ignore:
-      - 'assets/**'
       - 'builds/**'
       - 'docs/**'
       - '*.md'
   pull_request:
     paths-ignore:
-      - 'assets/**'
       - 'builds/**'
       - 'docs/**'
       - '*.md'
 
-run-name: ${{ github.event_name == 'pull_request' && 'FluentRegEdit PR Validation' || 'FluentRegEdit CI Validation' }}
+run-name: ${{ github.event_name == 'pull_request' && 'RegistryEditor PR Validation' || 'RegistryEditor CI Validation' }}
 
 env:
-  WORKING_DIR:                   '${{ github.workspace }}' # Default: 'D:\a\FluentRegEdit\FluentRegEdit'
-  SOLUTION_PATH:                 '${{ github.workspace }}\RegistryValley.sln'
-  PACKAGE_PROJECT_DIR:           '${{ github.workspace }}\src\RegistryValley.Package'
-  PACKAGE_PROJECT_PATH:          '${{ github.workspace }}\src\RegistryValley.Package\RegistryValley.Package.wapproj'
-  ARTIFACTS_STAGING_DIR:         '${{ github.workspace }}\artifacts'
-  APPX_PACKAGE_DIR:              '${{ github.workspace }}\artifacts\AppxPackages'
+  WORKING_DIR:         '${{ github.workspace }}' # 'D:\a\RegistryEditor\RegistryEditor'
+  SOLUTION_PATH:       '${{ github.workspace }}\RegistryEditor.slnx'
+  WAPPROJ_PATH:        '${{ github.workspace }}\RegistryEditor.WinUI.Packaging\RegistryEditor.WinUI.Packaging.wapproj'
+  APPX_PACKAGE_DIR:    '${{ github.workspace }}\RegistryEditor.WinUI.Packaging\AppPackages'
 
 jobs:
-
-  check-formatting:
-
-    if: github.repository_owner == '0x5bfa'
-
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: pwsh
-
-    steps:
-
-    - name: Checkout the repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 2
-    
-    - name: Install XamlStyler console
-      run: 'dotnet tool install --global XamlStyler.Console'
-
-    - name: Check XAML formatting
-      id: check-step
-      run: |
-        $changedFiles = (git diff --diff-filter=d --name-only HEAD~1) -split "\n" | Where-Object {$_ -like "*.xaml"}
-        foreach ($file in $changedFiles)
-        {
-          xstyler -p -l None -f $file
-          if ($LASTEXITCODE -ne 0)
-          {
-            echo "::error file=$file::Format check failed"
-          }
-        }
-      continue-on-error: true
-    
-    - name: Fail if necessary
-      if: steps.check-step.outcome == 'failure'
-      run: exit 1
 
   build:
 
@@ -77,10 +36,10 @@ jobs:
       fail-fast: false
       matrix:
         configuration: [Debug, Release]
-        platform: [x64, arm64]
+        platform: [x64, ARM64]
     env:
       CONFIGURATION: ${{ matrix.configuration }}
-      ARCHITECTURE: ${{ matrix.platform }}
+      PLATFORM: ${{ matrix.platform }}
 
     steps:
 
@@ -90,36 +49,21 @@ jobs:
       uses: microsoft/setup-msbuild@v2
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v2
-    - name: Setup .NET 8
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
 
-    - name: Restore NuGet
-      shell: pwsh
-      run: 'nuget restore $env:SOLUTION_PATH'
+    - name: Restore the solution
+      run: msbuild /restore $env:SOLUTION_PATH
 
-    - name: Restore FluentRegEdit
-      shell: pwsh
-      run: |
-        msbuild $env:SOLUTION_PATH `
-          -t:Restore `
-          -p:Platform=$env:ARCHITECTURE `
-          -p:Configuration=$env:CONFIGURATION `
-          -p:PublishReadyToRun=true
+    - name: Build the solution
+      run: msbuild $env:WAPPROJ_PATH `
+        /p:Configuration=$env:CONFIGURATION `
+        /p:Platform=$env:PLATFORM `
+        /p:UapAppxPackageBuildMode=StoreUpload
 
-    - name: Build FluentRegEdit
-      run: |
-        msbuild `
-          $env:PACKAGE_PROJECT_PATH `
-          -t:Build `
-          -clp:ErrorsOnly `
-          -p:Configuration=$env:CONFIGURATION `
-          -p:Platform=$env:ARCHITECTURE `
-          -p:AppxBundle=Never
-
-    - name: Upload the packages to the Artifacts
+    - if: env.CONFIGURATION == 'Release' && env.PLATFORM == 'x64'
+      name: Upload the packages to the Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: 'Appx Packages (${{ env.CONFIGURATION }}, ${{ env.ARCHITECTURE }})'
-        path: ${{ env.ARTIFACTS_STAGING_DIR }}
+        name: 'Appx Packages (${{ env.CONFIGURATION }},${{ env.PLATFORM }})'
+        path: ${{ env.APPX_PACKAGE_DIR }}

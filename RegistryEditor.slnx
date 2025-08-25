@@ -7,7 +7,7 @@
   </Configurations>
 
   <Folder Name="/global/">
-    <File Path="builds/ci.yml" />
+    <File Path=".github/workflows/ci.yml" />
     <File Path=".gitignore" />
     <File Path="LICENSE" />
     <File Path="README.md" />
