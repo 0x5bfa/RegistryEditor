@@ -32,7 +32,7 @@ namespace RegistryValley.App
 				//.AddSingleton<ToastService>()
 				.AddSingleton<IMessenger>(StrongReferenceMessenger.Default)
 				// ViewModels
-				.AddTransient<RegistryValley.App.Services.UserSettingsServices>()
+				.AddTransient<Services.UserSettingsServices>()
 				// ViewModels
 				.AddTransient<ViewModels.Dialogs.ValueAddingDialogViewModel>()
 				.AddTransient<ViewModels.Dialogs.ValueEditingDialogViewModel>()

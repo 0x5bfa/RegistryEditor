@@ -5,12 +5,6 @@
   Fluent Registry Editor
 </h1>
 
-<p align="center">
-  <a title="Platform" target="_blank">
-    <img src="https://img.shields.io/badge/Platform-Windows-red" alt="Platform" />
-  </a>
-</p>
-
 Registry Valley is the next generation Registry editor that replace Regedit.exe. In addition to all Regiedit's features, it supports dark theme, powerful WinUI with fluent controls, and custom color themes.
 
 We will be happy if you'd like to contribute this project. Also, we welcome complaints about the legacy app Regedit.exe and suggestions for newf features. Please file an issue in GitHub Issues page if you have encountered any unexpected behaviors.
@@ -27,36 +21,25 @@ _Not yet_
 
 ### Building from source
 
-### 1. Prerequisites
+**Prerequisites**
 
-Ensure you have installed the following tools:
-
-- Windows 10 2004 (10.0.19041.0) or later with Developer Mode on in the Windows Settings
+- Windows 10 1809 (10.0.17763.0) onwards with Developer Mode enabled in the Windows Settings
 - [Git](https://git-scm.com/)
 - [Visual Studio 2022](https://visualstudio.microsoft.com/vs/) with following individual components:
-  - Windows 11 (10.0.22000.0) SDK
+  - Windows 11 (10.0.26100.0) SDK
   - Windows App SDK
-  - .NET 6 SDK
-- Cloned project files with `git clone https://github.com/onein528/RegistryValley`
+  - .NET 9 SDK
 
-### 2. Build the project
+### 2. Clone and build the project
 
-- Open `RegistryValley.sln`.
-- Hit 'Set as Startup item' on `RegistryValley.Package` in the Solution Explorer.
-- Build with `DEBUG`, `x64`, `RegistryValley.Package`.
+- Clone the repo: `git clone https://github.com/0x5bfa/RegistryEditor`
+- Open `RegistryEditor.slnx`.
+- 'Set as Startup item' on `RegistryEditor.WinUI.Packaging` in the Solution Explorer.
+- Build with `Debug`, `x64`, `RegistryEditor.WinUI.Packaging`.
 
 ## Screenshots
 
 ![image](https://user-images.githubusercontent.com/62196528/212941487-0da3d39d-5b55-4b3d-994b-9055d372aa76.png)
-
-## Contributing
-
-There are multiple ways to participate in the community:
-
-- [Submit bugs and feature requests](https://github.com/onein528/RegistryValley/issues/new/choose).
-- Make pull requests for anything from typos to additional and new idea
-- [Request a new feature](https://github.com/onein528/RegistryValley/pulls)
-- [File an issue](https://github.com/onein528/RegistryValley/issues/new/choose)
 
 ## Credit
 
