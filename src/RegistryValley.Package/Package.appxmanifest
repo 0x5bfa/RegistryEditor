@@ -1,49 +1,48 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-
 <Package
-  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+	xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+	xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+	xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+	IgnorableNamespaces="uap rescap">
 
-  <Identity
-    Name="RegistryValley"
-    Publisher="CN=0x5BFA"
-    Version="1.0.0.0" />
+	<Identity
+		Name="49462fluenthub-uwp.RegistryEditor"
+		Publisher="CN=4E3C0825-4D00-4ECC-89F8-528E9200B125"
+		Version="1.0.0.0" />
 
-  <Properties>
-    <DisplayName>RegistryValley</DisplayName>
-    <PublisherDisplayName>0x5BFA</PublisherDisplayName>
-    <Logo>Assets\AppTiles\StoreLogo.png</Logo>
-  </Properties>
+	<Properties>
+		<DisplayName>Registry Editor</DisplayName>
+		<PublisherDisplayName>Tomoyuki T.</PublisherDisplayName>
+		<Logo>Assets\AppTiles\StoreLogo.png</Logo>
+	</Properties>
 
-  <Dependencies>
-    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
-  </Dependencies>
+	<Dependencies>
+		<TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+	</Dependencies>
 
-  <Resources>
-    <Resource Language="x-generate"/>
-  </Resources>
+	<Resources>
+		<Resource Language="x-generate"/>
+	</Resources>
 
-  <Applications>
-    <Application Id="App"
-      Executable="$targetnametoken$.exe"
-      EntryPoint="$targetentrypoint$">
-      <uap:VisualElements
-        DisplayName="Registry Editor Valley"
-        Description="A powerful yet fluent registry editor for Windows 10/11 with WinUI3"
-        BackgroundColor="transparent"
-        Square150x150Logo="Assets\AppTiles\Square150x150Logo.png"
-        Square44x44Logo="Assets\AppTiles\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Assets\AppTiles\Wide310x150Logo.png"  Square71x71Logo="Assets\AppTiles\SmallTile.png" Square310x310Logo="Assets\AppTiles\LargeTile.png"/>
-        <uap:SplashScreen Image="Assets\AppTiles\SplashScreen.png" />
-      </uap:VisualElements>
-    </Application>
-  </Applications>
+	<Applications>
+		<Application Id="App"
+			Executable="$targetnametoken$.exe"
+			EntryPoint="$targetentrypoint$">
+			<uap:VisualElements
+				DisplayName="Registry Editor"
+				Description="A powerful yet fluent registry editor for Windows 10/11 with WinUI3"
+				BackgroundColor="transparent"
+				Square150x150Logo="Assets\AppTiles\Square150x150Logo.png"
+				Square44x44Logo="Assets\AppTiles\Square44x44Logo.png">
+				<uap:DefaultTile Wide310x150Logo="Assets\AppTiles\Wide310x150Logo.png"  Square71x71Logo="Assets\AppTiles\SmallTile.png" Square310x310Logo="Assets\AppTiles\LargeTile.png"/>
+				<uap:SplashScreen Image="Assets\AppTiles\SplashScreen.png" />
+			</uap:VisualElements>
+		</Application>
+	</Applications>
 
-  <Capabilities>
-    <rescap:Capability Name="runFullTrust" />
-    <rescap:Capability Name="allowElevation"/>
-  </Capabilities>
+	<Capabilities>
+		<rescap:Capability Name="runFullTrust" />
+		<rescap:Capability Name="allowElevation"/>
+	</Capabilities>
+
 </Package>
