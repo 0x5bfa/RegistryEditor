@@ -1,6 +1,6 @@
 ﻿using Windows.UI;
 
-namespace RegistryValley.App.Models
+namespace RegistryEditor.WinUI.Models
 {
 	public class AppThemeResourceItem
 	{

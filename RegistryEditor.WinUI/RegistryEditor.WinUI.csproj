@@ -44,7 +44,6 @@
 		<PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
 		<PackageReference Include="Vanara.PInvoke.Security" Version="4.1.6" />
 		<PackageReference Include="Vanara.Windows.Shell" Version="4.1.6" />
-		<PackageReference Include="WinUIEx" Version="2.6.0" />
 		
 	</ItemGroup>
 

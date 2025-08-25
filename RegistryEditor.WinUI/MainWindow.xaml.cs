@@ -1,101 +1,70 @@
-using Microsoft.Extensions.DependencyInjection;
+// Copyright (c) 2025 0x5BFA.
+// Licensed under the MIT License.
+
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.Windows.AppLifecycle;
-using RegistryValley.App.Services;
-using RegistryValley.App.Views;
-using System.IO;
-using WinUIEx;
+using RegistryEditor.WinUI.Services;
+using RegistryEditor.WinUI.Views;
 
-namespace RegistryValley.App
+namespace RegistryEditor.WinUI
 {
-	public sealed partial class MainWindow : WindowEx
+	public sealed partial class MainWindow : Window
 	{
-		private bool AlreadyInitialized { get; set; }
+		private readonly UserSettingsServices UserSettingsServices = App.Current.Services.GetRequiredService<UserSettingsServices>();
 
-		private UserSettingsServices UserSettingsServices { get; } = App.Current.Services.GetRequiredService<UserSettingsServices>();
+		private bool AlreadyInitialized { get; set; }
 
 		public MainWindow()
 		{
 			InitializeComponent();
 
-			PersistenceId = "RegistryValleyMainWindow";
-
 			Activated += MainWindow_Activated;
 
-			EnsureEarlyWindow();
-		}
-
-		private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
-		{
-			if (!AlreadyInitialized)
-				InitializeApplication();
-		}
-
-		private void EnsureEarlyWindow()
-		{
 			AppWindow.Title = "Registry Valley";
 			AppWindow.SetIcon(Path.Combine(Windows.ApplicationModel.Package.Current.InstalledLocation.Path, Constants.AssetPaths.Logo));
 			AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
 			AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
 			AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-
-			MinHeight = 328;
-			MinWidth = 516;
+			AppWindow.Resize(new(516, 328));
 		}
 
-		public void InitializeApplication()
+		private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
 		{
-			var rootFrame = EnsureWindowIsInitialized();
-			Type pageType = UserSettingsServices.SetupCompleted ? typeof(MainPage) : typeof(SetupPage);
-
-			if (rootFrame.Content == null)
+			if (!AlreadyInitialized)
 			{
-				rootFrame.Navigate(pageType, null, new SuppressNavigationTransitionInfo());
+				if (App.Window.Content is not Frame rootFrame)
+				{
+					rootFrame = new() { CacheSize = 1 };
+					App.Window.Content = rootFrame;
+				}
+
+				Type pageType = UserSettingsServices.SetupCompleted ? typeof(MainPage) : typeof(SetupPage);
+
+				if (rootFrame.Content is null)
+					rootFrame.Navigate(pageType, null, new SuppressNavigationTransitionInfo());
+
+				if (UserSettingsServices.SetupCompleted)
+				{
+					((MainPage)rootFrame.Content).Loaded += (s, e)
+						=> DispatcherQueue.TryEnqueue(() => Activate());
+				}
+				else
+				{
+					((SetupPage)rootFrame.Content).Loaded += (s, e)
+						=> DispatcherQueue.TryEnqueue(() => Activate());
+				}
+
+				AlreadyInitialized = true;
 			}
-
-			if (UserSettingsServices.SetupCompleted)
-			{
-				((MainPage)rootFrame.Content).Loaded += (s, e)
-					=> DispatcherQueue.TryEnqueue(() => Activate());
-			}
-			else
-			{
-				((SetupPage)rootFrame.Content).Loaded += (s, e)
-					=> DispatcherQueue.TryEnqueue(() => Activate());
-			}
-
-			AlreadyInitialized = true;
-		}
-
-		private Frame EnsureWindowIsInitialized()
-		{
-			if (!(App.Window.Content is Frame rootFrame))
-			{
-				rootFrame = new() { CacheSize = 1 };
-				rootFrame.NavigationFailed += OnNavigationFailed;
-
-				App.Window.Content = rootFrame;
-			}
-
-			return rootFrame;
 		}
 
 		public void NavigateFrameTo(Type sourcePageType)
 		{
 			if (App.Window.Content is Frame rootFrame)
-			{
 				rootFrame.Navigate(sourcePageType);
-			}
-		}
-
-		private void OnNavigationFailed(object sender, NavigationFailedEventArgs e)
-		{
-			throw new Exception("Failed to load Page " + e.SourcePageType.FullName);
 		}
 	}
 }

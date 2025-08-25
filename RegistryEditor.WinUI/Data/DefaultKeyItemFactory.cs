@@ -1,6 +1,6 @@
-﻿using RegistryValley.App.Models;
+﻿using RegistryEditor.WinUI.Models;
 
-namespace RegistryValley.App.Data
+namespace RegistryEditor.WinUI.Data
 {
 	public class DefaultKeyItemFactory
 	{

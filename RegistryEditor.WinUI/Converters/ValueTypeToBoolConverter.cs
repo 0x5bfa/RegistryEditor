@@ -1,8 +1,8 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
-using RegistryValley.App.Models;
+using RegistryEditor.WinUI.Models;
 
-namespace RegistryValley.App.Converters
+namespace RegistryEditor.WinUI.Converters
 {
 	public class ValueTypeToBoolConverter : IValueConverter
 	{

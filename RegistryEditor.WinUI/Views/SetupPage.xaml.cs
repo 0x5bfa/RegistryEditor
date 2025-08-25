@@ -3,14 +3,14 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
-using RegistryValley.App.Extensions;
-using RegistryValley.App.Models;
-using RegistryValley.App.Services;
-using RegistryValley.App.ViewModels;
-using RegistryValley.App.Views.Setups;
+using RegistryEditor.WinUI.Extensions;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.Services;
+using RegistryEditor.WinUI.ViewModels;
+using RegistryEditor.WinUI.Views.Setups;
 using WinRT.Interop;
 
-namespace RegistryValley.App.Views
+namespace RegistryEditor.WinUI.Views
 {
 	public sealed partial class SetupPage : Page
 	{

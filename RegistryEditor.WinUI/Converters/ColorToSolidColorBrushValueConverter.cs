@@ -2,7 +2,7 @@
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 
-namespace RegistryValley.App.Converters
+namespace RegistryEditor.WinUI.Converters
 {
 	internal class ColorToSolidColorBrushConverter : IValueConverter
 	{

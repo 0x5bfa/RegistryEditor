@@ -1,9 +1,9 @@
 ﻿using Microsoft.UI.Xaml;
-using RegistryValley.App.Models;
+using RegistryEditor.WinUI.Models;
 using System.Runtime.InteropServices;
 using Vanara.InteropServices;
 
-namespace RegistryValley.App.ViewModels
+namespace RegistryEditor.WinUI.ViewModels
 {
 	public class ValuesViewerViewModel : ObservableObject
 	{

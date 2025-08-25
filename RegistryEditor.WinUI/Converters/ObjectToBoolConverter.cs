@@ -1,7 +1,7 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 
-namespace RegistryValley.App.Converters
+namespace RegistryEditor.WinUI.Converters
 {
 	public class ObjectToBoolConverter : IValueConverter
 	{

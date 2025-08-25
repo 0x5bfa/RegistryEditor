@@ -3,12 +3,12 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
-using RegistryValley.App.Models;
-using RegistryValley.App.ViewModels.Properties;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.ViewModels.Properties;
 using Windows.Foundation.Metadata;
 using Windows.UI.WindowManagement;
 
-namespace RegistryValley.App.Views.Properties
+namespace RegistryEditor.WinUI.Views.Properties
 {
 	public sealed partial class SecurityAdvancedPage : Page
 	{

@@ -1,7 +1,7 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace RegistryValley.App.UserControls
+namespace RegistryEditor.WinUI.UserControls
 {
 	public sealed partial class BranchDisplay : UserControl
 	{

@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace RegistryValley.App.Services
+namespace RegistryEditor.WinUI.Services
 {
 	public static class RegistryServices
 	{

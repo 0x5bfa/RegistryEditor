@@ -1,7 +1,7 @@
-﻿using RegistryValley.App.Services;
-using RegistryValley.App.Models;
+﻿using RegistryEditor.WinUI.Services;
+using RegistryEditor.WinUI.Models;
 
-namespace RegistryValley.App.ViewModels.UserControls
+namespace RegistryEditor.WinUI.ViewModels.UserControls
 {
 	public class TreeViewViewModel
 	{

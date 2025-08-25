@@ -1,7 +1,7 @@
-﻿using RegistryValley.App.Models;
+﻿using RegistryEditor.WinUI.Models;
 using Windows.UI;
 
-namespace RegistryValley.App.Data
+namespace RegistryEditor.WinUI.Data
 {
 	public static class AppThemeResourceFactory
 	{

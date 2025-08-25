@@ -1,6 +1,6 @@
-﻿using RegistryValley.App.Models;
+﻿using RegistryEditor.WinUI.Models;
 
-namespace RegistryValley.App.ViewModels.Dialogs
+namespace RegistryEditor.WinUI.ViewModels.Dialogs
 {
 	public class ValueAddingDialogViewModel : ObservableObject
 	{

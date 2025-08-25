@@ -3,12 +3,12 @@ using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using RegistryValley.App.Extensions;
+using RegistryEditor.WinUI.Extensions;
 using Windows.Storage;
 using Windows.UI;
 using Windows.UI.ViewManagement;
 
-namespace RegistryValley.App.Services
+namespace RegistryEditor.WinUI.Services
 {
 	public class ThemeModeServices
 	{

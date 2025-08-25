@@ -1,8 +1,8 @@
 ﻿using Microsoft.UI.Xaml;
-using RegistryValley.App.Services;
+using RegistryEditor.WinUI.Services;
 using Windows.UI;
 
-namespace RegistryValley.App.Helpers
+namespace RegistryEditor.WinUI.Helpers
 {
 	public static class AppThemeResourcesHelpers
 	{

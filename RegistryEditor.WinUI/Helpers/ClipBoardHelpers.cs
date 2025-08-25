@@ -1,6 +1,6 @@
 ﻿using Windows.ApplicationModel.DataTransfer;
 
-namespace RegistryValley.App.Helpers
+namespace RegistryEditor.WinUI.Helpers
 {
 	public static class ClipBoardHelpers
 	{

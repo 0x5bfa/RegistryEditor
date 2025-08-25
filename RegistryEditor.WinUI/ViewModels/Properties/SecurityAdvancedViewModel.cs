@@ -1,10 +1,10 @@
 ﻿using Microsoft.UI.Xaml;
-using RegistryValley.App.Models;
+using RegistryEditor.WinUI.Models;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
-using static RegistryValley.App.Services.RegistryServices;
+using static RegistryEditor.WinUI.Services.RegistryServices;
 
-namespace RegistryValley.App.ViewModels.Properties
+namespace RegistryEditor.WinUI.ViewModels.Properties
 {
 	public class SecurityAdvancedViewModel : ObservableObject
 	{

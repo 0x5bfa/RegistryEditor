@@ -1,7 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using Windows.Storage;
 
-namespace RegistryValley.App.Services
+namespace RegistryEditor.WinUI.Services
 {
 	internal abstract class BaseSettingsServices : ObservableObject, IBaseSettingsServices
 	{

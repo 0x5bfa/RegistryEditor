@@ -4,7 +4,7 @@ using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace RegistryValley.App.Helpers.UWPToWinAppSDKUpgradeHelpers
+namespace RegistryEditor.WinUI.Helpers.UWPToWinAppSDKUpgradeHelpers
 {
 	[ComImport]
 	[Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8")]

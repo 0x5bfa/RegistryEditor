@@ -1,11 +1,11 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using RegistryValley.App.Dialogs;
-using RegistryValley.App.Models;
-using RegistryValley.App.ViewModels;
+using RegistryEditor.WinUI.Dialogs;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.ViewModels;
 
-namespace RegistryValley.App.Views
+namespace RegistryEditor.WinUI.Views
 {
 	public sealed partial class SettingsPage : Page
 	{

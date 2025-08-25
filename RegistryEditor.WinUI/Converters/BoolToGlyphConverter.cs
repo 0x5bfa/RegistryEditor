@@ -1,6 +1,6 @@
 ﻿using Microsoft.UI.Xaml.Data;
 
-namespace RegistryValley.App.Converters
+namespace RegistryEditor.WinUI.Converters
 {
 	public class BoolToGlyphConverter : IValueConverter
 	{

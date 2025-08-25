@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace RegistryValley.App.Extensions
+namespace RegistryEditor.WinUI.Extensions
 {
 	public static class LinqExtensions
 	{

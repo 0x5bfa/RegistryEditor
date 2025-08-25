@@ -1,9 +1,9 @@
 ﻿using Microsoft.UI.Xaml;
-using RegistryValley.App.Models;
+using RegistryEditor.WinUI.Models;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 
-namespace RegistryValley.App.ViewModels.Properties
+namespace RegistryEditor.WinUI.ViewModels.Properties
 {
 	public class GeneralViewModel : ObservableObject
 	{

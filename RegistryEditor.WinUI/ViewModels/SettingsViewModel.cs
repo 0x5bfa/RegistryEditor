@@ -1,13 +1,13 @@
 ﻿using CommunityToolkit.WinUI.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
-using RegistryValley.App.Data;
-using RegistryValley.App.Helpers;
-using RegistryValley.App.Models;
-using RegistryValley.App.Services;
+using RegistryEditor.WinUI.Data;
+using RegistryEditor.WinUI.Helpers;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.Services;
 using Windows.UI;
 
-namespace RegistryValley.App.ViewModels
+namespace RegistryEditor.WinUI.ViewModels
 {
 	public class SettingsViewModel : ObservableObject
 	{

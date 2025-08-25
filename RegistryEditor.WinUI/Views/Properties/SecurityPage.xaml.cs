@@ -3,13 +3,13 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
-using RegistryValley.App.Models;
-using RegistryValley.App.ViewModels.Properties;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.ViewModels.Properties;
 using System.IO;
 using Windows.Foundation.Metadata;
 using Windows.Graphics;
 
-namespace RegistryValley.App.Views.Properties
+namespace RegistryEditor.WinUI.Views.Properties
 {
 	public sealed partial class SecurityPage : Page
 	{

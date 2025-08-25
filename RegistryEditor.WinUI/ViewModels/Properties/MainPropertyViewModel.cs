@@ -1,6 +1,6 @@
-﻿using RegistryValley.App.Models;
+﻿using RegistryEditor.WinUI.Models;
 
-namespace RegistryValley.App.ViewModels.Properties
+namespace RegistryEditor.WinUI.ViewModels.Properties
 {
 	public class MainPropertyViewModel : ObservableObject
 	{

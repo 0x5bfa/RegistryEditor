@@ -1,13 +1,13 @@
 ﻿using CommunityToolkit.WinUI.Helpers;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using RegistryValley.App.Extensions;
-using RegistryValley.App.Helpers;
-using RegistryValley.App.Models;
-using RegistryValley.App.Services;
-using RegistryValley.App.ViewModels;
+using RegistryEditor.WinUI.Extensions;
+using RegistryEditor.WinUI.Helpers;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.Services;
+using RegistryEditor.WinUI.ViewModels;
 
-namespace RegistryValley.App.Views
+namespace RegistryEditor.WinUI.Views
 {
 	public sealed partial class MainPage : Page
 	{

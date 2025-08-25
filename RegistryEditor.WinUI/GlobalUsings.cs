@@ -20,4 +20,4 @@ global using global::Vanara.PInvoke;
 global using static global::Vanara.PInvoke.AdvApi32;
 
 // Local usings
-global using static global::RegistryValley.App.Services.RegistryServices;
+global using static global::RegistryEditor.WinUI.Services.RegistryServices;

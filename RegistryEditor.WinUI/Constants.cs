@@ -1,4 +1,4 @@
-﻿namespace RegistryValley.App
+﻿namespace RegistryEditor.WinUI
 {
 	public static class Constants
 	{

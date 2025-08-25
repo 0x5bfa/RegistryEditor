@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using RegistryValley.App.ViewModels;
-using RegistryValley.App.ViewModels.Dialogs;
+using RegistryEditor.WinUI.ViewModels;
+using RegistryEditor.WinUI.ViewModels.Dialogs;
 
-namespace RegistryValley.App.Dialogs
+namespace RegistryEditor.WinUI.Dialogs
 {
 	public sealed partial class ValueEditingDialog : ContentDialog
 	{

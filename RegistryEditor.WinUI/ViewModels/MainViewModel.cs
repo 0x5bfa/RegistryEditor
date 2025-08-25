@@ -1,8 +1,8 @@
-﻿using RegistryValley.App.Extensions;
-using RegistryValley.App.Models;
-using RegistryValley.App.Services;
+﻿using RegistryEditor.WinUI.Extensions;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.Services;
 
-namespace RegistryValley.App.ViewModels
+namespace RegistryEditor.WinUI.ViewModels
 {
 	public class MainViewModel : ObservableObject
 	{

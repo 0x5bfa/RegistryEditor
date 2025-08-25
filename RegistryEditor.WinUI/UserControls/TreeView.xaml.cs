@@ -1,13 +1,13 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using RegistryValley.App.Extensions;
-using RegistryValley.App.Helpers;
-using RegistryValley.App.Models;
-using RegistryValley.App.Services;
-using RegistryValley.App.ViewModels;
-using RegistryValley.App.ViewModels.UserControls;
+using RegistryEditor.WinUI.Extensions;
+using RegistryEditor.WinUI.Helpers;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.Services;
+using RegistryEditor.WinUI.ViewModels;
+using RegistryEditor.WinUI.ViewModels.UserControls;
 
-namespace RegistryValley.App.UserControls
+namespace RegistryEditor.WinUI.UserControls
 {
 	public sealed partial class TreeView : UserControl
 	{

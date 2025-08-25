@@ -1,11 +1,11 @@
 ﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using RegistryValley.App.Models;
+using RegistryEditor.WinUI.Models;
 using Windows.Foundation.Metadata;
 using Windows.UI.WindowManagement;
 
-namespace RegistryValley.App.Views.Properties
+namespace RegistryEditor.WinUI.Views.Properties
 {
 	public sealed partial class MainPropertyPage : Page
 	{

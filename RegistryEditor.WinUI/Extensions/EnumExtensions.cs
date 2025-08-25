@@ -1,7 +1,7 @@
-﻿using RegistryValley.App.Models;
+﻿using RegistryEditor.WinUI.Models;
 using System.Reflection;
 
-namespace RegistryValley.App.Extensions
+namespace RegistryEditor.WinUI.Extensions
 {
 	public static class EnumExtensions
 	{

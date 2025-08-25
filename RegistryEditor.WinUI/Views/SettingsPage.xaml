@@ -1,13 +1,13 @@
 ﻿<Page
-	x:Class="RegistryValley.App.Views.SettingsPage"
+	x:Class="RegistryEditor.WinUI.Views.SettingsPage"
 	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-	xmlns:converters="using:RegistryValley.App.Converters"
+	xmlns:converters="using:RegistryEditor.WinUI.Converters"
 	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-	xmlns:local="using:RegistryValley.App.Views"
+	xmlns:local="using:RegistryEditor.WinUI.Views"
 	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-	xmlns:models="using:RegistryValley.App.Models"
-	xmlns:settingsui="using:RegistryValley.App.UserControls.Settings"
+	xmlns:models="using:RegistryEditor.WinUI.Models"
+	xmlns:settingsui="using:RegistryEditor.WinUI.UserControls.Settings"
 	mc:Ignorable="d">
 
 	<Page.Resources>

@@ -2,12 +2,12 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
-using RegistryValley.App.Models;
-using RegistryValley.App.Views.Properties;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.Views.Properties;
 using System.IO;
 using Windows.Graphics;
 
-namespace RegistryValley.App.Helpers
+namespace RegistryEditor.WinUI.Helpers
 {
 	public static class PropertyWindowHelpers
 	{

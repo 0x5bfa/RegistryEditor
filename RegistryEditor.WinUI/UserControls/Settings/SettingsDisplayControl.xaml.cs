@@ -1,11 +1,11 @@
-using RegistryValley.App.Models;
-using RegistryValley.App.Services;
+using RegistryEditor.WinUI.Models;
+using RegistryEditor.WinUI.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
 
-namespace RegistryValley.App.UserControls.Settings
+namespace RegistryEditor.WinUI.UserControls.Settings
 {
 	[ContentProperty(Name = nameof(SettingsActionableElement))]
 	public sealed partial class SettingsDisplayControl : UserControl

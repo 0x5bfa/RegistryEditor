@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml.Data;
 
 #nullable enable
 
-namespace RegistryValley.App.Converters
+namespace RegistryEditor.WinUI.Converters
 {
 	public abstract class ValueConverter<TSource, TTarget> : IValueConverter
 	{

@@ -1,4 +1,4 @@
-﻿namespace RegistryValley.App.Services
+﻿namespace RegistryEditor.WinUI.Services
 {
 	internal sealed class UserSettingsServices : BaseSettingsServices
 	{

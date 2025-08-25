@@ -5,11 +5,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Windowing;
 using Microsoft.Windows.AppLifecycle;
-using RegistryValley.App.ViewModels;
+using RegistryEditor.WinUI.ViewModels;
 using Windows.ApplicationModel;
 using Windows.Storage;
 
-namespace RegistryValley.App
+namespace RegistryEditor.WinUI
 {
 	public partial class App : Application
 	{

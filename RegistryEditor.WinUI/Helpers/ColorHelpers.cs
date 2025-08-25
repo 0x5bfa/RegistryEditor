@@ -1,6 +1,6 @@
 ﻿using Windows.UI;
 
-namespace RegistryValley.App.Helpers
+namespace RegistryEditor.WinUI.Helpers
 {
 	public static class ColorHelpers
 	{

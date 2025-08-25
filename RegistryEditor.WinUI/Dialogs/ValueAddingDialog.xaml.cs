@@ -13,7 +13,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 
-namespace RegistryValley.App.Dialogs
+namespace RegistryEditor.WinUI.Dialogs
 {
 	public sealed partial class ValueAddingDialog : ContentDialog
 	{

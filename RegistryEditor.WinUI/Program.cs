@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using System.Security.Principal;
 
-namespace RegistryValley.App
+namespace RegistryEditor.WinUI
 {
 	public class Program
 	{
