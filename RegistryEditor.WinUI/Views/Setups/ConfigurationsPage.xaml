@@ -1,106 +1,106 @@
 ﻿<Page
-    x:Class="RegistryValley.App.Views.Setups.ConfigurationsPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:animatedvisuals="using:Microsoft.UI.Xaml.Controls.AnimatedVisuals"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="using:RegistryValley.App.Views.Setups"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:models="using:RegistryValley.App.Models"
-    xmlns:root="using:RegistryValley.App"
-    xmlns:settingsui="using:RegistryValley.App.UserControls.Settings"
-    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
-    xmlns:uc="using:RegistryValley.App.UserControls"
-    Background="{ThemeResource AppThemeBackgroundBrush}"
-    mc:Ignorable="d">
+	x:Class="RegistryValley.App.Views.Setups.ConfigurationsPage"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:animatedvisuals="using:Microsoft.UI.Xaml.Controls.AnimatedVisuals"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:local="using:RegistryValley.App.Views.Setups"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	xmlns:models="using:RegistryValley.App.Models"
+	xmlns:root="using:RegistryValley.App"
+	xmlns:settingsui="using:RegistryValley.App.UserControls.Settings"
+	xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
+	xmlns:uc="using:RegistryValley.App.UserControls"
+	Background="{ThemeResource AppThemeBackgroundBrush}"
+	mc:Ignorable="d">
 
-    <Grid>
-        <uc:TitleBarControl Height="40" VerticalAlignment="Top" />
+	<Grid>
+		<uc:TitleBarControl Height="40" VerticalAlignment="Top" />
 
-        <Grid
-            Width="610"
-            Height="480"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            RowSpacing="8">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+		<Grid
+			Width="610"
+			Height="480"
+			HorizontalAlignment="Center"
+			VerticalAlignment="Center"
+			RowSpacing="8">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto" />
+				<RowDefinition Height="*" />
+				<RowDefinition Height="Auto" />
+			</Grid.RowDefinitions>
 
-            <StackPanel Orientation="Horizontal" Spacing="8">
+			<StackPanel Orientation="Horizontal" Spacing="8">
 
-                <Button
-                    x:Name="NavigateBackButton"
-                    Width="32"
-                    Height="32"
-                    Margin="0,0,0,-4"
-                    Padding="0"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Click="NavigateBackButton_Click">
-                    <AnimatedIcon Height="20">
-                        <AnimatedIcon.Source>
-                            <animatedvisuals:AnimatedBackVisualSource />
-                        </AnimatedIcon.Source>
-                        <AnimatedIcon.FallbackIconSource>
-                            <SymbolIconSource Symbol="Back" />
-                        </AnimatedIcon.FallbackIconSource>
-                    </AnimatedIcon>
-                </Button>
+				<Button
+					x:Name="NavigateBackButton"
+					Width="32"
+					Height="32"
+					Margin="0,0,0,-4"
+					Padding="0"
+					Background="Transparent"
+					BorderThickness="0"
+					Click="NavigateBackButton_Click">
+					<AnimatedIcon Height="20">
+						<AnimatedIcon.Source>
+							<animatedvisuals:AnimatedBackVisualSource />
+						</AnimatedIcon.Source>
+						<AnimatedIcon.FallbackIconSource>
+							<SymbolIconSource Symbol="Back" />
+						</AnimatedIcon.FallbackIconSource>
+					</AnimatedIcon>
+				</Button>
 
-                <TextBlock
-                    VerticalAlignment="Center"
-                    Style="{StaticResource TitleTextBlockStyle}"
-                    Text="Configure" />
+				<TextBlock
+					VerticalAlignment="Center"
+					Style="{StaticResource TitleTextBlockStyle}"
+					Text="Configure" />
 
-            </StackPanel>
+			</StackPanel>
 
-            <ScrollViewer
-                Grid.Row="1"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <StackPanel Margin="12">
-                    <settingsui:SettingsBlockControl
-                        Title="Run as Administrator"
-                        Description="Run the app with administrator privileges on startup"
-                        IsClickable="False">
-                        <settingsui:SettingsBlockControl.Icon>
-                            <FontIcon Glyph="&#xE7EF;" />
-                        </settingsui:SettingsBlockControl.Icon>
-                        <StackPanel
-                            VerticalAlignment="Center"
-                            Orientation="Horizontal"
-                            Spacing="8">
-                            <ToggleSwitch
-                                FlowDirection="RightToLeft"
-                                IsEnabled="False"
-                                IsOn="False" />
-                        </StackPanel>
-                    </settingsui:SettingsBlockControl>
-                </StackPanel>
-            </ScrollViewer>
+			<ScrollViewer
+				Grid.Row="1"
+				Background="{ThemeResource LayerFillColorDefaultBrush}"
+				BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+				BorderThickness="1"
+				CornerRadius="8">
+				<StackPanel Margin="12">
+					<settingsui:SettingsBlockControl
+						Title="Run as Administrator"
+						Description="Run the app with administrator privileges on startup"
+						IsClickable="False">
+						<settingsui:SettingsBlockControl.Icon>
+							<FontIcon Glyph="&#xE7EF;" />
+						</settingsui:SettingsBlockControl.Icon>
+						<StackPanel
+							VerticalAlignment="Center"
+							Orientation="Horizontal"
+							Spacing="8">
+							<ToggleSwitch
+								FlowDirection="RightToLeft"
+								IsEnabled="False"
+								IsOn="False" />
+						</StackPanel>
+					</settingsui:SettingsBlockControl>
+				</StackPanel>
+			</ScrollViewer>
 
-            <StackPanel
-                Grid.Row="2"
-                HorizontalAlignment="Right"
-                Orientation="Horizontal"
-                Spacing="8">
-                <Button
-                    x:Name="BackOnBottomButton"
-                    Width="144"
-                    Click="BackOnBottomButton_Click"
-                    Content="Back" />
-                <Button
-                    x:Name="FinishButton"
-                    Width="144"
-                    Click="FinishButton_Click"
-                    Content="Finish"
-                    Style="{StaticResource AccentButtonStyle}" />
-            </StackPanel>
-        </Grid>
-    </Grid>
+			<StackPanel
+				Grid.Row="2"
+				HorizontalAlignment="Right"
+				Orientation="Horizontal"
+				Spacing="8">
+				<Button
+					x:Name="BackOnBottomButton"
+					Width="144"
+					Click="BackOnBottomButton_Click"
+					Content="Back" />
+				<Button
+					x:Name="FinishButton"
+					Width="144"
+					Click="FinishButton_Click"
+					Content="Finish"
+					Style="{StaticResource AccentButtonStyle}" />
+			</StackPanel>
+		</Grid>
+	</Grid>
 </Page>
