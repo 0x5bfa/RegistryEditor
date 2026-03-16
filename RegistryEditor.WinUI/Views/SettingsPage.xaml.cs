@@ -6,13 +6,13 @@ using RegistryEditor.WinUI.ViewModels;
 
 namespace RegistryEditor.WinUI.Views
 {
-	public sealed partial class SettingsPage : Page
-	{
-		public SettingsViewModel ViewModel = App.Current.Services.GetRequiredService<SettingsViewModel>();
+    public sealed partial class SettingsPage : Page
+    {
+        public SettingsViewModel ViewModel = App.Current.Services.GetRequiredService<SettingsViewModel>();
 
-		public SettingsPage()
-		{
-			InitializeComponent();
-		}
-	}
+        public SettingsPage()
+        {
+            InitializeComponent();
+        }
+    }
 }

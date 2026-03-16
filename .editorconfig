@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
+
+[**/*.{cs,csx,vb}]
+indent_size = 4
+tab_width = 4
+
+[**/*.xaml]
+indent_size = 4
+tab_width = 4

@@ -10,39 +10,39 @@ using RegistryEditor.WinUI.ViewModels;
 
 namespace RegistryEditor.WinUI.Views
 {
-	public sealed partial class ValuesViewerPage : Page
-	{
-		public ValuesViewerViewModel ViewModel = App.Current.Services.GetRequiredService<ValuesViewerViewModel>();
+    public sealed partial class ValuesViewerPage : Page
+    {
+        public ValuesViewerViewModel ViewModel = App.Current.Services.GetRequiredService<ValuesViewerViewModel>();
 
-		public ValuesViewerPage()
-		{
-			InitializeComponent();
-		}
+        public ValuesViewerPage()
+        {
+            InitializeComponent();
+        }
 
-		private async void ValueListView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-		{
-			if ((ValueItem)ValueListView.SelectedItem is not { } item)
-				return;
+        private async void ValueListView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if ((ValueItem)ValueListView.SelectedItem is not { } item)
+                return;
 
-			var dialog = new ValueEditingDialog
-			{
-				ViewModel = new() { ValueItem = item },
-				XamlRoot = Content.XamlRoot,
-			};
+            var dialog = new ValueEditingDialog
+            {
+                ViewModel = new() { ValueItem = item },
+                XamlRoot = Content.XamlRoot,
+            };
 
-			_ = await dialog.ShowAsync();
-		}
+            _ = await dialog.ShowAsync();
+        }
 
-		private void ValueListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			ViewModel.SelectedValueItem = (ValueItem)ValueListView.SelectedItem;
-		}
+        private void ValueListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ViewModel.SelectedValueItem = (ValueItem)ValueListView.SelectedItem;
+        }
 
-		private void OnKeyPermissionsButtonClick(object sender, RoutedEventArgs e)
-		{
-			var item = ViewModel.SelectedKeyItem;
+        private void OnKeyPermissionsButtonClick(object sender, RoutedEventArgs e)
+        {
+            var item = ViewModel.SelectedKeyItem;
 
-			Helpers.PropertyWindowHelpers.CreatePropertyWindow(item);
-		}
-	}
+            Helpers.PropertyWindowHelpers.CreatePropertyWindow(item);
+        }
+    }
 }

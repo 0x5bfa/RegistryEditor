@@ -3,15 +3,14 @@
 
 using RegistryEditor.WinUI.Models;
 
-namespace RegistryEditor.WinUI.ViewModels.Dialogs
-{
-	public partial class ValueEditingDialogViewModel : ObservableObject
-	{
-		public ValueEditingDialogViewModel()
-		{
-		}
+namespace RegistryEditor.WinUI.ViewModels.Dialogs;
 
-		private ValueItem _valueItem;
-		public ValueItem ValueItem { get => _valueItem; set => SetProperty(ref _valueItem, value); }
-	}
+public partial class ValueEditingDialogViewModel : ObservableObject
+{
+    [ObservableProperty]
+    public partial ValueItem ValueItem { get; set; }
+
+    public ValueEditingDialogViewModel()
+    {
+    }
 }

@@ -1,59 +1,36 @@
-﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
+using CommunityToolkit.WinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace RegistryEditor.WinUI.UserControls
 {
-	public sealed partial class BranchDisplay : UserControl
-	{
-		#region propdp
-		public static readonly DependencyProperty NumberOfBranchProperty =
-			DependencyProperty.Register(
-				nameof(NumberOfBranch),
-				typeof(int),
-				typeof(BranchDisplay),
-				new PropertyMetadata(null)
-				);
+    public sealed partial class BranchDisplay : UserControl
+    {
+        [GeneratedDependencyProperty]
+        public partial int NumberOfBranch { get; set; }
 
-		public int NumberOfBranch
-		{
-			get => (int)GetValue(NumberOfBranchProperty);
-			set
-			{
-				SetValue(NumberOfBranchProperty, value);
+        [GeneratedDependencyProperty]
+        public partial bool HasChildren { get; set; }
 
-				_branches.Clear();
-				for (int i = 0; i < value - 1; i++)
-					_branches.Add(true);
-			}
-		}
+        private readonly ObservableCollection<bool> _branches;
+        public ReadOnlyObservableCollection<bool> Branches { get; }
+        
+        public BranchDisplay()
+        {
+            InitializeComponent();
 
-		public static readonly DependencyProperty HasChildrenProperty =
-			DependencyProperty.Register(
-				nameof(HasChildren),
-				typeof(bool),
-				typeof(BranchDisplay),
-				new PropertyMetadata(null)
-				);
+            _branches = [];
+            Branches = new(_branches);
+        }
 
-		public bool HasChildren
-		{
-			get => (bool)GetValue(HasChildrenProperty);
-			set => SetValue(HasChildrenProperty, value);
-		}
-		#endregion
-
-		public BranchDisplay()
-		{
-			InitializeComponent();
-
-			_branches = new();
-			Branches = new(_branches);
-		}
-
-		private readonly ObservableCollection<bool> _branches;
-		public ReadOnlyObservableCollection<bool> Branches { get; }
-	}
+        partial void OnNumberOfBranchPropertyChanged(DependencyPropertyChangedEventArgs e)
+        {
+            _branches.Clear();
+            for (int i = 0; i < NumberOfBranch - 1; i++)
+                _branches.Add(true);
+        }
+    }
 }

@@ -7,42 +7,42 @@ using Microsoft.Windows.AppLifecycle;
 
 namespace RegistryEditor.WinUI
 {
-	public class Program
-	{
-		[STAThread]
-		private static void Main()
-		{
-			WinRT.ComWrappersSupport.InitializeComWrappers();
+    public class Program
+    {
+        [STAThread]
+        private static void Main()
+        {
+            WinRT.ComWrappersSupport.InitializeComWrappers();
 
-			bool isRedirect = false;
-			AppActivationArguments args = AppInstance.GetCurrent().GetActivatedEventArgs();
-			ExtendedActivationKind kind = args.Kind;
-			AppInstance keyInstance = AppInstance.FindOrRegisterForKey("RegistryEditor");
+            bool isRedirect = false;
+            AppActivationArguments args = AppInstance.GetCurrent().GetActivatedEventArgs();
+            ExtendedActivationKind kind = args.Kind;
+            AppInstance keyInstance = AppInstance.FindOrRegisterForKey("RegistryEditor");
 
-			if (keyInstance.IsCurrent)
-			{
-				keyInstance.Activated += OnActivated;
-			}
-			else
-			{
-				isRedirect = true;
-				keyInstance.RedirectActivationToAsync(args).AsTask().Wait();
-			}
+            if (keyInstance.IsCurrent)
+            {
+                keyInstance.Activated += OnActivated;
+            }
+            else
+            {
+                isRedirect = true;
+                keyInstance.RedirectActivationToAsync(args).AsTask().Wait();
+            }
 
-			if (!isRedirect)
-			{
-				Application.Start((p) =>
-				{
-					var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
-					SynchronizationContext.SetSynchronizationContext(context);
-					_ = new App();
-				});
-			}
-		}
+            if (!isRedirect)
+            {
+                Application.Start((p) =>
+                {
+                    var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+                    SynchronizationContext.SetSynchronizationContext(context);
+                    _ = new App();
+                });
+            }
+        }
 
-		private static void OnActivated(object? sender, AppActivationArguments args)
-		{
-			// Do nothing for now.
-		}
-	}
+        private static void OnActivated(object? sender, AppActivationArguments args)
+        {
+            // Do nothing for now.
+        }
+    }
 }

@@ -1,30 +1,19 @@
-﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
-using Microsoft.UI.Xaml;
+using CommunityToolkit.WinUI;
 using Microsoft.UI.Xaml.Controls;
 
 namespace RegistryEditor.WinUI.UserControls
 {
-	public sealed partial class TitleBarControl : UserControl
-	{
-		#region propdp
-		public static readonly DependencyProperty TitleProperty =
-			DependencyProperty.Register(
-				nameof(Title),
-				typeof(string),
-				typeof(BranchDisplay),
-				new PropertyMetadata(null)
-				);
+    public sealed partial class TitleBarControl : UserControl
+    {
+        [GeneratedDependencyProperty]
+        public partial string? Title { get; set; }
 
-		public string Title
-		{
-			get => (string)GetValue(TitleProperty);
-			set => SetValue(TitleProperty, value);
-		}
-		#endregion
-
-		public TitleBarControl()
-			=> InitializeComponent();
-	}
+        public TitleBarControl()
+        {
+            InitializeComponent();
+        }
+    }
 }

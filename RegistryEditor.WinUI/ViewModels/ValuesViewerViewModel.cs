@@ -1,4 +1,4 @@
-﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
 using Microsoft.UI.Xaml;
@@ -8,281 +8,271 @@ using Vanara.InteropServices;
 
 namespace RegistryEditor.WinUI.ViewModels
 {
-	public partial class ValuesViewerViewModel : ObservableObject
-	{
-		public ValuesViewerViewModel()
-		{
-			_valueItems = new();
-			ValueItems = new(_valueItems);
+    public partial class ValuesViewerViewModel : ObservableObject
+    {
+        private readonly ObservableCollection<ValueItem> _valueItems;
+        public ReadOnlyObservableCollection<ValueItem> ValueItems { get; }
 
-			_selectedKeyPathItems = new();
-			SelectedKeyPathItems = new(_selectedKeyPathItems);
+        private readonly ObservableCollection<BreadcrumbBarPathItem> _selectedKeyPathItems;
+        public ReadOnlyObservableCollection<BreadcrumbBarPathItem> SelectedKeyPathItems { get; }
 
-			InitializeBreadcrumbBarItems();
-		}
+        [ObservableProperty]
+        public partial KeyItem SelectedKeyItem { get; set; }
 
-		#region Fields and Properties
-		private readonly ObservableCollection<ValueItem> _valueItems;
-		public ReadOnlyObservableCollection<ValueItem> ValueItems { get; }
+        [ObservableProperty]
+        public partial ValueItem SelectedValueItem { get; set; }
 
-		private readonly ObservableCollection<BreadcrumbBarPathItem> _selectedKeyPathItems;
-		public ReadOnlyObservableCollection<BreadcrumbBarPathItem> SelectedKeyPathItems { get; }
+        [ObservableProperty]
+        public partial string StatusBarMessage { get; set; }
 
-		private KeyItem _selectedKeyItem;
-		public KeyItem SelectedKeyItem
-		{
-			get => _selectedKeyItem;
-			set
-			{
-				SetProperty(ref _selectedKeyItem, value);
+        [ObservableProperty]
+        public partial GridLength ColumnName { get; set; } = new(256);
 
-				_valueItems.Clear();
-				InitializeBreadcrumbBarItems();
+        [ObservableProperty]
+        public partial GridLength ColumnType { get; set; } = new(144d);
 
-				if (value.RootHive != HKEY.NULL)
-				{
-					var result = EnumerateRegistryValues(value.RootHive, value.Path);
-					if (result.Failed)
-						StatusBarMessage = result.FormatMessage();
-				}
-			}
-		}
+        public ValuesViewerViewModel()
+        {
+            _valueItems = [];
+            ValueItems = new(_valueItems);
 
-		private ValueItem _selectedValueItem;
-		public ValueItem SelectedValueItem { get => _selectedValueItem; set => SetProperty(ref _selectedValueItem, value); }
+            _selectedKeyPathItems = [];
+            SelectedKeyPathItems = new(_selectedKeyPathItems);
 
-		private string _statusBarMessage;
-		public string StatusBarMessage { get => _statusBarMessage; set => SetProperty(ref _statusBarMessage, value); }
+            InitializeBreadcrumbBarItems();
+        }
 
-		private GridLength _columnName = new(256d);
-		public GridLength ColumnName { get => _columnName; set => SetProperty(ref _columnName, value); }
+        private void InitializeBreadcrumbBarItems()
+        {
+            _selectedKeyPathItems.Clear();
+            _selectedKeyPathItems.Add(new() { PathItem = "Computer" });
+        }
 
-		private GridLength _columnType = new(144d);
-		public GridLength ColumnType { get => _columnType; set => SetProperty(ref _columnType, value); }
-		#endregion
+        public Win32Error EnumerateRegistryValues(HKEY hRootKey, string subRoot)
+        {
+            _valueItems.Clear();
 
-		#region Methods
-		private void InitializeBreadcrumbBarItems()
-		{
-			_selectedKeyPathItems.Clear();
-			_selectedKeyPathItems.Add(new() { PathItem = "Computer" });
-		}
+            SetBreadcrumbBarItems(hRootKey, subRoot);
 
-		public Win32Error EnumerateRegistryValues(HKEY hRootKey, string subRoot)
-		{
-			_valueItems.Clear();
+            Win32Error result;
 
-			SetBreadcrumbBarItems(hRootKey, subRoot);
+            // Win32API
+            result = RVRegOpenKey(hRootKey, subRoot, REGSAM.KEY_QUERY_VALUE | REGSAM.READ_CONTROL, out var handle);
+            if (result.Failed)
+            {
+                return Kernel32.GetLastError();
+            }
 
-			#region Win32API Calling
-			Win32Error result;
+            // Win32API
+            result = RegQueryInfoKey(handle, null, ref NullRef<uint>(), default, out _, out _, out _, out var cValues, out var cbMaxValueNameLen, out var cbMaxValueLen, out _, out _);
+            if (result.Failed)
+            {
+                return result;
+            }
 
-			// Win32API
-			result = RVRegOpenKey(hRootKey, subRoot, REGSAM.KEY_QUERY_VALUE | REGSAM.READ_CONTROL, out var handle);
-			if (result.Failed)
-			{
-				return Kernel32.GetLastError();
-			}
+            ValueItem defaultItem = new();
+            bool hasDefaultKey = false;
 
-			// Win32API
-			result = RegQueryInfoKey(handle, null, ref NullRef<uint>(), default, out _, out _, out _, out var cValues, out var cbMaxValueNameLen, out var cbMaxValueLen, out _, out _);
-			if (result.Failed)
-			{
-				return result;
-			}
+            uint cchValueName;
+            uint cbData;
+            StringBuilder valueName;
+            SafeHGlobalHandle data;
 
-			ValueItem defaultItem = new();
-			bool hasDefaultKey = false;
+            for (uint index = 0; index < cValues; index++)
+            {
+                cchValueName = cbMaxValueNameLen + 4;
+                valueName = new((int)cchValueName);
+                cbData = cbMaxValueLen + (cbMaxValueLen % 2);
+                data = new SafeHGlobalHandle(cbData);
 
-			uint cchValueName;
-			uint cbData;
-			StringBuilder valueName;
-			SafeHGlobalHandle data;
+                // Win32API
+                result = RegEnumValue(handle, index, valueName, ref cchValueName, default, out var type, data, ref cbData);
+                if (result.Failed)
+                {
+                    return result;
+                }
 
-			for (uint index = 0; index < cValues; index++)
-			{
-				cchValueName = cbMaxValueNameLen + 4;
-				valueName = new((int)cchValueName);
-				cbData = cbMaxValueLen + (cbMaxValueLen % 2);
-				data = new SafeHGlobalHandle(cbData);
+                ValueItem item = new()
+                {
+                    Name = valueName.ToString(),
+                    DisplayName = valueName.ToString(),
+                    TypeString = type.ToString(),
+                    DataSize = cbData,
+                    Type = type,
+                };
 
-				// Win32API
-				result = RegEnumValue(handle, index, valueName, ref cchValueName, default, out var type, data, ref cbData);
-				if (result.Failed)
-				{
-					return result;
-				}
+                if (string.IsNullOrEmpty(item.Name) && !hasDefaultKey)
+                {
+                    defaultItem = new()
+                    {
+                        Name = valueName.ToString(),
+                        DataSize = 0,
+                        DisplayName = "(Default)",
+                        IsRenamable = false,
+                        DisplayValue = data.ToString(-1, CharSet.Auto),
+                        EditableValue = "",
+                        Type = REG_VALUE_TYPE.REG_SZ,
+                        TypeString = "REG_SZ",
+                    };
 
-				ValueItem item = new()
-				{
-					Name = valueName.ToString(),
-					DisplayName = valueName.ToString(),
-					TypeString = type.ToString(),
-					DataSize = cbData,
-					Type = type,
-				};
+                    hasDefaultKey = true;
 
-				if (string.IsNullOrEmpty(item.Name) && !hasDefaultKey)
-				{
-					defaultItem = new()
-					{
-						Name = valueName.ToString(),
-						DataSize = 0,
-						DisplayName = "(Default)",
-						IsRenamable = false,
-						DisplayValue = data.ToString(-1, CharSet.Auto),
-						EditableValue = "",
-						Type = REG_VALUE_TYPE.REG_SZ,
-						TypeString = "REG_SZ",
-					};
+                    data.Close();
+                    continue;
+                }
+                // TODO: Buggy. Because of Vanara?
+                else if (string.IsNullOrEmpty(item.Name))
+                    continue;
 
-					hasDefaultKey = true;
+                switch (type)
+                {
+                    case REG_VALUE_TYPE.REG_SZ:
+                        {
+                            var value = data.ToString(-1, CharSet.Auto);
 
-					data.Close();
-					continue;
-				}
-				// TODO: Buggy. Because of Vanara?
-				else if (string.IsNullOrEmpty(item.Name))
-					continue;
+                            item.DisplayValue = value;
+                            item.EditableValue = item.DisplayValue;
+                        }
+                        break;
 
-				switch (type)
-				{
-					case REG_VALUE_TYPE.REG_SZ:
-						{
-							var value = data.ToString(-1, CharSet.Auto);
+                    case REG_VALUE_TYPE.REG_EXPAND_SZ:
+                        {
+                            var value = data.ToString(-1, CharSet.Auto);
 
-							item.DisplayValue = value;
-							item.EditableValue = item.DisplayValue;
-						}
-						break;
+                            item.DisplayValue = value;
+                            item.EditableValue = item.DisplayValue;
+                        }
+                        break;
 
-					case REG_VALUE_TYPE.REG_EXPAND_SZ:
-						{
-							var value = data.ToString(-1, CharSet.Auto);
+                    case REG_VALUE_TYPE.REG_BINARY:
+                        {
+                            var value = data.ToStructure<byte[]>();
+                            value = value.Take((int)item.DataSize).ToArray();
 
-							item.DisplayValue = value;
-							item.EditableValue = item.DisplayValue;
-						}
-						break;
+                            if (value.Length == 0)
+                            {
+                                item.DisplayValue = $"(zero-length binary value)";
+                                item.EditableValue = "";
+                                break;
+                            }
 
-					case REG_VALUE_TYPE.REG_BINARY:
-						{
-							var value = data.ToStructure<byte[]>();
-							value = value.Take((int)item.DataSize).ToArray();
+                            foreach (var atom in value)
+                            {
+                                item.DisplayValue += string.Format("{0,2:x2} ", Convert.ToUInt32(atom));
+                            }
 
-							if (value.Length == 0)
-							{
-								item.DisplayValue = $"(zero-length binary value)";
-								item.EditableValue = "";
-								break;
-							}
+                            item.DisplayValue = item.DisplayValue.TrimEnd();
+                            item.EditableValue = item.DisplayValue;
+                        }
+                        break;
 
-							foreach (var atom in value)
-							{
-								item.DisplayValue += string.Format("{0,2:x2} ", Convert.ToUInt32(atom));
-							}
+                    case REG_VALUE_TYPE.REG_DWORD:
+                        {
+                            item.TypeString = "REG_DWORD";
 
-							item.DisplayValue = item.DisplayValue.TrimEnd();
-							item.EditableValue = item.DisplayValue;
-						}
-						break;
+                            var value = data.ToStructure<uint>();
 
-					case REG_VALUE_TYPE.REG_DWORD:
-						{
-							item.TypeString = "REG_DWORD";
+                            item.DisplayValue = string.Format("0x{0,8:x8} ({1})", value, value);
+                            item.EditableValue = value.ToString();
+                        }
+                        break;
 
-							var value = data.ToStructure<uint>();
+                    case REG_VALUE_TYPE.REG_MULTI_SZ:
+                        {
+                            var value = data.ToString(-1, CharSet.Auto);
 
-							item.DisplayValue = string.Format("0x{0,8:x8} ({1})", value, value);
-							item.EditableValue = value.ToString();
-						}
-						break;
+                            foreach (var atom in value.Split('\n'))
+                            {
+                                item.DisplayValue += $"{atom} ";
+                            }
 
-					case REG_VALUE_TYPE.REG_MULTI_SZ:
-						{
-							var value = data.ToString(-1, CharSet.Auto);
+                            item.DisplayValue = item.DisplayValue.TrimEnd();
+                            item.EditableValue = value;
+                        }
+                        break;
 
-							foreach (var atom in value.Split('\n'))
-							{
-								item.DisplayValue += $"{atom} ";
-							}
+                    case REG_VALUE_TYPE.REG_QWORD:
+                        {
+                            item.TypeString = "REG_QWORD";
 
-							item.DisplayValue = item.DisplayValue.TrimEnd();
-							item.EditableValue = value;
-						}
-						break;
+                            var value = data.ToStructure<ulong>();
 
-					case REG_VALUE_TYPE.REG_QWORD:
-						{
-							item.TypeString = "REG_QWORD";
+                            item.DisplayValue = string.Format("0x{0,16:x16} ({1})", value, value);
+                            item.EditableValue = value.ToString();
+                        }
+                        break;
+                }
 
-							var value = data.ToStructure<ulong>();
+                _valueItems.Add(item);
+                data.Close();
+            }
 
-							item.DisplayValue = string.Format("0x{0,16:x16} ({1})", value, value);
-							item.EditableValue = value.ToString();
-						}
-						break;
-				}
+            if (!hasDefaultKey)
+            {
+                defaultItem = new()
+                {
+                    Name = "",
+                    DataSize = 0,
+                    DisplayName = "(Default)",
+                    IsRenamable = false,
+                    DisplayValue = "(Value not set)",
+                    EditableValue = "",
+                    Type = REG_VALUE_TYPE.REG_SZ,
+                    TypeString = "REG_SZ",
+                };
+            }
 
-				_valueItems.Add(item);
-				data.Close();
-			}
+            var alphabetic = new ObservableCollection<ValueItem>(_valueItems.OrderBy(x => x.DisplayName));
+            _valueItems.Clear();
+            foreach (var item in alphabetic)
+                _valueItems.Add(item);
 
-			if (!hasDefaultKey)
-			{
-				defaultItem = new()
-				{
-					Name = "",
-					DataSize = 0,
-					DisplayName = "(Default)",
-					IsRenamable = false,
-					DisplayValue = "(Value not set)",
-					EditableValue = "",
-					Type = REG_VALUE_TYPE.REG_SZ,
-					TypeString = "REG_SZ",
-				};
-			}
-			#endregion
+            _valueItems.Insert(0, defaultItem);
 
-			var alphabetic = new ObservableCollection<ValueItem>(_valueItems.OrderBy(x => x.DisplayName));
-			_valueItems.Clear();
-			foreach (var item in alphabetic)
-				_valueItems.Add(item);
+            return Win32Error.ERROR_SUCCESS;
+        }
 
-			_valueItems.Insert(0, defaultItem);
+        public void SetBreadcrumbBarItems(HKEY hkey, string subRoot)
+        {
+            if (hkey == HKEY.HKEY_CLASSES_ROOT)
+                _selectedKeyPathItems.Add(new() { PathItem = "HKEY_CLASSES_ROOT" });
+            else if (hkey == HKEY.HKEY_CURRENT_CONFIG)
+                _selectedKeyPathItems.Add(new() { PathItem = "HKEY_CURRENT_CONFIG" });
+            else if (hkey == HKEY.HKEY_CURRENT_USER)
+                _selectedKeyPathItems.Add(new() { PathItem = "HKEY_CURRENT_USER" });
+            else if (hkey == HKEY.HKEY_LOCAL_MACHINE)
+                _selectedKeyPathItems.Add(new() { PathItem = "HKEY_LOCAL_MACHINE" });
+            else if (hkey == HKEY.HKEY_USERS)
+                _selectedKeyPathItems.Add(new() { PathItem = "HKEY_USERS" });
 
-			return Win32Error.ERROR_SUCCESS;
-		}
+            if (string.IsNullOrEmpty(subRoot) || subRoot.Split('\\').Length == 0)
+            {
+                _selectedKeyPathItems[^1].IsLast = true;
+                return;
+            }
 
-		public void SetBreadcrumbBarItems(HKEY hkey, string subRoot)
-		{
-			if (hkey == HKEY.HKEY_CLASSES_ROOT)
-				_selectedKeyPathItems.Add(new() { PathItem = "HKEY_CLASSES_ROOT" });
-			else if (hkey == HKEY.HKEY_CURRENT_CONFIG)
-				_selectedKeyPathItems.Add(new() { PathItem = "HKEY_CURRENT_CONFIG" });
-			else if (hkey == HKEY.HKEY_CURRENT_USER)
-				_selectedKeyPathItems.Add(new() { PathItem = "HKEY_CURRENT_USER" });
-			else if (hkey == HKEY.HKEY_LOCAL_MACHINE)
-				_selectedKeyPathItems.Add(new() { PathItem = "HKEY_LOCAL_MACHINE" });
-			else if (hkey == HKEY.HKEY_USERS)
-				_selectedKeyPathItems.Add(new() { PathItem = "HKEY_USERS" });
+            subRoot = subRoot.TrimEnd('\\');
+            var items = subRoot.Split('\\');
 
-			if (string.IsNullOrEmpty(subRoot) || subRoot.Split('\\').Length == 0)
-			{
-				_selectedKeyPathItems[^1].IsLast = true;
-				return;
-			}
+            foreach (var item in items)
+            {
+                _selectedKeyPathItems.Add(new() { PathItem = item });
+            }
 
-			subRoot = subRoot.TrimEnd('\\');
-			var items = subRoot.Split('\\');
+            _selectedKeyPathItems[^1].IsLast = true;
+        }
 
-			foreach (var item in items)
-			{
-				_selectedKeyPathItems.Add(new() { PathItem = item });
-			}
+        partial void OnSelectedKeyItemChanged(KeyItem oldValue, KeyItem newValue)
+        {
+            _valueItems.Clear();
+            InitializeBreadcrumbBarItems();
 
-			_selectedKeyPathItems[^1].IsLast = true;
-		}
-		#endregion
-	}
+            if (newValue.RootHive != HKEY.NULL)
+            {
+                var result = EnumerateRegistryValues(newValue.RootHive, newValue.Path);
+                if (result.Failed)
+                    StatusBarMessage = result.FormatMessage();
+            }
+        }
+    }
 }

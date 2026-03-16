@@ -5,10 +5,12 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-
-  <Folder Name="/global/">
+  <Folder Name="/.global/">
+    <File Path=".editorconfig" />
     <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
     <File Path="LICENSE" />
+    <File Path="nuget.config" />
     <File Path="PRIVACY.md" />
     <File Path="README.md" />
   </Folder>

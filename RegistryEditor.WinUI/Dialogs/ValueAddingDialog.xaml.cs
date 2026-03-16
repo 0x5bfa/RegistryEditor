@@ -5,11 +5,11 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace RegistryEditor.WinUI.Dialogs
 {
-	public sealed partial class ValueAddingDialog : ContentDialog
-	{
-		public ValueAddingDialog()
-		{
-			InitializeComponent();
-		}
-	}
+    public sealed partial class ValueAddingDialog : ContentDialog
+    {
+        public ValueAddingDialog()
+        {
+            InitializeComponent();
+        }
+    }
 }

@@ -1,0 +1,16 @@
+<!--  Copyright (c) Files Community. Licensed under the MIT License.  -->
+<Project>
+    <PropertyGroup>
+
+        <RootNamespace>U5BFA.Libraries</RootNamespace>
+        <PublishAot>true</PublishAot>
+        <LangVersion>preview</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AotCompatible>true</AotCompatible>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <CsWin32RunAsBuildTask>true</CsWin32RunAsBuildTask>
+        <DisableRuntimeMarshalling>true</DisableRuntimeMarshalling>
+
+    </PropertyGroup>
+</Project>
