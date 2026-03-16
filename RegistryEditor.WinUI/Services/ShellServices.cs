@@ -1,4 +1,7 @@
-﻿using System.ComponentModel;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace RegistryEditor.WinUI.Services

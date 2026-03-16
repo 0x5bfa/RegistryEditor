@@ -1,10 +1,11 @@
-﻿using Microsoft.UI.Xaml;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
 using Microsoft.UI.Xaml.Data;
-using RegistryEditor.WinUI.Models;
 
 namespace RegistryEditor.WinUI.Converters
 {
-	public class ValueTypeToBoolConverter : IValueConverter
+	public partial class ValueTypeToBoolConverter : IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, string language)
 		{
@@ -23,14 +24,14 @@ namespace RegistryEditor.WinUI.Converters
 					case REG_VALUE_TYPE.REG_EXPAND_SZ:
 					case REG_VALUE_TYPE.REG_MULTI_SZ:
 						{
-							return !invert ? true : false;
+							return !invert;
 						}
 					default:
 					case REG_VALUE_TYPE.REG_BINARY:
 					case REG_VALUE_TYPE.REG_DWORD:
 					case REG_VALUE_TYPE.REG_QWORD:
 						{
-							return !invert ? false : true;
+							return invert;
 						}
 				}
 			}
@@ -41,6 +42,8 @@ namespace RegistryEditor.WinUI.Converters
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, string language)
-			=> throw new NotImplementedException();
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

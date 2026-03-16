@@ -1,16 +1,19 @@
-﻿using Microsoft.UI.Xaml;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 
 namespace RegistryEditor.WinUI.Converters
 {
-	public class ObjectToBoolConverter : IValueConverter
+	public partial class ObjectToBoolConverter : IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, string language)
 		{
 			if (parameter is string param && string.Compare(param, "invert", true) == 0)
 			{
 				// invert Convert
-				var result = Convert(value, targetType, null, language);
+				var result = Convert(value, targetType, null!, language);
 
 				if (result is bool r)
 					return !r;
@@ -52,6 +55,8 @@ namespace RegistryEditor.WinUI.Converters
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, string language)
-			=> throw new NotImplementedException();
-	}
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

@@ -1,11 +1,14 @@
-﻿using Microsoft.UI.Xaml.Data;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using Microsoft.UI.Xaml.Data;
 
 namespace RegistryEditor.WinUI.Converters
 {
-	public class BoolToGlyphConverter : IValueConverter
+	public partial class BoolToGlyphConverter : IValueConverter
 	{
-		public string ExpandedGlyph { get; set; }
-		public string CollapsedGlyph { get; set; }
+		public string? ExpandedGlyph { get; set; }
+		public string? CollapsedGlyph { get; set; }
 
 		public object Convert(object value, Type targetType, object parameter, string language)
 		{
@@ -13,15 +16,17 @@ namespace RegistryEditor.WinUI.Converters
 
 			if (isExpanded.HasValue && isExpanded.Value)
 			{
-				return ExpandedGlyph;
+				return ExpandedGlyph ?? string.Empty;
 			}
 			else
 			{
-				return CollapsedGlyph;
+				return CollapsedGlyph ?? string.Empty;
 			}
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, string language)
-			=> throw new NotImplementedException();
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

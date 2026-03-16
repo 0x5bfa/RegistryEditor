@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using RegistryEditor.WinUI.ViewModels;
 using RegistryEditor.WinUI.ViewModels.Dialogs;
 
 namespace RegistryEditor.WinUI.Dialogs
@@ -24,7 +25,9 @@ namespace RegistryEditor.WinUI.Dialogs
 		#endregion
 
 		public ValueEditingDialog()
-			=> InitializeComponent();
+		{
+			InitializeComponent();
+		}
 
 		private void OnValueEditorTextBoxTextChanged(object sender, TextChangedEventArgs e)
 		{

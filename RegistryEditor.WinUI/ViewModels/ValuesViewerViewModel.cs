@@ -1,11 +1,14 @@
-﻿using Microsoft.UI.Xaml;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using Microsoft.UI.Xaml;
 using RegistryEditor.WinUI.Models;
 using System.Runtime.InteropServices;
 using Vanara.InteropServices;
 
 namespace RegistryEditor.WinUI.ViewModels
 {
-	public class ValuesViewerViewModel : ObservableObject
+	public partial class ValuesViewerViewModel : ObservableObject
 	{
 		public ValuesViewerViewModel()
 		{

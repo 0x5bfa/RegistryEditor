@@ -1,4 +1,7 @@
-﻿using CommunityToolkit.WinUI.Helpers;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using CommunityToolkit.WinUI.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using RegistryEditor.WinUI.Data;
@@ -9,7 +12,7 @@ using Windows.UI;
 
 namespace RegistryEditor.WinUI.ViewModels
 {
-	public class SettingsViewModel : ObservableObject
+	public partial class SettingsViewModel : ObservableObject
 	{
 		public SettingsViewModel()
 		{

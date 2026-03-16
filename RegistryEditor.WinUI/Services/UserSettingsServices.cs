@@ -1,6 +1,9 @@
-﻿namespace RegistryEditor.WinUI.Services
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+namespace RegistryEditor.WinUI.Services
 {
-	internal sealed class UserSettingsServices : BaseSettingsServices
+	internal sealed partial class UserSettingsServices : BaseSettingsServices
 	{
 		public bool RunAsAdminOnStartup
 		{

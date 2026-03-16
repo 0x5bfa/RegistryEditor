@@ -1,4 +1,7 @@
-﻿using Microsoft.UI.Input;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using System;
 using System.Reflection;

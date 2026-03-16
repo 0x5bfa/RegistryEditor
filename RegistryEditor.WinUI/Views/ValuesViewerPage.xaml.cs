@@ -1,5 +1,5 @@
-﻿// Copyright (c) 2025 0x5BFA.
-// Licensed under the MIT License.
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;

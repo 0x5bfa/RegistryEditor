@@ -1,6 +1,7 @@
-using Microsoft.UI.Xaml.Data;
+// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
 
-#nullable enable
+using Microsoft.UI.Xaml.Data;
 
 namespace RegistryEditor.WinUI.Converters
 {
@@ -52,7 +53,7 @@ namespace RegistryEditor.WinUI.Converters
 		}
 	}
 
-	public class InverseBooleanConverter : ValueConverter<bool, bool>
+	public partial class InverseBooleanConverter : ValueConverter<bool, bool>
 	{
 		protected override bool Convert(bool value, object? parameter, string? language)
 		{
@@ -65,7 +66,7 @@ namespace RegistryEditor.WinUI.Converters
 		}
 	}
 
-	public class NullToTrueConverter : ValueConverter<object?, bool>
+	public partial class NullToTrueConverter : ValueConverter<object?, bool>
 	{
 		public bool Inverse { get; set; }
 
@@ -80,7 +81,7 @@ namespace RegistryEditor.WinUI.Converters
 		}
 	}
 
-	public class StringNullOrWhiteSpaceToTrueConverter : ValueConverter<string, bool>
+	public partial class StringNullOrWhiteSpaceToTrueConverter : ValueConverter<string, bool>
 	{
 		public bool Inverse { get; set; }
 

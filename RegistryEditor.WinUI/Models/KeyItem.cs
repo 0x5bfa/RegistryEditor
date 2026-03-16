@@ -1,6 +1,9 @@
-﻿namespace RegistryEditor.WinUI.Models
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+namespace RegistryEditor.WinUI.Models
 {
-	public class KeyItem : ObservableObject
+	public partial class KeyItem : ObservableObject
 	{
 		private string _name;
 		public string Name { get => _name; set => SetProperty(ref _name, value); }

@@ -1,10 +1,13 @@
-﻿using RegistryEditor.WinUI.Extensions;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using RegistryEditor.WinUI.Extensions;
 using RegistryEditor.WinUI.Models;
 using RegistryEditor.WinUI.Services;
 
 namespace RegistryEditor.WinUI.ViewModels
 {
-	public class MainViewModel : ObservableObject
+	public partial class MainViewModel : ObservableObject
 	{
 		public MainViewModel()
 		{

@@ -1,4 +1,7 @@
-﻿using RegistryEditor.WinUI.Models;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using RegistryEditor.WinUI.Models;
 using System.Reflection;
 
 namespace RegistryEditor.WinUI.Extensions
@@ -25,7 +28,7 @@ namespace RegistryEditor.WinUI.Extensions
 			{
 				throw new InvalidOperationException("Generic parameter 'TEnum' must be an enum.");
 			}
-			return (TEnum)Enum.Parse(typeof(TEnum), text);
+			return Enum.Parse<TEnum>(text);
 		}
 
 		public static IEnumerable<KeyItem> GetFlattenNodes(this IEnumerable<KeyItem> masterList)

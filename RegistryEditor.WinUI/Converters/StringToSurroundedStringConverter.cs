@@ -1,19 +1,21 @@
-﻿using Microsoft.UI.Xaml;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
 using Microsoft.UI.Xaml.Data;
 
 namespace RegistryEditor.WinUI.Converters
 {
-	class StringToSurroundedStringConverter : IValueConverter
+    partial class StringToSurroundedStringConverter : IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, string language)
 		{
 			if (parameter is string strParam)
 			{
-				if (strParam == "quotes" && value.ToString().Length != 0)
+				if (strParam == "quotes" && value.ToString()?.Length is not 0)
 				{
 					return @$"""{value}""";
 				}
-				else if (strParam == "brackets" && value.ToString().Length != 0)
+				else if (strParam == "brackets" && value.ToString()?.Length is not 0)
 				{
 					return $"({value})";
 				}
@@ -33,6 +35,8 @@ namespace RegistryEditor.WinUI.Converters
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, string language)
-			=> throw new NotImplementedException();
-	}
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

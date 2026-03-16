@@ -1,4 +1,7 @@
-﻿using RegistryEditor.WinUI.Services;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using RegistryEditor.WinUI.Services;
 using RegistryEditor.WinUI.Models;
 
 namespace RegistryEditor.WinUI.ViewModels.UserControls

@@ -1,17 +1,7 @@
-﻿using Microsoft.UI.Xaml;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 
 namespace RegistryEditor.WinUI.Dialogs
 {
@@ -19,7 +9,7 @@ namespace RegistryEditor.WinUI.Dialogs
 	{
 		public ValueAddingDialog()
 		{
-			this.InitializeComponent();
+			InitializeComponent();
 		}
 	}
 }

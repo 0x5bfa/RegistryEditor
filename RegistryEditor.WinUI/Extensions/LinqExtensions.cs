@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
 
 namespace RegistryEditor.WinUI.Extensions
 {

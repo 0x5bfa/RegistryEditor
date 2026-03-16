@@ -1,6 +1,9 @@
-﻿namespace RegistryEditor.WinUI.Models
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+namespace RegistryEditor.WinUI.Models
 {
-	public class AccessRuleMergedItem : ObservableObject
+	public partial class AccessRuleMergedItem : ObservableObject
 	{
 		public REGSAM MaskAllowed { get; set; }
 		public REGSAM MaskDenied { get; set; }

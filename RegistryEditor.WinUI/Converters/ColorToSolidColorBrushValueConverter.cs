@@ -1,10 +1,13 @@
-﻿using Microsoft.UI.Xaml.Data;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 
 namespace RegistryEditor.WinUI.Converters
 {
-	internal class ColorToSolidColorBrushConverter : IValueConverter
+	internal partial class ColorToSolidColorBrushConverter : IValueConverter
 	{
 		public object? Convert(object value, Type targetType, object parameter, string language)
 		{
@@ -19,6 +22,8 @@ namespace RegistryEditor.WinUI.Converters
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, string language)
-			=> throw new NotImplementedException();
-	}
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

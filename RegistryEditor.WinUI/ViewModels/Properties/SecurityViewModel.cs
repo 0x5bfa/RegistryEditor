@@ -1,10 +1,13 @@
-﻿using RegistryEditor.WinUI.Models;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using RegistryEditor.WinUI.Models;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 
 namespace RegistryEditor.WinUI.ViewModels.Properties
 {
-	public class SecurityViewModel : ObservableObject
+	public partial class SecurityViewModel : ObservableObject
 	{
 		public SecurityViewModel()
 		{

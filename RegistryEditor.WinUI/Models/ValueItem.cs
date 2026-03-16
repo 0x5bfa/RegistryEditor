@@ -1,6 +1,9 @@
-﻿namespace RegistryEditor.WinUI.Models
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+namespace RegistryEditor.WinUI.Models
 {
-	public class ValueItem : ObservableObject
+	public partial class ValueItem : ObservableObject
 	{
 		public ValueItem()
 		{

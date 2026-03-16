@@ -1,11 +1,14 @@
-﻿using Microsoft.UI.Xaml;
+﻿// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using Microsoft.UI.Xaml;
 using RegistryEditor.WinUI.Models;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 
 namespace RegistryEditor.WinUI.ViewModels.Properties
 {
-	public class GeneralViewModel : ObservableObject
+	public partial class GeneralViewModel : ObservableObject
 	{
 		public GeneralViewModel()
 		{
