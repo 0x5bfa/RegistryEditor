@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "RegistryEditor.WinUI (Package)": {
+      "commandName": "MsixPackage",
+      "nativeDebugging": true
+    },
+    "RegistryEditor.WinUI (Unpackaged)": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

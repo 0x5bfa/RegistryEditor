@@ -1,7 +1,7 @@
 # Copyright (c) 2024 0x5BFA
 # Licensed under the MIT License.
 
-name: RegistryEditor CI
+name: CI
 
 on:
   push:
@@ -17,20 +17,14 @@ on:
       - 'docs/**'
       - '*.md'
 
-run-name: ${{ github.event_name == 'pull_request' && 'RegistryEditor PR Validation' || 'RegistryEditor CI Validation' }}
+run-name: ${{ github.event_name == 'pull_request' && 'PR Validation' || 'CI Validation' }}
 
 env:
   WORKING_DIR:         '${{ github.workspace }}' # 'D:\a\RegistryEditor\RegistryEditor'
-  SOLUTION_PATH:       '${{ github.workspace }}\RegistryEditor.slnx'
-  WAPPROJ_PATH:        '${{ github.workspace }}\RegistryEditor.WinUI.Packaging\RegistryEditor.WinUI.Packaging.wapproj'
-  APPX_PACKAGE_DIR:    '${{ github.workspace }}\RegistryEditor.WinUI.Packaging\AppPackages'
+  WASDK_APP_PROJ_PATH: '${{ github.workspace }}\RegistryEditor.WinUI\RegistryEditor.WinUI.csproj'
 
 jobs:
-
-  build:
-
-    if: github.repository_owner == '0x5bfa'
-
+  build-wasdk:
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -42,28 +36,14 @@ jobs:
       PLATFORM: ${{ matrix.platform }}
 
     steps:
-
     - name: Checkout the repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v2
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-
-    - name: Restore the solution
-      run: msbuild /restore $env:SOLUTION_PATH
+      uses: actions/setup-dotnet@v5
 
     - name: Build the solution
-      run: msbuild $env:WAPPROJ_PATH `
-        /p:Configuration=$env:CONFIGURATION `
-        /p:Platform=$env:PLATFORM `
-        /p:UapAppxPackageBuildMode=StoreUpload
-
-    - if: env.CONFIGURATION == 'Release' && env.PLATFORM == 'x64'
-      name: Upload the packages to the Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: 'Appx Packages (${{ env.CONFIGURATION }},${{ env.PLATFORM }})'
-        path: ${{ env.APPX_PACKAGE_DIR }}
+      run: msbuild /restore $env:WASDK_APP_PROJ_PATH /p:Configuration=$env:CONFIGURATION /p:Platform=$env:PLATFORM /p:AppxBundle=Never
