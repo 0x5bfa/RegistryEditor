@@ -7,7 +7,7 @@
 
 Registry Valley is the next generation Registry editor that replace Regedit.exe. In addition to all Regiedit's features, it supports dark theme, powerful WinUI with fluent controls, and custom color themes.
 
-![image](https://user-images.githubusercontent.com/62196528/212941487-0da3d39d-5b55-4b3d-994b-9055d372aa76.png)
+<img alt="Image" src="https://github.com/user-attachments/assets/094695a9-ba64-4b34-86b2-af9999cf7401" />
 
 ## Installing
 
