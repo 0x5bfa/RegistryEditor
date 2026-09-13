@@ -1,0 +1,92 @@
+<UserControl
+    x:Class="RegistryEditor.Views.RootView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:RegistryEditor.Controls"
+    xmlns:local="using:RegistryEditor.Views">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="RegistryTreeNodeTemplate" x:DataType="TreeViewNode">
+            <StackPanel
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="6">
+                <Image
+                    Width="16"
+                    Height="16"
+                    Source="{x:Bind ((local:RegistryNodeInfo)Content).Icon, Mode=OneWay}" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Text="{x:Bind ((local:RegistryNodeInfo)Content).Name}" />
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid
+            Padding="12"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,0,0,1"
+            ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <controls:Toolbar
+                x:Name="NavigationToolbar"
+                Grid.Column="0"
+                Padding="0"
+                VerticalAlignment="Center"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                OverflowButtonLabel="More"
+                ToolbarSize="Small" />
+
+            <controls:BreadcrumbBar
+                x:Name="PathBreadcrumbBar"
+                Grid.Column="1"
+                Margin="4,0"
+                VerticalAlignment="Center"
+                EllipsisButtonToolTip="Show hidden path items"
+                RootItemChevronToolTip="Show child keys"
+                RootItemToolTip="Registry hive" />
+
+            <TextBox
+                Grid.Column="2"
+                MinWidth="240"
+                VerticalAlignment="Center"
+                PlaceholderText="Search Registry" />
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="1" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TreeView
+                x:Name="RegistryTreeView"
+                Grid.Column="0"
+                Collapsed="RegistryTreeView_Collapsed"
+                Expanding="RegistryTreeView_Expanding"
+                ItemTemplate="{StaticResource RegistryTreeNodeTemplate}"
+                SelectionChanged="RegistryTreeView_SelectionChanged"
+                SelectionMode="Single" />
+
+            <Border
+                Grid.Column="1"
+                Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+            <Grid Grid.Column="2" />
+        </Grid>
+    </Grid>
+</UserControl>

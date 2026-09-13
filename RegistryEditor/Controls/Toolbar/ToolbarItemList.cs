@@ -1,0 +1,13 @@
+// Copyright (c) Files Community
+// Licensed under the MIT License.
+
+namespace RegistryEditor.Controls
+{
+	/// <summary>
+	/// A collection of Toolbar Items,
+	/// that are included in the IToolbarItemSet interface
+	/// </summary>
+	internal partial class ToolbarItemList : List<IToolbarItemSet>
+	{
+	}
+}

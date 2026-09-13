@@ -1,0 +1,66 @@
+// Copyright (c) Files Community
+// SPDX-License-Identifier: MPL-2.0
+
+using Microsoft.UI.Xaml.Input;
+using Windows.System;
+
+namespace RegistryEditor.Controls
+{
+	public partial class BreadcrumbBarItem
+	{
+		private void ItemChevronButton_Click(object sender, RoutedEventArgs e)
+		{
+			FlyoutBase.ShowAttachedFlyout(_itemChevronButton);
+		}
+
+		private void ItemChevronButton_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+		{
+			if (e.Key == VirtualKey.Down)
+			{
+				FlyoutBase.ShowAttachedFlyout(_itemChevronButton);
+			}
+		}
+
+		private void ItemChevronButton_RightTapped(object sender, RightTappedRoutedEventArgs e)
+		{
+			// Stop bubbling so the BreadcrumbBarItem's RightTapped doesn't open a context menu over the chevron.
+			e.Handled = true;
+		}
+
+		private void ItemContentButton_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+		{
+			if (e.Key == VirtualKey.Down)
+			{
+				FlyoutBase.ShowAttachedFlyout(_itemChevronButton);
+			}
+		}
+
+		private void ChevronDropDownMenuFlyout_Opening(object? sender, object e)
+		{
+			if (_ownerRef is null || _ownerRef.TryGetTarget(out var breadcrumbBar) is false || sender is not MenuFlyout flyout)
+			{
+				return;
+			}
+
+			breadcrumbBar.RaiseItemDropDownFlyoutOpening(this, flyout);
+		}
+
+		private void ChevronDropDownMenuFlyout_Opened(object? sender, object e)
+		{
+			VisualStateManager.GoToState(this, "ChevronNormalOn", true);
+		}
+
+		private void ChevronDropDownMenuFlyout_Closed(object? sender, object e)
+		{
+			if (_ownerRef is null || _ownerRef.TryGetTarget(out var breadcrumbBar) is false || sender is not MenuFlyout flyout)
+			{
+				return;
+			}
+
+			breadcrumbBar.RaiseItemDropDownFlyoutClosed(this, flyout);
+
+			VisualStateManager.GoToState(this, "ChevronNormalOff", true);
+			VisualStateManager.GoToState(this, "PointerNormal", true);
+		}
+	}
+}

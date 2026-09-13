@@ -1,0 +1,78 @@
+<!--  Copyright (c) Files Community. Licensed under the MIT License.  -->
+<ResourceDictionary
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:local="using:RegistryEditor.Controls"
+	xmlns:primitives="using:RegistryEditor.Controls.Primitives">
+
+	<Style BasedOn="{StaticResource DefaultToolbarStyle}" TargetType="local:Toolbar" />
+
+	<Style x:Key="DefaultToolbarStyle" TargetType="local:Toolbar">
+		<Setter Property="Background" Value="{ThemeResource ToolbarBackgroundBrush}" />
+		<Setter Property="BackgroundSizing" Value="InnerBorderEdge" />
+		<Setter Property="BorderBrush" Value="{ThemeResource ToolbarBorderBrush}" />
+		<Setter Property="BorderThickness" Value="{ThemeResource ToolbarBorderThickness}" />
+		<Setter Property="CornerRadius" Value="{ThemeResource ToolbarCornerRadius}" />
+		<Setter Property="Padding" Value="{ThemeResource ToolbarInnerPadding}" />
+		<Setter Property="IsTabStop" Value="False" />
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="local:Toolbar">
+
+					<Border
+						x:Name="RootBorder"
+						Padding="{TemplateBinding Padding}"
+						Background="{TemplateBinding Background}"
+						BackgroundSizing="{TemplateBinding BackgroundSizing}"
+						BorderBrush="{TemplateBinding BorderBrush}"
+						BorderThickness="{TemplateBinding BorderThickness}"
+						CornerRadius="{TemplateBinding CornerRadius}">
+
+						<Grid x:Name="RootGrid">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition x:Name="OverflowColumn" Width="Auto" />
+							</Grid.ColumnDefinitions>
+
+							<primitives:ToolbarItemsPanel
+								x:Name="PART_ItemsPanel"
+								Grid.Column="0"
+								HorizontalAlignment="Stretch"
+								VerticalAlignment="Stretch"
+								Spacing="{ThemeResource ToolbarItemSpacing}"
+								TabFocusNavigation="Local"
+								Visibility="Visible" />
+
+							<StackPanel
+								x:Name="PART_OverflowStackPanel"
+								Grid.Column="1"
+								Orientation="Horizontal"
+								Spacing="{ThemeResource ToolbarItemSpacing}"
+								Visibility="Collapsed">
+
+								<local:ToolbarSeparator />
+
+								<local:ToolbarFlyoutButton
+									x:Name="PART_OverflowButton"
+									MinWidth="40"
+									MinHeight="32"
+									AutomationProperties.Name="{TemplateBinding OverflowButtonLabel}"
+									IconSize="16"
+									Label="{TemplateBinding OverflowButtonLabel}"
+									ThemedIcon="{StaticResource App.ThemedIcons.More}">
+									<local:ToolbarFlyoutButton.Flyout>
+										<MenuFlyout x:Name="PART_OverflowFlyout" Placement="BottomEdgeAlignedRight" />
+									</local:ToolbarFlyoutButton.Flyout>
+								</local:ToolbarFlyoutButton>
+
+							</StackPanel>
+						</Grid>
+
+					</Border>
+
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+</ResourceDictionary>

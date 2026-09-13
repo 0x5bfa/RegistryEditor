@@ -2,7 +2,7 @@
 <Project>
     <PropertyGroup>
 
-        <RootNamespace>U5BFA.Libraries</RootNamespace>
+        <RootNamespace>RegistryEditor</RootNamespace>
         <PublishAot>true</PublishAot>
         <LangVersion>preview</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>

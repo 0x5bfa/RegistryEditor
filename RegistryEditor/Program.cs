@@ -1,0 +1,48 @@
+// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
+
+namespace RegistryEditor
+{
+    public class Program
+    {
+        [STAThread]
+        private static void Main()
+        {
+            WinRT.ComWrappersSupport.InitializeComWrappers();
+
+            bool isRedirect = false;
+            AppActivationArguments args = AppInstance.GetCurrent().GetActivatedEventArgs();
+            ExtendedActivationKind kind = args.Kind;
+            AppInstance keyInstance = AppInstance.FindOrRegisterForKey("RegistryEditor");
+
+            if (keyInstance.IsCurrent)
+            {
+                keyInstance.Activated += OnActivated;
+            }
+            else
+            {
+                isRedirect = true;
+                keyInstance.RedirectActivationToAsync(args).AsTask().Wait();
+            }
+
+            if (!isRedirect)
+            {
+                Application.Start((p) =>
+                {
+                    var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+                    SynchronizationContext.SetSynchronizationContext(context);
+                    _ = new App();
+                });
+            }
+        }
+
+        private static void OnActivated(object? sender, AppActivationArguments args)
+        {
+            // Do nothing for now.
+        }
+    }
+}

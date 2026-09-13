@@ -1,0 +1,28 @@
+// Copyright (c) Files Community
+// SPDX-License-Identifier: MPL-2.0
+
+using CommunityToolkit.WinUI;
+
+namespace RegistryEditor.Controls
+{
+	public partial class BreadcrumbBar : Control
+	{
+		[GeneratedDependencyProperty]
+		public partial FrameworkElement? RootItem { get; set; }
+
+		[GeneratedDependencyProperty]
+		public partial object? ItemsSource { get; set; }
+
+		[GeneratedDependencyProperty]
+		public partial object? ItemTemplate { get; set; }
+
+		[GeneratedDependencyProperty]
+		public partial string? EllipsisButtonToolTip { get; set; }
+
+		[GeneratedDependencyProperty]
+		public partial string? RootItemToolTip { get; set; }
+
+		[GeneratedDependencyProperty]
+		public partial string? RootItemChevronToolTip { get; set; }
+	}
+}
