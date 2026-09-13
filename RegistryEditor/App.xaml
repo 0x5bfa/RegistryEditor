@@ -8,27 +8,6 @@
 			<ResourceDictionary.MergedDictionaries>
 				<XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
 
-				<ResourceDictionary Source="ms-appx:///Controls/ThemedIcon/ThemedIcon.ThemeResources.xaml" />
-
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/Toolbar.ThemeResources.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarSeparator/ToolbarSeparator.ThemeResources.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarButton/ToolbarButton.ThemeResources.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarFlyoutButton/ToolbarFlyoutButton.ThemeResources.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarToggleButton/ToolbarToggleButton.ThemeResources.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarRadioButton/ToolbarRadioButton.ThemeResources.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarSplitButton/ToolbarSplitButton.ThemeResources.xaml" />
-
-				<ResourceDictionary Source="ms-appx:///Controls/ThemedIcon/ThemedIcon.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/ThemedIcon/Styles/Icons.Common.xaml" />
-
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/Toolbar.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarSeparator/ToolbarSeparator.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarButton/ToolbarButton.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarFlyoutButton/ToolbarFlyoutButton.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarToggleButton/ToolbarToggleButton.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarRadioButton/ToolbarRadioButton.xaml" />
-				<ResourceDictionary Source="ms-appx:///Controls/Toolbar/ToolbarSplitButton/ToolbarSplitButton.xaml" />
-
 				<ResourceDictionary Source="ms-appx:///Controls/BreadcrumbBar/BreadcrumbBar.xaml" />
 				<ResourceDictionary Source="ms-appx:///Controls/Omnibar/Omnibar.xaml" />
 

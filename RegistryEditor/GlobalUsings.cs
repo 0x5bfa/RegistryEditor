@@ -13,4 +13,3 @@ global using global::System.Threading.Tasks;
 global using global::Microsoft.UI.Xaml;
 global using global::Microsoft.UI.Xaml.Controls;
 global using global::Microsoft.UI.Xaml.Controls.Primitives;
-global using global::RegistryEditor.Controls.Primitives;
