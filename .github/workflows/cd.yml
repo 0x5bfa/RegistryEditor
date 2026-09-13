@@ -211,7 +211,7 @@ jobs:
         & "$env:GITHUB_WORKSPACE\.github\scripts\Test-PackagedAppStartup.ps1" `
           -PackagePath '${{ steps.validation-package.outputs.bundle_path }}' `
           -CertificatePath '${{ steps.validation-package.outputs.certificate_path }}' `
-          -PackageName '49462fluenthub-uwp.RegistryEditor' `
+          -PackageName '49462fluenthub-uwp.RegistryValley' `
           -Architecture '${{ matrix.architecture }}' `
           -DiagnosticsPath $env:VALIDATION_RESULTS_DIR
 
@@ -377,6 +377,5 @@ jobs:
           -WorkflowRunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
       env:
         GH_TOKEN: ${{ github.token }}
-
 
 
