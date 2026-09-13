@@ -1,7 +1,7 @@
 # Copyright (c) 0x5BFA. All rights reserved.
 # Licensed under the MIT license.
 
-name: CI
+name: RegistryEditor CI
 
 on:
   push:
@@ -17,23 +17,29 @@ on:
       - 'docs/**'
       - '*.md'
 
-run-name: ${{ github.event_name == 'pull_request' && 'PR Validation' || 'CI Validation' }}
+run-name: ${{ github.event_name == 'pull_request' && 'RegistryEditor PR Validation' || 'RegistryEditor CI Validation' }}
+
+permissions:
+  contents: read
 
 env:
-  WORKING_DIR:         '${{ github.workspace }}' # 'D:\a\RegistryEditor\RegistryEditor'
-  WASDK_APP_PROJ_PATH: '${{ github.workspace }}\RegistryEditor.WinUI\RegistryEditor.WinUI.csproj'
+  WORKING_DIR:       '${{ github.workspace }}' # 'D:\a\RegistryEditor\RegistryEditor'
+  APP_PROJECT_PATH:  '${{ github.workspace }}\RegistryEditor\RegistryEditor.csproj'
+  APP_MANIFEST_PATH: '${{ github.workspace }}\RegistryEditor\Package.appxmanifest'
 
 jobs:
-  build-wasdk:
+  build:
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         configuration: [Debug, Release]
-        platform: [x64, ARM64]
+        platform: [x64, arm64]
+    timeout-minutes: 60
     env:
       CONFIGURATION: ${{ matrix.configuration }}
       PLATFORM: ${{ matrix.platform }}
+      APP_OUTPUT_DIR: '${{ github.workspace }}\RegistryEditor\bin'
 
     steps:
     - name: Checkout the repository
@@ -45,5 +51,19 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
 
-    - name: Build the solution
-      run: msbuild /restore $env:WASDK_APP_PROJ_PATH /p:Configuration=$env:CONFIGURATION /p:Platform=$env:PLATFORM /p:AppxBundle=Never
+    - name: Build RegistryEditor
+      shell: pwsh
+      run: |
+        & "$env:WORKING_DIR\.github\scripts\Build-App.ps1" `
+          -ProjectPath $env:APP_PROJECT_PATH `
+          -Platform $env:PLATFORM `
+          -Configuration $env:CONFIGURATION `
+          -PackageManifestPath $env:APP_MANIFEST_PATH
+
+    - name: Upload build output
+      uses: actions/upload-artifact@v4
+      with:
+        name: 'Build output (${{ env.CONFIGURATION }}, ${{ env.PLATFORM }})'
+        path: ${{ env.APP_OUTPUT_DIR }}
+        if-no-files-found: error
+        retention-days: 7

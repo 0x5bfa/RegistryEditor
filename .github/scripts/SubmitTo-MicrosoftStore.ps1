@@ -1,0 +1,798 @@
+# Copyright (c) 2024 0x5BFA
+# Licensed under the MIT License. See the LICENSE.
+
+#Requires -Version 7.4
+
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)]
+    [string]$StorePackagePath,
+
+    [Parameter(Mandatory)]
+    [string]$StoreListingsPath,
+
+    [Parameter(Mandatory)]
+    [string]$StoreLocalesPath,
+
+    [Parameter(Mandatory)]
+    [string]$PartnerCenterClientId,
+
+    [Parameter(Mandatory)]
+    [string]$PartnerCenterClientSecret,
+
+    [Parameter(Mandatory)]
+    [string]$PartnerCenterSellerId,
+
+    [Parameter(Mandatory)]
+    [string]$PartnerCenterStoreId,
+
+    [Parameter(Mandatory)]
+    [string]$PartnerCenterTenantId,
+
+    [bool]$Submit = $false,
+
+    [bool]$ReplaceExistingDraft = $false,
+
+    [string]$ReleaseNotes = "",
+
+    [string]$FlightId = "",
+
+    [string]$PackageRolloutPercentage = "",
+
+    [Alias("PackageValidationTimeoutSeconds")]
+    [ValidateRange(1, 3600)]
+    [int]$PackageReadinessTimeoutSeconds = 300,
+
+    [ValidateRange(1, 3600)]
+    [int]$SubmissionVerificationTimeoutSeconds = 300,
+
+    [string]$SubmissionMetadataPath = ""
+)
+
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version 3.0
+
+function Invoke-MsStore
+{
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Arguments
+    )
+
+    & msstore @Arguments
+
+    if ($LASTEXITCODE -ne 0)
+    {
+        throw "msstore $($Arguments[0]) failed with exit code $LASTEXITCODE."
+    }
+}
+
+function Invoke-MsStoreJson
+{
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Arguments
+    )
+
+    $output = & msstore @Arguments | Out-String
+
+    if ($LASTEXITCODE -ne 0)
+    {
+        throw "msstore $($Arguments[0]) failed with exit code $LASTEXITCODE."
+    }
+
+    $jsonStart = $output.IndexOf("{", [StringComparison]::Ordinal)
+    $jsonEnd = $output.LastIndexOf("}", [StringComparison]::Ordinal)
+
+    if ($jsonStart -lt 0 -or $jsonEnd -lt $jsonStart)
+    {
+        throw "msstore $($Arguments[0]) did not return a JSON object."
+    }
+
+    return $output.Substring($jsonStart, $jsonEnd - $jsonStart + 1)
+}
+
+function Get-PropertyByName
+{
+    param(
+        [Parameter(Mandatory)]
+        [psobject]$InputObject,
+
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    return $InputObject.PSObject.Properties |
+        Where-Object { $_.Name.Equals($Name, [StringComparison]::OrdinalIgnoreCase) } |
+        Select-Object -First 1
+}
+
+function Write-SubmissionMetadata
+{
+    param(
+        [Parameter(Mandatory)]
+        [string]$SubmissionId,
+
+        [Parameter(Mandatory)]
+        [string]$Status,
+
+        [AllowEmptyString()]
+        [string]$SubmissionFlightId = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($SubmissionMetadataPath))
+    {
+        return
+    }
+
+    $metadataPath = [IO.Path]::GetFullPath($SubmissionMetadataPath)
+    $metadataDirectory = [IO.Path]::GetDirectoryName($metadataPath)
+
+    if (-not [string]::IsNullOrWhiteSpace($metadataDirectory))
+    {
+        [IO.Directory]::CreateDirectory($metadataDirectory) | Out-Null
+    }
+
+    $metadata = [ordered]@{
+        ProductId = $PartnerCenterStoreId
+        SubmissionId = $SubmissionId
+        FlightId = $SubmissionFlightId
+        Status = $Status
+        SubmittedAtUtc = [DateTime]::UtcNow.ToString("O")
+    }
+
+    $metadataJson = $metadata | ConvertTo-Json -Depth 10
+    [IO.File]::WriteAllText(
+        $metadataPath,
+        $metadataJson + [Environment]::NewLine,
+        [Text.UTF8Encoding]::new($false)
+    )
+
+    Write-Host "Saved Store submission metadata for submission '$SubmissionId'."
+}
+
+function Normalize-ComparableValue
+{
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    if ($null -eq $Value)
+    {
+        return $null
+    }
+
+    if ($Value -is [string])
+    {
+        return [regex]::Replace($Value, '\s+', ' ').Trim()
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and
+        $Value -isnot [System.Collections.IDictionary])
+    {
+        return @($Value | ForEach-Object {
+            Normalize-ComparableValue -Value $_
+        })
+    }
+
+    return $Value
+}
+
+function ConvertTo-ComparableJson
+{
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    $normalizedValue = Normalize-ComparableValue -Value $Value
+
+    if ($null -eq $normalizedValue)
+    {
+        return "null"
+    }
+
+    return $normalizedValue | ConvertTo-Json -Depth 100 -Compress
+}
+
+function Get-ApplicationPackage
+{
+    param(
+        [Parameter(Mandatory)]
+        [psobject]$Submission,
+
+        [Parameter(Mandatory)]
+        [string]$FileName
+    )
+
+    $applicationPackagesProperty = Get-PropertyByName `
+        -InputObject $Submission `
+        -Name "ApplicationPackages"
+
+    if ($null -eq $applicationPackagesProperty)
+    {
+        return $null
+    }
+
+    foreach ($applicationPackage in @($applicationPackagesProperty.Value))
+    {
+        $fileNameProperty = Get-PropertyByName `
+            -InputObject $applicationPackage `
+            -Name "FileName"
+
+        if ($null -ne $fileNameProperty -and
+            [string]$fileNameProperty.Value -ieq $FileName)
+        {
+            return $applicationPackage
+        }
+    }
+
+    return $null
+}
+
+function Assert-SubmissionLocales
+{
+    param(
+        [Parameter(Mandatory)]
+        [psobject]$Submission,
+
+        [Parameter(Mandatory)]
+        [string[]]$ConfiguredLocales
+    )
+
+    $listingsProperty = Get-PropertyByName `
+        -InputObject $Submission `
+        -Name "Listings"
+
+    if ($null -eq $listingsProperty -or $null -eq $listingsProperty.Value)
+    {
+        throw "The Store submission does not contain Listings."
+    }
+
+    $configuredLocaleSet = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::OrdinalIgnoreCase
+    )
+
+    foreach ($locale in $ConfiguredLocales)
+    {
+        $configuredLocaleSet.Add($locale) | Out-Null
+    }
+
+    $submissionLocales = @($listingsProperty.Value.PSObject.Properties.Name)
+    $unmanagedLocales = @(
+        $submissionLocales |
+            Where-Object { -not $configuredLocaleSet.Contains($_) }
+    )
+    $missingLocales = @(
+        $ConfiguredLocales |
+            Where-Object { $submissionLocales -inotcontains $_ }
+    )
+
+    if ($unmanagedLocales.Count -gt 0 -or $missingLocales.Count -gt 0)
+    {
+        $expectedLocales = @($ConfiguredLocales | Sort-Object) -join ", "
+        $actualLocales = @($submissionLocales | Sort-Object) -join ", "
+        throw "The Store listing locale set does not match locales.json. Expected: [$expectedLocales]. Actual: [$actualLocales]."
+    }
+
+    return $listingsProperty.Value
+}
+
+function Wait-MicrosoftStorePackageReadiness
+{
+    $expectedPackageName = [IO.Path]::GetFileName($StorePackagePath)
+    $deadline = [DateTime]::UtcNow.AddSeconds($PackageReadinessTimeoutSeconds)
+    $delaySeconds = 5
+    $attempt = 0
+    $lastError = "The package has not been returned by Partner Center."
+
+    while ($true)
+    {
+        $attempt++
+
+        try
+        {
+            $submissionJson = Invoke-MsStoreJson -Arguments @(
+                "submission",
+                "get",
+                $PartnerCenterStoreId
+            )
+            $submission = $submissionJson | ConvertFrom-Json -Depth 100
+            $applicationPackage = Get-ApplicationPackage `
+                -Submission $submission `
+                -FileName $expectedPackageName
+
+            if ($null -eq $applicationPackage)
+            {
+                $lastError = "The draft does not contain '$expectedPackageName'."
+            }
+            else
+            {
+                $versionProperty = Get-PropertyByName `
+                    -InputObject $applicationPackage `
+                    -Name "Version"
+                $languagesProperty = Get-PropertyByName `
+                    -InputObject $applicationPackage `
+                    -Name "Languages"
+                $fileStatusProperty = Get-PropertyByName `
+                    -InputObject $applicationPackage `
+                    -Name "FileStatus"
+                $version = ""
+                $languages = @()
+                $fileStatus = ""
+
+                if ($null -ne $versionProperty)
+                {
+                    $version = [string]$versionProperty.Value
+                }
+
+                if ($null -ne $languagesProperty)
+                {
+                    $languages = @(
+                        $languagesProperty.Value |
+                            Where-Object {
+                                $_ -is [string] -and
+                                -not [string]::IsNullOrWhiteSpace($_)
+                            }
+                    )
+                }
+
+                if ($null -ne $fileStatusProperty)
+                {
+                    $fileStatus = [string]$fileStatusProperty.Value
+                }
+
+                if ($fileStatus -ieq "PendingUpload")
+                {
+                    Write-Host @"
+Store package is staged in the draft: $expectedPackageName (fileStatus=$fileStatus). Version and languages will be populated when Partner Center processes the committed submission.
+"@
+                    return $submissionJson
+                }
+
+                if ($fileStatus -ieq "Uploaded" -and
+                    -not [string]::IsNullOrWhiteSpace($version) -and
+                    $languages.Count -gt 0)
+                {
+                    Write-Host @"
+Store package validation completed: $expectedPackageName (fileStatus=$fileStatus, version=$version, languages=$($languages.Count)).
+"@
+                    return $submissionJson
+                }
+
+                $lastError = @"
+Partner Center has not staged '$expectedPackageName' (fileStatus='$fileStatus', version='$version', languages=$($languages.Count)).
+"@.Trim()
+            }
+        }
+        catch
+        {
+            $lastError = $_.Exception.Message
+        }
+
+        $remainingSeconds = [int][Math]::Floor(
+            ($deadline - [DateTime]::UtcNow).TotalSeconds
+        )
+
+        if ($remainingSeconds -le 0)
+        {
+            throw "Timed out waiting for Store package readiness after $attempt attempt(s). Last result: $lastError"
+        }
+
+        $sleepSeconds = [Math]::Min($delaySeconds, $remainingSeconds)
+        Write-Warning @"
+Store package readiness attempt $attempt is not ready: $lastError Retrying in $sleepSeconds second(s).
+"@
+        Start-Sleep -Seconds $sleepSeconds
+        $delaySeconds = [Math]::Min($delaySeconds * 2, 30)
+    }
+}
+
+function Test-UpdatedSubmission
+{
+    $submissionJson = Invoke-MsStoreJson -Arguments @(
+        "submission",
+        "get",
+        $PartnerCenterStoreId
+    )
+    $submission = $submissionJson | ConvertFrom-Json -Depth 100
+
+    $expectedPackageName = [IO.Path]::GetFileName($StorePackagePath)
+    $packageMatch = Get-ApplicationPackage `
+        -Submission $submission `
+        -FileName $expectedPackageName
+
+    if ($null -eq $packageMatch)
+    {
+        throw "The updated submission does not contain the uploaded package '$expectedPackageName'."
+    }
+
+    Write-Host "Verified Store package in submission: $expectedPackageName"
+
+    $localeConfiguration = Get-Content -LiteralPath $StoreLocalesPath -Raw | ConvertFrom-Json -Depth 10
+    $locales = @($localeConfiguration.PSObject.Properties["locales"].Value)
+    $submissionListings = Assert-SubmissionLocales `
+        -Submission $submission `
+        -ConfiguredLocales $locales
+
+    foreach ($locale in $locales)
+    {
+        $submissionListing = $submissionListings.PSObject.Properties |
+            Where-Object { $_.Name.Equals($locale, [StringComparison]::OrdinalIgnoreCase) } |
+            Select-Object -First 1
+
+        if ($null -eq $submissionListing)
+        {
+            throw "The updated submission does not contain the '$locale' listing."
+        }
+
+        $baseListingProperty = Get-PropertyByName `
+            -InputObject $submissionListing.Value `
+            -Name "BaseListing"
+
+        if ($null -eq $baseListingProperty)
+        {
+            throw "The updated '$locale' listing does not contain BaseListing."
+        }
+
+        $listingPath = Join-Path $StoreListingsPath "$locale.json"
+        $localizedListing = Get-Content -LiteralPath $listingPath -Raw | ConvertFrom-Json -Depth 20
+
+        foreach ($property in $localizedListing.PSObject.Properties)
+        {
+            $updatedProperty = Get-PropertyByName `
+                -InputObject $baseListingProperty.Value `
+                -Name $property.Name
+
+            if ($null -eq $updatedProperty)
+            {
+                $expectedValue = ConvertTo-ComparableJson -Value $property.Value
+                throw @"
+The updated '$locale' listing does not contain '$($property.Name)'. Expected: $expectedValue. Actual: <missing>.
+"@
+            }
+
+            $expectedValue = ConvertTo-ComparableJson -Value $property.Value
+            $actualValue = ConvertTo-ComparableJson -Value $updatedProperty.Value
+
+            if ($expectedValue -cne $actualValue)
+            {
+                throw @"
+The updated '$locale' listing property '$($property.Name)' does not match the repository listing. Expected: $expectedValue. Actual: $actualValue.
+"@
+            }
+        }
+
+        Write-Host "Verified Store listing in submission: $locale"
+    }
+}
+
+function Wait-MicrosoftStoreSubmissionVerification
+{
+    $deadline = [DateTime]::UtcNow.AddSeconds($SubmissionVerificationTimeoutSeconds)
+    $delaySeconds = 5
+    $attempt = 0
+    $lastError = "The Store submission has not been verified."
+
+    while ($true)
+    {
+        $attempt++
+
+        try
+        {
+            Test-UpdatedSubmission
+            Write-Host "Verified the updated Store submission after $attempt attempt(s)."
+            return
+        }
+        catch
+        {
+            $lastError = $_.Exception.Message
+        }
+
+        $remainingSeconds = [int][Math]::Floor(
+            ($deadline - [DateTime]::UtcNow).TotalSeconds
+        )
+
+        if ($remainingSeconds -le 0)
+        {
+            throw "Timed out verifying the Store submission after $attempt attempt(s). Last error: $lastError"
+        }
+
+        $sleepSeconds = [Math]::Min($delaySeconds, $remainingSeconds)
+        Write-Warning @"
+Store submission verification attempt $attempt failed: $lastError Retrying in $sleepSeconds second(s).
+"@
+        Start-Sleep -Seconds $sleepSeconds
+        $delaySeconds = [Math]::Min($delaySeconds * 2, 30)
+    }
+}
+
+function Test-PendingSubmission
+{
+    if ([string]::IsNullOrWhiteSpace($FlightId))
+    {
+        $applicationJson = Invoke-MsStoreJson -Arguments @(
+            "apps",
+            "get",
+            $PartnerCenterStoreId
+        )
+        $application = $applicationJson | ConvertFrom-Json -Depth 100
+        $pendingSubmission = $application.PSObject.Properties["pendingApplicationSubmission"]
+        return $null -ne $pendingSubmission -and $null -ne $pendingSubmission.Value
+    }
+
+    $flightJson = Invoke-MsStoreJson -Arguments @(
+        "flights",
+        "get",
+        $PartnerCenterStoreId,
+        $FlightId
+    )
+    $flight = $flightJson | ConvertFrom-Json -Depth 100
+    $pendingSubmission = $flight.PSObject.Properties["pendingFlightSubmission"]
+    return $null -ne $pendingSubmission -and $null -ne $pendingSubmission.Value
+}
+
+$requiredValues = @{
+    PartnerCenterClientId       = $PartnerCenterClientId
+    PartnerCenterClientSecret   = $PartnerCenterClientSecret
+    PartnerCenterSellerId       = $PartnerCenterSellerId
+    PartnerCenterStoreId        = $PartnerCenterStoreId
+    PartnerCenterTenantId       = $PartnerCenterTenantId
+}
+
+foreach ($requiredValue in $requiredValues.GetEnumerator())
+{
+    if ([string]::IsNullOrWhiteSpace($requiredValue.Value))
+    {
+        throw "Missing required Microsoft Store publish value: $($requiredValue.Key)."
+    }
+}
+
+if (-not (Test-Path -LiteralPath $StorePackagePath -PathType Leaf))
+{
+    throw "The Store package does not exist: $StorePackagePath"
+}
+
+if (-not (Test-Path -LiteralPath $StoreListingsPath -PathType Container))
+{
+    throw "The Store listings directory does not exist: $StoreListingsPath"
+}
+
+if (-not (Test-Path -LiteralPath $StoreLocalesPath -PathType Leaf))
+{
+    throw "The Store locales file does not exist: $StoreLocalesPath"
+}
+
+Invoke-MsStore -Arguments @(
+    "reconfigure",
+    "--tenantId",
+    $PartnerCenterTenantId,
+    "--sellerId",
+    $PartnerCenterSellerId,
+    "--clientId",
+    $PartnerCenterClientId,
+    "--clientSecret",
+    $PartnerCenterClientSecret
+)
+
+$hasPendingSubmission = Test-PendingSubmission
+$submissionJson = $null
+$expectedPackageName = [IO.Path]::GetFileName($StorePackagePath)
+
+if ($hasPendingSubmission -and -not $ReplaceExistingDraft)
+{
+    if (-not [string]::IsNullOrWhiteSpace($FlightId))
+    {
+        throw @"
+Partner Center already has a pending flight submission for this target.
+Review or remove the draft, or rerun with ReplaceExistingDraft enabled.
+"@
+    }
+
+    $submissionJson = Invoke-MsStoreJson -Arguments @(
+        "submission",
+        "get",
+        $PartnerCenterStoreId
+    )
+    $pendingSubmission = $submissionJson | ConvertFrom-Json -Depth 100
+    $pendingPackage = Get-ApplicationPackage `
+        -Submission $pendingSubmission `
+        -FileName $expectedPackageName
+
+    if ($null -eq $pendingPackage)
+    {
+        throw @"
+Partner Center already has a pending submission, but it does not contain '$expectedPackageName'.
+Review the draft, or rerun with ReplaceExistingDraft enabled only if it can be discarded.
+"@
+    }
+
+    Write-Host "Resuming the existing Partner Center draft for package '$expectedPackageName'."
+}
+
+if (-not $hasPendingSubmission -or $ReplaceExistingDraft)
+{
+    if ($hasPendingSubmission)
+    {
+        Write-Warning "The existing Partner Center draft will be replaced."
+    }
+
+    $publishArgs = @(
+        "publish",
+        $StorePackagePath,
+        "--appId",
+        $PartnerCenterStoreId,
+        "--noCommit"
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($FlightId))
+    {
+        $publishArgs += @("--flightId", $FlightId)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($PackageRolloutPercentage))
+    {
+        $publishArgs += @("--packageRolloutPercentage", $PackageRolloutPercentage)
+    }
+
+    Write-Host "Uploading package '$StorePackagePath' to Microsoft Store app '$PartnerCenterStoreId'."
+    Invoke-MsStore -Arguments $publishArgs
+
+    if (-not [string]::IsNullOrWhiteSpace($FlightId))
+    {
+        if (-not $Submit)
+        {
+            Write-Host "The flight submission is ready and will remain in draft state."
+            return
+        }
+
+        $flightJson = Invoke-MsStoreJson -Arguments @(
+            "flights",
+            "get",
+            $PartnerCenterStoreId,
+            $FlightId
+        )
+        $flight = $flightJson | ConvertFrom-Json -Depth 100
+        $pendingFlightSubmissionProperty = Get-PropertyByName `
+            -InputObject $flight `
+            -Name "PendingFlightSubmission"
+
+        if ($null -eq $pendingFlightSubmissionProperty -or
+            $null -eq $pendingFlightSubmissionProperty.Value)
+        {
+            throw "The pending flight submission could not be retrieved."
+        }
+
+        $flightSubmissionIdProperty = Get-PropertyByName `
+            -InputObject $pendingFlightSubmissionProperty.Value `
+            -Name "Id"
+        $flightSubmissionId = if ($null -eq $flightSubmissionIdProperty)
+        {
+            ""
+        }
+        else
+        {
+            [string]$flightSubmissionIdProperty.Value
+        }
+
+        if ([string]::IsNullOrWhiteSpace($flightSubmissionId))
+        {
+            throw "The pending flight submission does not contain an ID."
+        }
+
+        Invoke-MsStore -Arguments @(
+            "flights",
+            "submission",
+            "publish",
+            $PartnerCenterStoreId,
+            $FlightId
+        )
+
+        Write-SubmissionMetadata `
+            -SubmissionId $flightSubmissionId `
+            -Status "CommitStarted" `
+            -SubmissionFlightId $FlightId
+
+        Write-Host "Committed Store flight submission '$flightSubmissionId'; certification will be tracked by GitHub."
+        return
+    }
+
+    $submissionJson = Invoke-MsStoreJson -Arguments @(
+        "submission",
+        "get",
+        $PartnerCenterStoreId
+    )
+}
+
+$tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+$tempPath = Join-Path $tempRoot "RegistryEditor-MicrosoftStore-$([Guid]::NewGuid().ToString('N'))"
+[IO.Directory]::CreateDirectory($tempPath) | Out-Null
+
+try
+{
+    $submissionPath = Join-Path $tempPath "submission.json"
+    $updatedSubmissionPath = Join-Path $tempPath "submission.updated.json"
+
+    if ([string]::IsNullOrWhiteSpace($submissionJson))
+    {
+        throw "The pending Store submission could not be retrieved."
+    }
+
+    Write-Host "Checking Partner Center package staging for '$expectedPackageName'."
+    $submissionJson = Wait-MicrosoftStorePackageReadiness
+    [IO.File]::WriteAllText(
+        $submissionPath,
+        $submissionJson + [Environment]::NewLine,
+        [Text.UTF8Encoding]::new($false)
+    )
+
+    $mergeScriptPath = Join-Path $PSScriptRoot "Merge-MicrosoftStoreListings.ps1"
+    & $mergeScriptPath `
+        -SubmissionPath $submissionPath `
+        -ListingsPath $StoreListingsPath `
+        -LocalesPath $StoreLocalesPath `
+        -OutputPath $updatedSubmissionPath `
+        -ReleaseNotes $ReleaseNotes
+
+    $updatedMetadata = Get-Content -LiteralPath $updatedSubmissionPath -Raw
+    Invoke-MsStore -Arguments @(
+        "submission",
+        "updateMetadata",
+        $PartnerCenterStoreId,
+        $updatedMetadata
+    )
+
+    Wait-MicrosoftStoreSubmissionVerification
+
+    if (-not $Submit)
+    {
+        Write-Host @"
+The package and localized listings are staged in the Submission API and will remain in PendingCommit state. The Partner Center editor can continue to show its previous values until the submission is committed.
+"@
+        return
+    }
+
+    Invoke-MsStore -Arguments @(
+        "submission",
+        "publish",
+        $PartnerCenterStoreId
+    )
+
+    $committedSubmission = $submissionJson | ConvertFrom-Json -Depth 100
+    $submissionIdProperty = Get-PropertyByName `
+        -InputObject $committedSubmission `
+        -Name "Id"
+    $submissionId = if ($null -eq $submissionIdProperty)
+    {
+        ""
+    }
+    else
+    {
+        [string]$submissionIdProperty.Value
+    }
+
+    if ([string]::IsNullOrWhiteSpace($submissionId))
+    {
+        throw "The committed Store submission does not contain an ID."
+    }
+
+    Write-SubmissionMetadata `
+        -SubmissionId $submissionId `
+        -Status "CommitStarted"
+
+    Write-Host "Committed Store submission '$submissionId'; certification will be tracked by GitHub."
+}
+finally
+{
+    $resolvedTempPath = [IO.Path]::GetFullPath($tempPath)
+
+    if ($resolvedTempPath.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -and
+        [IO.Path]::GetFileName($resolvedTempPath).StartsWith("RegistryEditor-MicrosoftStore-", [StringComparison]::Ordinal) -and
+        [IO.Directory]::Exists($resolvedTempPath))
+    {
+        [IO.Directory]::Delete($resolvedTempPath, $true)
+    }
+}
+
+

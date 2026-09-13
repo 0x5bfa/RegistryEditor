@@ -1,0 +1,22 @@
+{
+  "description": "Registry Editor is a modern registry editor for Windows 10 and Windows 11. Browse registry hives, inspect keys and values, and manage your system through a fluent WinUI 3 interface.",
+  "shortDescription": "A modern and fluent registry editor for Windows.",
+  "features": [
+    "Modern WinUI 3 interface",
+    "Browse registry hives and keys",
+    "Inspect registry values and data",
+    "Designed for Windows 10 and Windows 11"
+  ],
+  "keywords": [
+    "registry",
+    "editor",
+    "Windows",
+    "Regedit",
+    "WinUI"
+  ],
+  "shortTitle": "Registry Editor",
+  "voiceTitle": "Registry Editor",
+  "devStudio": "0x5BFA",
+  "copyrightAndTrademarkInfo": "Copyright 0x5BFA."
+}
+
