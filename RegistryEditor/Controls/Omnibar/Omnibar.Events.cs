@@ -1,0 +1,204 @@
+// Copyright (c) Files Community
+// SPDX-License-Identifier: MPL-2.0
+
+using Microsoft.UI.Xaml.Input;
+using Windows.System;
+
+namespace RegistryEditor.Controls
+{
+	public partial class Omnibar
+	{
+		private void Omnibar_SizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			// Popup width has to be set manually because it doesn't stretch with the parent
+			_textBoxSuggestionsContainerBorder.Width = ActualWidth;
+		}
+
+		private void AutoSuggestBox_GettingFocus(UIElement sender, GettingFocusEventArgs args)
+		{
+			if (args.OldFocusedElement is null)
+			{
+				// Window is regaining activation and restoring focus to the TextBox - redirect
+				// to whatever was focused before, so the omnibar doesn't get stuck in edit mode.
+				if (args.InputDevice is FocusInputDeviceKind.None && _previouslyFocusedElement.TryGetTarget(out var previous) && previous is not null)
+				{
+					args.TrySetNewFocusedElement(previous);
+				}
+
+				return;
+			}
+
+			_previouslyFocusedElement = new(args.OldFocusedElement as UIElement);
+		}
+
+		private void AutoSuggestBox_LosingFocus(UIElement sender, LosingFocusEventArgs args)
+		{
+			// Programmatic focus moves (InputDevice == None) while the user is typing in the
+			// Omnibar - typically a post-folder-load FocusActivePane / FocusFileList - should not
+			// pull focus away and clear the in-progress query. User gestures still pass through.
+			if (Volatile.Read(ref _allowProgrammaticFocusLoss) is 0 && args.InputDevice is FocusInputDeviceKind.None && args.FocusState is FocusState.Programmatic)
+			{
+				args.TryCancel();
+
+				return;
+			}
+
+			// Prevent the TextBox from losing focus when the ModeButton is focused
+			if (args.NewFocusedElement is not Button button || args.InputDevice is FocusInputDeviceKind.Keyboard || button.Name.ToString() != "PART_ModeButton")
+			{
+				return;
+			}
+
+			args.TryCancel();
+		}
+
+		private void AutoSuggestBox_GotFocus(object sender, RoutedEventArgs e)
+		{
+			IsFocused = true;
+			IsFocusedChanged?.Invoke(this, new(IsFocused));
+
+			_textBox.SelectAll();
+		}
+
+		private void AutoSuggestBox_LostFocus(object sender, RoutedEventArgs e)
+		{
+			// TextBox still has focus if the context menu for selected text is open
+			var element = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(this.XamlRoot);
+			if (element is FlyoutBase or Popup)
+			{
+				return;
+			}
+
+			IsFocused = false;
+			IsFocusedChanged?.Invoke(this, new(IsFocused));
+		}
+
+		private void AutoSuggestBox_KeyDown(object sender, KeyRoutedEventArgs e)
+		{
+			if (e.Key is VirtualKey.Enter)
+			{
+				e.Handled = true;
+
+				SubmitQuery(_textBoxSuggestionsPopup.IsOpen && _textBoxSuggestionsListView.SelectedIndex is not -1 ? _textBoxSuggestionsListView.SelectedItem : null);
+			}
+			else if ((e.Key == VirtualKey.Up || e.Key == VirtualKey.Down) && _textBoxSuggestionsPopup.IsOpen)
+			{
+				e.Handled = true;
+
+				var currentIndex = _textBoxSuggestionsListView.SelectedIndex;
+				var nextIndex = currentIndex;
+				var suggestionsCount = _textBoxSuggestionsListView.Items.Count;
+
+				if (e.Key is VirtualKey.Up)
+				{
+					nextIndex--;
+				}
+				else if (e.Key is VirtualKey.Down)
+				{
+					nextIndex++;
+				}
+
+				if (0 > nextIndex || nextIndex >= suggestionsCount)
+				{
+					RevertTextToUserInput();
+				}
+				else
+				{
+					_textBoxSuggestionsListView.SelectedIndex = nextIndex;
+
+					ChooseSuggestionItem(_textBoxSuggestionsListView.SelectedItem, true);
+				}
+			}
+			else if (e.Key == VirtualKey.Escape)
+			{
+				e.Handled = true;
+
+				if (_textBoxSuggestionsPopup.IsOpen)
+				{
+					RevertTextToUserInput();
+					_textBoxSuggestionsPopup.IsOpen = false;
+				}
+				else
+				{
+					_previouslyFocusedElement.TryGetTarget(out var previouslyFocusedElement);
+					previouslyFocusedElement?.Focus(FocusState.Programmatic);
+				}
+			}
+			else
+			{
+				_textChangeReason = OmnibarTextChangeReason.UserInput;
+			}
+		}
+
+		private void AutoSuggestBox_TextChanged(object sender, TextChangedEventArgs e)
+		{
+			if (CurrentSelectedMode is not { } mode)
+			{
+				_textChangeReason = OmnibarTextChangeReason.None;
+
+				return;
+			}
+
+			var text = _textBox.Text;
+			var reason = _textChangeReason;
+			if (!string.Equals(text, mode.Text, StringComparison.Ordinal))
+			{
+				mode.Text = text;
+			}
+
+			// UpdateSuggestionListView();
+
+			if (reason is OmnibarTextChangeReason.ProgrammaticChange)
+			{
+				_textBox.SelectAll();
+			}
+			else if (reason is OmnibarTextChangeReason.UserInput or OmnibarTextChangeReason.None)
+			{
+				_userInputs[mode] = text;
+			}
+
+			try
+			{
+				TextChanged?.Invoke(this, new(mode, reason));
+			}
+			finally
+			{
+				_textChangeReason = OmnibarTextChangeReason.None;
+			}
+		}
+
+		private void AutoSuggestBoxSuggestionsPopup_GettingFocus(UIElement sender, GettingFocusEventArgs args)
+		{
+			// The suggestions popup is never wanted to be focused when it come to open.
+			args.TryCancel();
+		}
+
+		private void AutoSuggestBoxSuggestionsPopup_Opened(object? sender, object e)
+		{
+			if (_textBoxSuggestionsListView.Items.Count > 0)
+			{
+				_textBoxSuggestionsListView.ScrollIntoView(_textBoxSuggestionsListView.Items[0]);
+			}
+		}
+
+		private void AutoSuggestBoxSuggestionsListView_ItemClick(object sender, ItemClickEventArgs e)
+		{
+			if (CurrentSelectedMode is null)
+			{
+				return;
+			}
+
+			ChooseSuggestionItem(e.ClickedItem);
+			SubmitQuery(e.ClickedItem);
+		}
+
+		private void AutoSuggestBoxSuggestionsListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+		{
+			if (_textBoxSuggestionsListView.SelectedItem is { } selectedItem)
+			{
+				_textBoxSuggestionsListView.ScrollIntoView(selectedItem);
+			}
+		}
+	}
+}
+

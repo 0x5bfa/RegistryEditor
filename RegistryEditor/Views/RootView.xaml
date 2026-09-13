@@ -1,92 +1,294 @@
 <UserControl
-    x:Class="RegistryEditor.Views.RootView"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:RegistryEditor.Controls"
-    xmlns:local="using:RegistryEditor.Views">
+	x:Class="RegistryEditor.Views.RootView"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:controls="using:RegistryEditor.Controls"
+	xmlns:viewModels="using:RegistryEditor.ViewModels">
 
-    <UserControl.Resources>
-        <DataTemplate x:Key="RegistryTreeNodeTemplate" x:DataType="TreeViewNode">
-            <StackPanel
-                VerticalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="6">
-                <Image
-                    Width="16"
-                    Height="16"
-                    Source="{x:Bind ((local:RegistryNodeInfo)Content).Icon, Mode=OneWay}" />
-                <TextBlock
-                    VerticalAlignment="Center"
-                    Text="{x:Bind ((local:RegistryNodeInfo)Content).Name}" />
-            </StackPanel>
-        </DataTemplate>
-    </UserControl.Resources>
+	<UserControl.Resources>
+		<ResourceDictionary>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+			<DataTemplate x:Key="RegistryTreeNodeTemplate" x:DataType="viewModels:RegistryNodeViewModel">
+				<TreeViewItem
+					HasUnrealizedChildren="{x:Bind HasUnrealizedChildren, Mode=OneWay}"
+					IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+					ItemsSource="{x:Bind Children, Mode=OneWay}">
+					<StackPanel
+						VerticalAlignment="Center"
+						Orientation="Horizontal"
+						Spacing="6">
+						<Image
+							Width="16"
+							Height="16"
+							Source="{x:Bind Icon, Mode=OneWay}" />
+						<TextBlock VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneWay}" />
+					</StackPanel>
+				</TreeViewItem>
+			</DataTemplate>
 
-        <Grid
-            Padding="12"
-            Background="{ThemeResource LayerFillColorDefaultBrush}"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,0,0,1"
-            ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+			<DataTemplate x:Key="RegistryValueTemplate" x:DataType="viewModels:RegistryValueViewModel">
+				<Grid
+					Padding="12,7"
+					HorizontalAlignment="Stretch"
+					ColumnSpacing="12">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="220" />
+						<ColumnDefinition Width="150" />
+						<ColumnDefinition Width="*" />
+					</Grid.ColumnDefinitions>
 
-            <controls:Toolbar
-                x:Name="NavigationToolbar"
-                Grid.Column="0"
-                Padding="0"
-                VerticalAlignment="Center"
-                Background="Transparent"
-                BorderBrush="Transparent"
-                OverflowButtonLabel="More"
-                ToolbarSize="Small" />
+					<StackPanel
+						Grid.Column="0"
+						VerticalAlignment="Center"
+						Orientation="Horizontal"
+						Spacing="8">
+						<Image
+							Width="16"
+							Height="16"
+							Source="{x:Bind Icon, Mode=OneWay}" />
+						<TextBlock
+							VerticalAlignment="Center"
+							Text="{x:Bind Name}"
+							TextTrimming="CharacterEllipsis" />
+					</StackPanel>
 
-            <controls:BreadcrumbBar
-                x:Name="PathBreadcrumbBar"
-                Grid.Column="1"
-                Margin="4,0"
-                VerticalAlignment="Center"
-                EllipsisButtonToolTip="Show hidden path items"
-                RootItemChevronToolTip="Show child keys"
-                RootItemToolTip="Registry hive" />
+					<TextBlock
+						Grid.Column="1"
+						VerticalAlignment="Center"
+						Text="{x:Bind Type}"
+						TextTrimming="CharacterEllipsis" />
 
-            <TextBox
-                Grid.Column="2"
-                MinWidth="240"
-                VerticalAlignment="Center"
-                PlaceholderText="Search Registry" />
-        </Grid>
+					<TextBlock
+						Grid.Column="2"
+						VerticalAlignment="Center"
+						Text="{x:Bind Data}"
+						TextTrimming="CharacterEllipsis" />
+				</Grid>
+			</DataTemplate>
 
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="1" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+			<Thickness x:Key="AppBarButtonInnerBorderMargin">0,0,0,0</Thickness>
+			<Visibility x:Key="AppBarButtonHasFlyoutChevronVisibility">Collapsed</Visibility>
+			<Thickness x:Key="AppBarButtonContentViewboxCollapsedMargin">0,9,0,9</Thickness>
+			<x:Double x:Key="AppBarButtonContentHeight">14</x:Double>
 
-            <TreeView
-                x:Name="RegistryTreeView"
-                Grid.Column="0"
-                Collapsed="RegistryTreeView_Collapsed"
-                Expanding="RegistryTreeView_Expanding"
-                ItemTemplate="{StaticResource RegistryTreeNodeTemplate}"
-                SelectionChanged="RegistryTreeView_SelectionChanged"
-                SelectionMode="Single" />
+			<Style
+				x:Key="CompactAppBarButtonStyle"
+				BasedOn="{StaticResource DefaultAppBarButtonStyle}"
+				TargetType="AppBarButton">
+				<Setter Property="Width" Value="32" />
+				<Setter Property="Height" Value="32" />
+				<Setter Property="Margin" Value="4,4,4,4" />
+				<Setter Property="Padding" Value="0,0,0,0" />
+				<Setter Property="VerticalAlignment" Value="Center" />
+				<Setter Property="LabelPosition" Value="Collapsed" />
+				<Setter Property="VerticalContentAlignment" Value="Center" />
+				<Setter Property="HorizontalContentAlignment" Value="Center" />
+			</Style>
 
-            <Border
-                Grid.Column="1"
-                Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+		</ResourceDictionary>
 
-            <Grid Grid.Column="2" />
-        </Grid>
-    </Grid>
+	</UserControl.Resources>
+
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
+
+		<TitleBar
+			Title="Registry Editor"
+			Grid.Row="0"
+			Background="{ThemeResource LayerFillColorDefaultBrush}">
+			<TitleBar.IconSource>
+				<ImageIconSource ImageSource="/Assets/Branding/AppLogo.png" />
+			</TitleBar.IconSource>
+		</TitleBar>
+
+		<ProgressBar
+			Grid.Row="1"
+			Height="2"
+			HorizontalAlignment="Stretch"
+			VerticalAlignment="Top"
+			IsIndeterminate="True"
+			Visibility="{x:Bind ViewModel.LoadingVisibility, Mode=OneWay}" />
+
+		<StackPanel
+			Grid.Row="1"
+			Padding="4,0,0,0"
+			Background="{ThemeResource LayerFillColorDefaultBrush}"
+			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+			Orientation="Horizontal">
+
+			<AppBarButton Style="{StaticResource CompactAppBarButtonStyle}">
+				<AppBarButton.Icon>
+					<FontIcon Glyph="&#xE72B;" />
+				</AppBarButton.Icon>
+			</AppBarButton>
+
+			<AppBarButton Style="{StaticResource CompactAppBarButtonStyle}">
+				<AppBarButton.Icon>
+					<FontIcon Glyph="&#xE72A;" />
+				</AppBarButton.Icon>
+			</AppBarButton>
+
+			<AppBarButton Style="{StaticResource CompactAppBarButtonStyle}">
+				<AppBarButton.Icon>
+					<FontIcon Glyph="&#xE72C;" />
+				</AppBarButton.Icon>
+			</AppBarButton>
+
+			<AppBarSeparator />
+
+			<MenuBar>
+				<MenuBarItem Title="File">
+					<MenuFlyoutItem AccessKey="I" Text="Import" />
+					<MenuFlyoutItem AccessKey="E" Text="Export" />
+					<MenuFlyoutSeparator />
+					<MenuFlyoutItem Text="Load hive" />
+					<MenuFlyoutItem Text="Unload hive" />
+					<MenuFlyoutSeparator />
+					<MenuFlyoutItem Text="Connect to network registry" />
+					<MenuFlyoutItem Text="Disconnect from network registry" />
+					<MenuFlyoutSeparator />
+					<MenuFlyoutItem Text="Print" />
+				</MenuBarItem>
+
+				<MenuBarItem Title="Edit">
+					<MenuFlyoutItem Text="Undo" />
+					<MenuFlyoutItem Text="Cut" />
+					<MenuFlyoutItem Text="Copy" />
+					<MenuFlyoutItem Text="Paste" />
+				</MenuBarItem>
+
+				<MenuBarItem Title="Help">
+					<MenuFlyoutItem Text="About" />
+				</MenuBarItem>
+
+			</MenuBar>
+
+		</StackPanel>
+
+		<Grid
+			Grid.Row="2"
+			Padding="12,4,12,10"
+			Background="{ThemeResource LayerFillColorDefaultBrush}"
+			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+			BorderThickness="0,0,0,1"
+			ColumnSpacing="8">
+
+			<controls:Omnibar
+				x:Name="NavigationOmnibar"
+				HorizontalAlignment="Stretch"
+				AutomationProperties.AutomationId="NavigationOmnibar"
+				QuerySubmitted="NavigationOmnibar_QuerySubmitted"
+				TextBoxAutomationId="PathTextBox">
+				<controls:OmnibarMode
+					x:Name="PathOmnibarMode"
+					IsDefault="True"
+					ModeName="Registry path"
+					PlaceholderText="Enter registry path"
+					Text="{x:Bind ViewModel.BreadcrumbPathText, Mode=OneWay}">
+					<controls:OmnibarMode.IconOnActive>
+						<FontIcon FontSize="16" Glyph="&#xE8B7;" />
+					</controls:OmnibarMode.IconOnActive>
+					<controls:OmnibarMode.ContentOnInactive>
+						<controls:BreadcrumbBar
+							x:Name="PathBreadcrumbBar"
+							EllipsisButtonToolTip="Show hidden path items"
+							ItemClicked="PathBreadcrumbBar_ItemClicked"
+							ItemsSource="{x:Bind ViewModel.BreadcrumbItems, Mode=OneWay}"
+							RootItemChevronToolTip="Show child keys"
+							RootItemToolTip="Computer">
+							<controls:BreadcrumbBar.RootItem>
+								<Image
+									Width="16"
+									Height="16"
+									Source="ms-appx:///Assets/Images/Computer.png" />
+							</controls:BreadcrumbBar.RootItem>
+							<controls:BreadcrumbBar.ItemTemplate>
+								<DataTemplate x:DataType="viewModels:RegistryBreadcrumbItemViewModel">
+									<controls:BreadcrumbBarItem
+										AutomationProperties.Name="{x:Bind Text, Mode=OneTime}"
+										ChevronToolTip="{x:Bind Text, Mode=OneTime}"
+										Content="{x:Bind Text, Mode=OneTime}"
+										IsChevronVisible="{x:Bind IsChevronVisible, Mode=OneTime}"
+										ItemToolTip="{x:Bind Text, Mode=OneTime}" />
+								</DataTemplate>
+							</controls:BreadcrumbBar.ItemTemplate>
+						</controls:BreadcrumbBar>
+					</controls:OmnibarMode.ContentOnInactive>
+				</controls:OmnibarMode>
+			</controls:Omnibar>
+
+		</Grid>
+
+		<Grid Grid.Row="3">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="320" />
+				<ColumnDefinition Width="1" />
+				<ColumnDefinition Width="*" />
+			</Grid.ColumnDefinitions>
+
+			<TreeView
+				x:Name="RegistryTreeView"
+				Grid.Column="0"
+				Expanding="RegistryTreeView_Expanding"
+				ItemTemplate="{StaticResource RegistryTreeNodeTemplate}"
+				ItemsSource="{x:Bind ViewModel.RootNodes, Mode=OneWay}"
+				SelectedItem="{x:Bind ViewModel.SelectedNode, Mode=TwoWay}"
+				SelectionChanged="RegistryTreeView_SelectionChanged"
+				SelectionMode="Single" />
+
+			<Border Grid.Column="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+			<Grid Grid.Column="2">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto" />
+					<RowDefinition Height="*" />
+				</Grid.RowDefinitions>
+
+				<Border
+					Grid.Row="0"
+					Padding="12,10"
+					Background="{ThemeResource LayerFillColorDefaultBrush}"
+					BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+					BorderThickness="0,0,0,1">
+					<Grid ColumnSpacing="12">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="220" />
+							<ColumnDefinition Width="150" />
+							<ColumnDefinition Width="*" />
+						</Grid.ColumnDefinitions>
+
+						<TextBlock Grid.Column="0" Text="Name" />
+						<TextBlock Grid.Column="1" Text="Type" />
+						<TextBlock Grid.Column="2" Text="Data" />
+					</Grid>
+				</Border>
+
+				<Grid Grid.Row="1">
+					<ListView
+						ItemTemplate="{StaticResource RegistryValueTemplate}"
+						ItemsSource="{x:Bind ViewModel.RegistryValues, Mode=OneWay}"
+						SelectionMode="None">
+						<ListView.ItemContainerStyle>
+							<Style TargetType="ListViewItem">
+								<Setter Property="HorizontalContentAlignment" Value="Stretch" />
+								<Setter Property="Padding" Value="0" />
+							</Style>
+						</ListView.ItemContainerStyle>
+					</ListView>
+
+					<TextBlock
+						HorizontalAlignment="Center"
+						VerticalAlignment="Center"
+						IsHitTestVisible="False"
+						Text="{x:Bind ViewModel.ValuesEmptyText, Mode=OneWay}"
+						Visibility="{x:Bind ViewModel.ValuesEmptyVisibility, Mode=OneWay}" />
+				</Grid>
+			</Grid>
+		</Grid>
+	</Grid>
 </UserControl>

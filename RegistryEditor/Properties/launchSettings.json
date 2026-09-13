@@ -1,10 +1,10 @@
 {
   "profiles": {
-    "RegistryEditor (Package)": {
+    "Run": {
       "commandName": "MsixPackage",
       "nativeDebugging": true
     },
-    "RegistryEditor (Unpackaged)": {
+    "Run (Unpackaged)": {
       "commandName": "Project",
       "nativeDebugging": true
     }

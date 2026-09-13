@@ -1,3 +1,6 @@
+// Copyright (c) 0x5BFA. All rights reserved.
+// Licensed under the MIT license.
+
 global using global::System;
 global using global::System.Collections;
 global using global::System.Collections.Generic;
@@ -11,4 +14,3 @@ global using global::Microsoft.UI.Xaml;
 global using global::Microsoft.UI.Xaml.Controls;
 global using global::Microsoft.UI.Xaml.Controls.Primitives;
 global using global::RegistryEditor.Controls.Primitives;
-global using SystemIO = global::System.IO;
