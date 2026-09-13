@@ -11,7 +11,7 @@ public sealed partial class MainWindow : Window
 	{
 		InitializeComponent();
 
-		AppWindow.Title = "Registry Valley";
+		AppWindow.Title = "Registry Editor";
 		ExtendsContentIntoTitleBar = true;
 		AppWindow.SetIcon(System.IO.Path.Combine(
 			Windows.ApplicationModel.Package.Current.InstalledLocation.Path,

@@ -3,16 +3,92 @@
 	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 	xmlns:controls="using:RegistryEditor.Controls"
-	xmlns:viewModels="using:RegistryEditor.ViewModels">
+	xmlns:viewModels="using:RegistryEditor.ViewModels"
+	Loaded="RootView_Loaded">
 
 	<UserControl.Resources>
 		<ResourceDictionary>
 
 			<DataTemplate x:Key="RegistryTreeNodeTemplate" x:DataType="viewModels:RegistryNodeViewModel">
 				<TreeViewItem
+					ContextRequested="RegistryTreeItem_ContextRequested"
 					HasUnrealizedChildren="{x:Bind HasUnrealizedChildren, Mode=OneWay}"
 					IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
 					ItemsSource="{x:Bind Children, Mode=OneWay}">
+					<TreeViewItem.ContextFlyout>
+						<MenuFlyout AreOpenCloseAnimationsEnabled="False" Opening="RegistryNodeContextFlyout_Opening">
+							<MenuFlyoutItem
+								Click="RegistryNodeMenuItem_Click"
+								Tag="expand"
+								Text="Expand" />
+							<MenuFlyoutSubItem
+								AccessKey="N"
+								Tag="new"
+								Text="New">
+								<MenuFlyoutItem
+									Click="RegistryNodeMenuItem_Click"
+									Tag="new-key"
+									Text="Key" />
+								<MenuFlyoutItem
+									Click="RegistryNodeMenuItem_Click"
+									Tag="new-string"
+									Text="String Value" />
+								<MenuFlyoutItem
+									Click="RegistryNodeMenuItem_Click"
+									Tag="new-binary"
+									Text="Binary Value" />
+								<MenuFlyoutItem
+									Click="RegistryNodeMenuItem_Click"
+									Tag="new-dword"
+									Text="DWORD (32-bit) Value" />
+								<MenuFlyoutItem
+									Click="RegistryNodeMenuItem_Click"
+									Tag="new-qword"
+									Text="QWORD (64-bit) Value" />
+								<MenuFlyoutItem
+									Click="RegistryNodeMenuItem_Click"
+									Tag="new-multi-string"
+									Text="Multi-String Value" />
+								<MenuFlyoutItem
+									Click="RegistryNodeMenuItem_Click"
+									Tag="new-expandable-string"
+									Text="Expandable String Value" />
+							</MenuFlyoutSubItem>
+							<MenuFlyoutItem
+								AccessKey="F"
+								Click="RegistryNodeMenuItem_Click"
+								Tag="find"
+								Text="Find..." />
+							<MenuFlyoutSeparator />
+							<MenuFlyoutItem
+								AccessKey="D"
+								Click="RegistryNodeMenuItem_Click"
+								Tag="delete"
+								Text="Delete" />
+							<MenuFlyoutItem
+								AccessKey="R"
+								Click="RegistryNodeMenuItem_Click"
+								Tag="rename"
+								Text="Rename" />
+							<MenuFlyoutSeparator />
+							<MenuFlyoutItem
+								AccessKey="E"
+								Click="RegistryNodeMenuItem_Click"
+								Tag="export"
+								Text="Export" />
+							<MenuFlyoutItem
+								AccessKey="P"
+								Click="RegistryNodeMenuItem_Click"
+								Tag="permissions"
+								Text="Access permissions..." />
+							<MenuFlyoutSeparator />
+							<MenuFlyoutItem
+								AccessKey="C"
+								Click="RegistryNodeMenuItem_Click"
+								Tag="copy"
+								Text="Copy Key Name" />
+						</MenuFlyout>
+					</TreeViewItem.ContextFlyout>
 					<StackPanel
 						VerticalAlignment="Center"
 						Orientation="Horizontal"
@@ -20,7 +96,7 @@
 						<Image
 							Width="16"
 							Height="16"
-							Source="{x:Bind Icon, Mode=OneWay}" />
+							Source="{x:Bind Icon, Mode=OneTime}" />
 						<TextBlock VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneWay}" />
 					</StackPanel>
 				</TreeViewItem>
@@ -45,7 +121,7 @@
 						<Image
 							Width="16"
 							Height="16"
-							Source="{x:Bind Icon, Mode=OneWay}" />
+							Source="{x:Bind Icon, Mode=OneTime}" />
 						<TextBlock
 							VerticalAlignment="Center"
 							Text="{x:Bind Name}"
@@ -135,27 +211,111 @@
 
 			<MenuBar>
 				<MenuBarItem Title="File">
-					<MenuFlyoutItem AccessKey="I" Text="Import" />
-					<MenuFlyoutItem AccessKey="E" Text="Export" />
+					<MenuFlyoutItem
+						x:Name="ImportMenuItem"
+						AccessKey="I"
+						Click="ImportMenuItem_Click"
+						Text="Import..." />
+					<MenuFlyoutItem
+						x:Name="ExportMenuItem"
+						AccessKey="E"
+						Click="ExportMenuItem_Click"
+						Text="Export..." />
 					<MenuFlyoutSeparator />
-					<MenuFlyoutItem Text="Load hive" />
-					<MenuFlyoutItem Text="Unload hive" />
+					<MenuFlyoutItem
+						x:Name="LoadHiveMenuItem"
+						Click="LoadHiveMenuItem_Click"
+						Text="Load hive..." />
+					<MenuFlyoutItem
+						x:Name="UnloadHiveMenuItem"
+						Click="UnloadHiveMenuItem_Click"
+						Text="Unload hive..." />
 					<MenuFlyoutSeparator />
-					<MenuFlyoutItem Text="Connect to network registry" />
-					<MenuFlyoutItem Text="Disconnect from network registry" />
+					<MenuFlyoutItem Click="ConnectMenuItem_Click" Text="Connect to network registry..." />
+					<MenuFlyoutItem
+						x:Name="DisconnectMenuItem"
+						Click="DisconnectMenuItem_Click"
+						Text="Disconnect from network registry" />
 					<MenuFlyoutSeparator />
-					<MenuFlyoutItem Text="Print" />
+					<MenuFlyoutItem Click="PrintMenuItem_Click" Text="Print...">
+						<MenuFlyoutItem.KeyboardAccelerators>
+							<KeyboardAccelerator Key="P" Modifiers="Control" />
+						</MenuFlyoutItem.KeyboardAccelerators>
+					</MenuFlyoutItem>
+					<MenuFlyoutSeparator />
+					<MenuFlyoutItem Click="ExitMenuItem_Click" Text="Exit" />
 				</MenuBarItem>
 
 				<MenuBarItem Title="Edit">
-					<MenuFlyoutItem Text="Undo" />
-					<MenuFlyoutItem Text="Cut" />
-					<MenuFlyoutItem Text="Copy" />
-					<MenuFlyoutItem Text="Paste" />
+					<MenuFlyoutSubItem x:Name="NewMenuItem" Text="New">
+						<MenuFlyoutItem
+							Click="RegistryNodeMenuItem_Click"
+							Tag="new-key"
+							Text="Key" />
+						<MenuFlyoutItem
+							Click="RegistryNodeMenuItem_Click"
+							Tag="new-string"
+							Text="String Value" />
+						<MenuFlyoutItem
+							Click="RegistryNodeMenuItem_Click"
+							Tag="new-binary"
+							Text="Binary Value" />
+						<MenuFlyoutItem
+							Click="RegistryNodeMenuItem_Click"
+							Tag="new-dword"
+							Text="DWORD (32-bit) Value" />
+						<MenuFlyoutItem
+							Click="RegistryNodeMenuItem_Click"
+							Tag="new-qword"
+							Text="QWORD (64-bit) Value" />
+						<MenuFlyoutItem
+							Click="RegistryNodeMenuItem_Click"
+							Tag="new-multi-string"
+							Text="Multi-String Value" />
+						<MenuFlyoutItem
+							Click="RegistryNodeMenuItem_Click"
+							Tag="new-expandable-string"
+							Text="Expandable String Value" />
+					</MenuFlyoutSubItem>
+					<MenuFlyoutItem
+						x:Name="PermissionsMenuItem"
+						Click="PermissionsMenuItem_Click"
+						Text="Access permissions..." />
+					<MenuFlyoutSeparator />
+					<MenuFlyoutItem
+						x:Name="DeleteMenuItem"
+						Click="DeleteMenuItem_Click"
+						Text="Delete" />
+					<MenuFlyoutItem
+						x:Name="RenameMenuItem"
+						Click="RenameMenuItem_Click"
+						Text="Rename" />
+					<MenuFlyoutItem
+						x:Name="CopyKeyMenuItem"
+						Click="CopyKeyMenuItem_Click"
+						Text="Copy Key Name" />
+					<MenuFlyoutItem Click="FindMenuItem_Click" Text="Find..." />
+				</MenuBarItem>
+
+				<MenuBarItem Title="View">
+					<ToggleMenuFlyoutItem
+						x:Name="AddressBarMenuItem"
+						Click="AddressBarMenuItem_Click"
+						IsChecked="True"
+						Text="Address bar" />
+					<MenuFlyoutItem Click="SplitMenuItem_Click" Text="Split" />
+					<MenuFlyoutItem Click="DisplayBinaryDataMenuItem_Click" Text="Display binary data..." />
+					<MenuFlyoutItem Click="RefreshMenuItem_Click" Text="Refresh" />
+					<MenuFlyoutItem Click="FontMenuItem_Click" Text="Font..." />
+				</MenuBarItem>
+
+				<MenuBarItem Title="Favorites">
+					<MenuFlyoutItem Click="AddFavoriteMenuItem_Click" Text="Add to Favorites..." />
+					<MenuFlyoutItem Click="RemoveFavoriteMenuItem_Click" Text="Remove Favorite..." />
 				</MenuBarItem>
 
 				<MenuBarItem Title="Help">
-					<MenuFlyoutItem Text="About" />
+					<MenuFlyoutItem Click="AboutMenuItem_Click" Text="About Registry Editor..." />
 				</MenuBarItem>
 
 			</MenuBar>
@@ -163,11 +323,10 @@
 		</StackPanel>
 
 		<Grid
+			x:Name="NavigationBarHost"
 			Grid.Row="2"
 			Padding="12,4,12,10"
 			Background="{ThemeResource LayerFillColorDefaultBrush}"
-			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-			BorderThickness="0,0,0,1"
 			ColumnSpacing="8">
 
 			<controls:Omnibar
@@ -224,9 +383,12 @@
 			IsIndeterminate="True"
 			Visibility="{x:Bind ViewModel.LoadingVisibility, Mode=OneWay}" />
 
-		<Grid Grid.Row="3">
+		<Grid
+			Grid.Row="3"
+			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+			BorderThickness="0,1,0,0">
 			<Grid.ColumnDefinitions>
-				<ColumnDefinition Width="320" />
+				<ColumnDefinition x:Name="RegistryTreeColumn" Width="320" />
 				<ColumnDefinition Width="1" />
 				<ColumnDefinition Width="*" />
 			</Grid.ColumnDefinitions>
@@ -270,11 +432,15 @@
 
 				<Grid Grid.Row="1">
 					<ListView
+						x:Name="RegistryValueListView"
+						DoubleTapped="RegistryValueListView_DoubleTapped"
 						ItemTemplate="{StaticResource RegistryValueTemplate}"
 						ItemsSource="{x:Bind ViewModel.RegistryValues, Mode=OneWay}"
-						SelectionMode="None">
+						SelectedItem="{x:Bind ViewModel.SelectedValue, Mode=TwoWay}"
+						SelectionChanged="RegistryValueListView_SelectionChanged"
+						SelectionMode="Single">
 						<ListView.ItemContainerStyle>
-							<Style TargetType="ListViewItem">
+							<Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
 								<Setter Property="HorizontalContentAlignment" Value="Stretch" />
 								<Setter Property="Padding" Value="0" />
 							</Style>

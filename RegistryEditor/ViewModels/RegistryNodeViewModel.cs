@@ -21,11 +21,15 @@ public sealed class RegistryNodeViewModel : INotifyPropertyChanged
 		RegistryHive? hive,
 		string subKeyPath,
 		string iconUri,
-		bool hasUnrealizedChildren)
+		bool hasUnrealizedChildren,
+		string? computerName = null,
+		RegistryNodeViewModel? parent = null)
 	{
 		Name = name;
 		Hive = hive;
 		SubKeyPath = subKeyPath;
+		ComputerName = computerName;
+		Parent = parent;
 		_collapsedIconUri = iconUri;
 		_expandedIconUri = hive is null ? null : "ms-appx:///Assets/Images/FolderOpened.png";
 		_icon = new(new Uri(iconUri));
@@ -37,6 +41,19 @@ public sealed class RegistryNodeViewModel : INotifyPropertyChanged
 	public RegistryHive? Hive { get; }
 
 	public string SubKeyPath { get; }
+
+	/// <summary>
+	/// The remote computer that owns this node. <see langword="null"/> means the local computer.
+	/// </summary>
+	public string? ComputerName { get; }
+
+	public RegistryNodeViewModel? Parent { get; }
+
+	public bool IsComputerNode => Hive is null;
+
+	public bool IsHiveRoot => Hive is not null && string.IsNullOrEmpty(SubKeyPath);
+
+	public bool IsRemote => !string.IsNullOrEmpty(ComputerName);
 
 	public ObservableCollection<RegistryNodeViewModel> Children { get; } = [];
 
