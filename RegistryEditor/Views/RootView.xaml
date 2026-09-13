@@ -106,14 +106,6 @@
 			</TitleBar.IconSource>
 		</TitleBar>
 
-		<ProgressBar
-			Grid.Row="1"
-			Height="2"
-			HorizontalAlignment="Stretch"
-			VerticalAlignment="Top"
-			IsIndeterminate="True"
-			Visibility="{x:Bind ViewModel.LoadingVisibility, Mode=OneWay}" />
-
 		<StackPanel
 			Grid.Row="1"
 			Padding="4,0,0,0"
@@ -223,6 +215,14 @@
 			</controls:Omnibar>
 
 		</Grid>
+
+		<ProgressBar
+			Grid.Row="2"
+			Height="2"
+			HorizontalAlignment="Stretch"
+			VerticalAlignment="Bottom"
+			IsIndeterminate="True"
+			Visibility="{x:Bind ViewModel.LoadingVisibility, Mode=OneWay}" />
 
 		<Grid Grid.Row="3">
 			<Grid.ColumnDefinitions>
