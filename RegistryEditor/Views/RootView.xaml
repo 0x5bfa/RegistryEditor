@@ -4,7 +4,9 @@
 	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 	xmlns:controls="using:RegistryEditor.Controls"
 	xmlns:viewModels="using:RegistryEditor.ViewModels"
-	Loaded="RootView_Loaded">
+	xmlns:wctcontrols="using:CommunityToolkit.WinUI.Controls"
+	x:Name="RootViewControl"
+	FontSize="{x:Bind ViewModel.FontSize, Mode=OneWay}">
 
 	<UserControl.Resources>
 		<ResourceDictionary>
@@ -16,76 +18,73 @@
 					IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
 					ItemsSource="{x:Bind Children, Mode=OneWay}">
 					<TreeViewItem.ContextFlyout>
-						<MenuFlyout AreOpenCloseAnimationsEnabled="False" Opening="RegistryNodeContextFlyout_Opening">
+						<MenuFlyout AreOpenCloseAnimationsEnabled="False">
 							<MenuFlyoutItem
-								Click="RegistryNodeMenuItem_Click"
-								Tag="expand"
-								Text="Expand" />
-							<MenuFlyoutSubItem
-								AccessKey="N"
-								Tag="new"
-								Text="New">
+								Command="{Binding Path=ViewModel.ExpandNodeCommand, ElementName=RootViewControl}"
+								CommandParameter="{x:Bind}"
+								Text="{x:Bind ExpandMenuText, Mode=OneWay}" />
+							<MenuFlyoutSubItem AccessKey="N" Text="New">
 								<MenuFlyoutItem
-									Click="RegistryNodeMenuItem_Click"
-									Tag="new-key"
+									Command="{Binding Path=ViewModel.NewKeyCommand, ElementName=RootViewControl}"
+									CommandParameter="{x:Bind}"
 									Text="Key" />
 								<MenuFlyoutItem
-									Click="RegistryNodeMenuItem_Click"
-									Tag="new-string"
+									Command="{Binding Path=ViewModel.NewStringValueCommand, ElementName=RootViewControl}"
+									CommandParameter="{x:Bind}"
 									Text="String Value" />
 								<MenuFlyoutItem
-									Click="RegistryNodeMenuItem_Click"
-									Tag="new-binary"
+									Command="{Binding Path=ViewModel.NewBinaryValueCommand, ElementName=RootViewControl}"
+									CommandParameter="{x:Bind}"
 									Text="Binary Value" />
 								<MenuFlyoutItem
-									Click="RegistryNodeMenuItem_Click"
-									Tag="new-dword"
+									Command="{Binding Path=ViewModel.NewDWordValueCommand, ElementName=RootViewControl}"
+									CommandParameter="{x:Bind}"
 									Text="DWORD (32-bit) Value" />
 								<MenuFlyoutItem
-									Click="RegistryNodeMenuItem_Click"
-									Tag="new-qword"
+									Command="{Binding Path=ViewModel.NewQWordValueCommand, ElementName=RootViewControl}"
+									CommandParameter="{x:Bind}"
 									Text="QWORD (64-bit) Value" />
 								<MenuFlyoutItem
-									Click="RegistryNodeMenuItem_Click"
-									Tag="new-multi-string"
+									Command="{Binding Path=ViewModel.NewMultiStringValueCommand, ElementName=RootViewControl}"
+									CommandParameter="{x:Bind}"
 									Text="Multi-String Value" />
 								<MenuFlyoutItem
-									Click="RegistryNodeMenuItem_Click"
-									Tag="new-expandable-string"
+									Command="{Binding Path=ViewModel.NewExpandableStringValueCommand, ElementName=RootViewControl}"
+									CommandParameter="{x:Bind}"
 									Text="Expandable String Value" />
 							</MenuFlyoutSubItem>
 							<MenuFlyoutItem
 								AccessKey="F"
-								Click="RegistryNodeMenuItem_Click"
-								Tag="find"
+								Command="{Binding Path=ViewModel.FindCommand, ElementName=RootViewControl}"
+								CommandParameter="{x:Bind}"
 								Text="Find..." />
 							<MenuFlyoutSeparator />
 							<MenuFlyoutItem
 								AccessKey="D"
-								Click="RegistryNodeMenuItem_Click"
-								Tag="delete"
+								Command="{Binding Path=ViewModel.DeleteKeyCommand, ElementName=RootViewControl}"
+								CommandParameter="{x:Bind}"
 								Text="Delete" />
 							<MenuFlyoutItem
 								AccessKey="R"
-								Click="RegistryNodeMenuItem_Click"
-								Tag="rename"
+								Command="{Binding Path=ViewModel.RenameKeyCommand, ElementName=RootViewControl}"
+								CommandParameter="{x:Bind}"
 								Text="Rename" />
 							<MenuFlyoutSeparator />
 							<MenuFlyoutItem
 								AccessKey="E"
-								Click="RegistryNodeMenuItem_Click"
-								Tag="export"
+								Command="{Binding Path=ViewModel.ExportCommand, ElementName=RootViewControl}"
+								CommandParameter="{x:Bind}"
 								Text="Export" />
 							<MenuFlyoutItem
 								AccessKey="P"
-								Click="RegistryNodeMenuItem_Click"
-								Tag="permissions"
+								Command="{Binding Path=ViewModel.PermissionsCommand, ElementName=RootViewControl}"
+								CommandParameter="{x:Bind}"
 								Text="Access permissions..." />
 							<MenuFlyoutSeparator />
 							<MenuFlyoutItem
 								AccessKey="C"
-								Click="RegistryNodeMenuItem_Click"
-								Tag="copy"
+								Command="{Binding Path=ViewModel.CopyKeyCommand, ElementName=RootViewControl}"
+								CommandParameter="{x:Bind}"
 								Text="Copy Key Name" />
 						</MenuFlyout>
 					</TreeViewItem.ContextFlyout>
@@ -212,110 +211,114 @@
 			<MenuBar>
 				<MenuBarItem Title="File">
 					<MenuFlyoutItem
-						x:Name="ImportMenuItem"
 						AccessKey="I"
-						Click="ImportMenuItem_Click"
+						Command="{x:Bind ViewModel.ImportCommand}"
 						Text="Import..." />
 					<MenuFlyoutItem
-						x:Name="ExportMenuItem"
 						AccessKey="E"
-						Click="ExportMenuItem_Click"
+						Command="{x:Bind ViewModel.ExportCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Export..." />
 					<MenuFlyoutSeparator />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.LoadHiveCommand}" Text="Load hive..." />
 					<MenuFlyoutItem
-						x:Name="LoadHiveMenuItem"
-						Click="LoadHiveMenuItem_Click"
-						Text="Load hive..." />
-					<MenuFlyoutItem
-						x:Name="UnloadHiveMenuItem"
-						Click="UnloadHiveMenuItem_Click"
+						Command="{x:Bind ViewModel.UnloadHiveCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Unload hive..." />
 					<MenuFlyoutSeparator />
-					<MenuFlyoutItem Click="ConnectMenuItem_Click" Text="Connect to network registry..." />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.ConnectRemoteCommand}" Text="Connect to network registry..." />
 					<MenuFlyoutItem
-						x:Name="DisconnectMenuItem"
-						Click="DisconnectMenuItem_Click"
+						Command="{x:Bind ViewModel.DisconnectRemoteCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Disconnect from network registry" />
 					<MenuFlyoutSeparator />
-					<MenuFlyoutItem Click="PrintMenuItem_Click" Text="Print...">
+					<MenuFlyoutItem
+						Command="{x:Bind ViewModel.PrintCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
+						Text="Print...">
 						<MenuFlyoutItem.KeyboardAccelerators>
 							<KeyboardAccelerator Key="P" Modifiers="Control" />
 						</MenuFlyoutItem.KeyboardAccelerators>
 					</MenuFlyoutItem>
 					<MenuFlyoutSeparator />
-					<MenuFlyoutItem Click="ExitMenuItem_Click" Text="Exit" />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.ExitCommand}" Text="Exit" />
 				</MenuBarItem>
 
 				<MenuBarItem Title="Edit">
-					<MenuFlyoutSubItem x:Name="NewMenuItem" Text="New">
+					<MenuFlyoutSubItem Text="New">
 						<MenuFlyoutItem
-							Click="RegistryNodeMenuItem_Click"
-							Tag="new-key"
+							Command="{x:Bind ViewModel.NewKeyCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 							Text="Key" />
 						<MenuFlyoutItem
-							Click="RegistryNodeMenuItem_Click"
-							Tag="new-string"
+							Command="{x:Bind ViewModel.NewStringValueCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 							Text="String Value" />
 						<MenuFlyoutItem
-							Click="RegistryNodeMenuItem_Click"
-							Tag="new-binary"
+							Command="{x:Bind ViewModel.NewBinaryValueCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 							Text="Binary Value" />
 						<MenuFlyoutItem
-							Click="RegistryNodeMenuItem_Click"
-							Tag="new-dword"
+							Command="{x:Bind ViewModel.NewDWordValueCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 							Text="DWORD (32-bit) Value" />
 						<MenuFlyoutItem
-							Click="RegistryNodeMenuItem_Click"
-							Tag="new-qword"
+							Command="{x:Bind ViewModel.NewQWordValueCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 							Text="QWORD (64-bit) Value" />
 						<MenuFlyoutItem
-							Click="RegistryNodeMenuItem_Click"
-							Tag="new-multi-string"
+							Command="{x:Bind ViewModel.NewMultiStringValueCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 							Text="Multi-String Value" />
 						<MenuFlyoutItem
-							Click="RegistryNodeMenuItem_Click"
-							Tag="new-expandable-string"
+							Command="{x:Bind ViewModel.NewExpandableStringValueCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 							Text="Expandable String Value" />
 					</MenuFlyoutSubItem>
 					<MenuFlyoutItem
-						x:Name="PermissionsMenuItem"
-						Click="PermissionsMenuItem_Click"
+						Command="{x:Bind ViewModel.PermissionsCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Access permissions..." />
 					<MenuFlyoutSeparator />
 					<MenuFlyoutItem
-						x:Name="DeleteMenuItem"
-						Click="DeleteMenuItem_Click"
+						Command="{x:Bind ViewModel.DeleteKeyCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Delete" />
 					<MenuFlyoutItem
-						x:Name="RenameMenuItem"
-						Click="RenameMenuItem_Click"
+						Command="{x:Bind ViewModel.RenameKeyCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Rename" />
 					<MenuFlyoutItem
-						x:Name="CopyKeyMenuItem"
-						Click="CopyKeyMenuItem_Click"
+						Command="{x:Bind ViewModel.CopyKeyCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Copy Key Name" />
-					<MenuFlyoutItem Click="FindMenuItem_Click" Text="Find..." />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.FindCommand}" Text="Find..." />
 				</MenuBarItem>
 
 				<MenuBarItem Title="View">
 					<ToggleMenuFlyoutItem
-						x:Name="AddressBarMenuItem"
-						Click="AddressBarMenuItem_Click"
-						IsChecked="True"
+						Command="{x:Bind ViewModel.ToggleAddressBarCommand}"
+						IsChecked="{x:Bind ViewModel.IsAddressBarVisible, Mode=OneWay}"
 						Text="Address bar" />
-					<MenuFlyoutItem Click="SplitMenuItem_Click" Text="Split" />
-					<MenuFlyoutItem Click="DisplayBinaryDataMenuItem_Click" Text="Display binary data..." />
-					<MenuFlyoutItem Click="RefreshMenuItem_Click" Text="Refresh" />
-					<MenuFlyoutItem Click="FontMenuItem_Click" Text="Font..." />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.SplitCommand}" Text="Split" />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.DisplayBinaryDataCommand}" Text="Display binary data..." />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.RefreshCommand}" Text="Refresh" />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.FontCommand}" Text="Font..." />
 				</MenuBarItem>
 
 				<MenuBarItem Title="Favorites">
-					<MenuFlyoutItem Click="AddFavoriteMenuItem_Click" Text="Add to Favorites..." />
-					<MenuFlyoutItem Click="RemoveFavoriteMenuItem_Click" Text="Remove Favorite..." />
+					<MenuFlyoutItem
+						Command="{x:Bind ViewModel.AddFavoriteCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
+						Text="Add to Favorites..." />
+					<MenuFlyoutItem
+						Command="{x:Bind ViewModel.RemoveFavoriteCommand}"
+						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
+						Text="Remove Favorite..." />
 				</MenuBarItem>
 
 				<MenuBarItem Title="Help">
-					<MenuFlyoutItem Click="AboutMenuItem_Click" Text="About Registry Editor..." />
+					<MenuFlyoutItem Command="{x:Bind ViewModel.AboutCommand}" Text="About Registry Editor..." />
 				</MenuBarItem>
 
 			</MenuBar>
@@ -403,7 +406,16 @@
 				SelectionChanged="RegistryTreeView_SelectionChanged"
 				SelectionMode="Single" />
 
-			<Border Grid.Column="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+			<wctcontrols:GridSplitter
+				Grid.Column="1"
+				MinWidth="1"
+				HorizontalAlignment="Stretch"
+				VerticalAlignment="Stretch"
+				Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+				Foreground="Transparent"
+				IsTabStop="False"
+				ResizeBehavior="PreviousAndNext"
+				ResizeDirection="Columns" />
 
 			<Grid Grid.Column="2">
 				<Grid.RowDefinitions>
@@ -445,6 +457,9 @@
 								<Setter Property="Padding" Value="0" />
 							</Style>
 						</ListView.ItemContainerStyle>
+						<ListView.Transitions>
+							<TransitionCollection />
+						</ListView.Transitions>
 					</ListView>
 
 					<TextBlock

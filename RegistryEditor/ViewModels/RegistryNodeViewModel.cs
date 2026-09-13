@@ -1,13 +1,13 @@
 // Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
+using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
-using System.Runtime.CompilerServices;
 
 namespace RegistryEditor.ViewModels;
 
-public sealed class RegistryNodeViewModel : INotifyPropertyChanged
+public sealed class RegistryNodeViewModel : ObservableObject
 {
 	private readonly string _collapsedIconUri;
 	private readonly string? _expandedIconUri;
@@ -89,25 +89,15 @@ public sealed class RegistryNodeViewModel : INotifyPropertyChanged
 		get => _isExpanded;
 		set
 		{
-			if (!SetProperty(ref _isExpanded, value) || _expandedIconUri is null)
+			if (!SetProperty(ref _isExpanded, value))
 				return;
 
-			Icon = new(new Uri(value ? _expandedIconUri : _collapsedIconUri));
+			OnPropertyChanged(nameof(ExpandMenuText));
+			if (_expandedIconUri is not null)
+				Icon = new(new Uri(value ? _expandedIconUri : _collapsedIconUri));
 		}
 	}
 
-	public event PropertyChangedEventHandler? PropertyChanged;
+	public string ExpandMenuText => IsExpanded ? "Collapse" : "Expand";
 
-	private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
-	{
-		if (EqualityComparer<T>.Default.Equals(storage, value))
-			return false;
-
-		storage = value;
-		PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-		return true;
-	}
-
-	private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-		=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

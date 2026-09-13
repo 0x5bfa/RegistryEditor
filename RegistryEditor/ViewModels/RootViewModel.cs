@@ -1,16 +1,20 @@
 // Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
-using System.Runtime.CompilerServices;
 using System.Security;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using RegistryEditor.Services;
 
 namespace RegistryEditor.ViewModels;
 
-public sealed class RootViewModel : INotifyPropertyChanged
+public sealed class RootViewModel : ObservableObject
 {
+	private const string FavoritesRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Applets\Regedit\Favorites";
 	private const string ComputerImageUri = "ms-appx:///Assets/Images/Computer.png";
 	private const string FolderImageUri = "ms-appx:///Assets/Images/Folder.png";
 	private const string BinaryValueImageUri = "ms-appx:///Assets/Images/BinaryValue.png";
@@ -27,6 +31,11 @@ public sealed class RootViewModel : INotifyPropertyChanged
 	private bool _isLoading;
 	private int _activeLoads;
 	private readonly HashSet<string> _loadedHivePaths = new(StringComparer.OrdinalIgnoreCase);
+	private readonly HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
+	private IRegistryEditorInteraction? _interaction;
+	private bool _isAddressBarVisible = true;
+	private bool _isTreePaneWide;
+	private double _fontSize = 14;
 
 	public RootViewModel()
 	{
@@ -41,6 +50,8 @@ public sealed class RootViewModel : INotifyPropertyChanged
 		AddHiveNodes(computerNode);
 
 		RootNodes.Add(computerNode);
+		InitializeCommands();
+		LoadFavorites();
 		SelectedNode = computerNode;
 	}
 
@@ -49,6 +60,70 @@ public sealed class RootViewModel : INotifyPropertyChanged
 	public ObservableCollection<RegistryBreadcrumbItemViewModel> BreadcrumbItems { get; } = [];
 
 	public ObservableCollection<RegistryValueViewModel> RegistryValues { get; } = [];
+
+	public IRegistryEditorInteraction? Interaction
+	{
+		get => _interaction;
+		set => _interaction = value;
+	}
+
+	public AsyncRelayCommand<object?> ImportCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> ExportCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> LoadHiveCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> UnloadHiveCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> ConnectRemoteCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> DisconnectRemoteCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> PrintCommand { get; private set; } = null!;
+
+	public RelayCommand<object?> ExitCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> ExpandNodeCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> NewKeyCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> NewStringValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> NewBinaryValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> NewDWordValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> NewQWordValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> NewMultiStringValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> NewExpandableStringValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> FindCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> DeleteKeyCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> RenameKeyCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> PermissionsCommand { get; private set; } = null!;
+
+	public RelayCommand<object?> CopyKeyCommand { get; private set; } = null!;
+
+	public RelayCommand<object?> ToggleAddressBarCommand { get; private set; } = null!;
+
+	public RelayCommand<object?> SplitCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> DisplayBinaryDataCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> RefreshCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> FontCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> AddFavoriteCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> RemoveFavoriteCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> AboutCommand { get; private set; } = null!;
 
 	public RegistryNodeViewModel? SelectedNode
 	{
@@ -66,6 +141,7 @@ public sealed class RootViewModel : INotifyPropertyChanged
 			OnPropertyChanged(nameof(CanLoadHive));
 			OnPropertyChanged(nameof(CanUnloadHive));
 			OnPropertyChanged(nameof(CanDisconnectRemote));
+			NotifyCommandStates();
 		}
 	}
 
@@ -78,6 +154,7 @@ public sealed class RootViewModel : INotifyPropertyChanged
 				return;
 
 			OnPropertyChanged(nameof(CanEditSelectedValue));
+			NotifyCommandStates();
 		}
 	}
 
@@ -102,6 +179,24 @@ public sealed class RootViewModel : INotifyPropertyChanged
 
 	public bool CanDisconnectRemote => GetComputerNode(SelectedNode)?.IsRemote is true;
 
+	public bool IsAddressBarVisible
+	{
+		get => _isAddressBarVisible;
+		private set => SetProperty(ref _isAddressBarVisible, value);
+	}
+
+	public bool IsTreePaneWide
+	{
+		get => _isTreePaneWide;
+		private set => SetProperty(ref _isTreePaneWide, value);
+	}
+
+	public double FontSize
+	{
+		get => _fontSize;
+		private set => SetProperty(ref _fontSize, value);
+	}
+
 	public string BreadcrumbRootText
 	{
 		get => _breadcrumbRootText;
@@ -124,7 +219,350 @@ public sealed class RootViewModel : INotifyPropertyChanged
 
 	public Visibility LoadingVisibility => _isLoading ? Visibility.Visible : Visibility.Collapsed;
 
-	public event PropertyChangedEventHandler? PropertyChanged;
+	private void InitializeCommands()
+	{
+		ImportCommand = new(ExecuteImportCommandAsync);
+		ExportCommand = new(ExecuteExportCommandAsync, CanExportNode);
+		LoadHiveCommand = new(ExecuteLoadHiveCommandAsync, _ => CanLoadHive);
+		UnloadHiveCommand = new(ExecuteUnloadHiveCommandAsync, CanUnloadNode);
+		ConnectRemoteCommand = new(ExecuteConnectRemoteCommandAsync);
+		DisconnectRemoteCommand = new(ExecuteDisconnectRemoteCommandAsync, _ => CanDisconnectRemote);
+		PrintCommand = new(ExecutePrintCommandAsync, CanExportNode);
+		ExitCommand = new(_ => _interaction?.Close());
+
+		ExpandNodeCommand = new(ExecuteExpandNodeCommandAsync, CanKeyNode);
+		NewKeyCommand = new(ExecuteNewKeyCommandAsync, CanEditNode);
+		NewStringValueCommand = new(
+			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.String),
+			CanEditNode);
+		NewBinaryValueCommand = new(
+			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.Binary),
+			CanEditNode);
+		NewDWordValueCommand = new(
+			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.DWord),
+			CanEditNode);
+		NewQWordValueCommand = new(
+			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.QWord),
+			CanEditNode);
+		NewMultiStringValueCommand = new(
+			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.MultiString),
+			CanEditNode);
+		NewExpandableStringValueCommand = new(
+			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.ExpandString),
+			CanEditNode);
+		FindCommand = new(ExecuteFindCommandAsync);
+		DeleteKeyCommand = new(ExecuteDeleteKeyCommandAsync, CanDeleteNode);
+		RenameKeyCommand = new(ExecuteRenameKeyCommandAsync, CanRenameNode);
+		PermissionsCommand = new(ExecutePermissionsCommandAsync, CanKeyNode);
+		CopyKeyCommand = new(ExecuteCopyKeyCommand, CanKeyNode);
+
+		ToggleAddressBarCommand = new(_ =>
+		{
+			IsAddressBarVisible = !IsAddressBarVisible;
+			_interaction?.SetAddressBarVisibility(IsAddressBarVisible);
+		});
+		SplitCommand = new(_ =>
+		{
+			IsTreePaneWide = !IsTreePaneWide;
+			_interaction?.SetTreePaneWidth(IsTreePaneWide);
+		});
+		DisplayBinaryDataCommand = new(ExecuteDisplayBinaryDataCommandAsync, _ => CanEditSelectedValue);
+		RefreshCommand = new(ExecuteRefreshCommandAsync, _ => SelectedNode is not null);
+		FontCommand = new(ExecuteFontCommandAsync);
+		AddFavoriteCommand = new(ExecuteAddFavoriteCommandAsync, CanKeyNode);
+		RemoveFavoriteCommand = new(ExecuteRemoveFavoriteCommandAsync, CanKeyNode);
+		AboutCommand = new(ExecuteAboutCommandAsync);
+	}
+
+	private bool CanKeyNode(object? parameter)
+		=> ResolveNode(parameter)?.Hive is not null;
+
+	private bool CanEditNode(object? parameter)
+		=> ResolveNode(parameter)?.Hive is not null;
+
+	private bool CanDeleteNode(object? parameter)
+		=> ResolveNode(parameter) is { Hive: not null, IsHiveRoot: false };
+
+	private bool CanRenameNode(object? parameter)
+		=> CanDeleteNode(parameter);
+
+	private bool CanUnloadNode(object? parameter)
+	{
+		RegistryNodeViewModel? node = ResolveNode(parameter);
+		return node is { IsHiveRoot: false, IsRemote: false }
+			&& _loadedHivePaths.Contains(GetRegistryPath(node));
+	}
+
+	private bool CanExportNode(object? parameter)
+		=> CanKeyNode(parameter);
+
+	private RegistryNodeViewModel? ResolveNode(object? parameter)
+		=> parameter as RegistryNodeViewModel ?? SelectedNode;
+
+	private async Task RunCommandAsync(string errorTitle, Func<IRegistryEditorInteraction, Task> action)
+	{
+		if (_interaction is null)
+			return;
+
+		try
+		{
+			await action(_interaction);
+		}
+		catch (Exception exception)
+		{
+			await _interaction.ShowMessageAsync(errorTitle, exception.Message);
+		}
+	}
+
+	private Task ExecuteImportCommandAsync(object? parameter)
+		=> RunCommandAsync("Import failed", async interaction =>
+		{
+			if (await interaction.PickImportFileAsync() is not { } filePath)
+				return;
+
+			int count = await ImportAsync(filePath);
+			await interaction.ShowMessageAsync(
+				"Import",
+				$"Imported {count} value(s) from '{Path.GetFileName(filePath)}'.");
+		});
+
+	private Task ExecuteExportCommandAsync(object? parameter)
+		=> RunCommandAsync("Export failed", async interaction =>
+		{
+			RegistryNodeViewModel? node = ResolveNode(parameter);
+			if (node?.Hive is null || await interaction.PickExportFileAsync() is not { } filePath)
+				return;
+
+			await ExportAsync(filePath, node);
+			await interaction.ShowMessageAsync(
+				"Export",
+				$"Exported '{GetRegistryPath(node)}' to '{Path.GetFileName(filePath)}'.");
+		});
+
+	private Task ExecuteLoadHiveCommandAsync(object? parameter)
+		=> RunCommandAsync("Load hive failed", async interaction =>
+		{
+			if (SelectedNode is not { } parent
+				|| await interaction.PickHiveFileAsync() is not { } filePath
+				|| await interaction.RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName)
+				return;
+
+			await LoadHiveAsync(parent, filePath, keyName);
+		});
+
+	private Task ExecuteUnloadHiveCommandAsync(object? parameter)
+		=> RunCommandAsync("Unload hive failed", async interaction =>
+		{
+			RegistryNodeViewModel? node = ResolveNode(parameter);
+			if (node is null || !await interaction.ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
+				return;
+
+			await UnloadHiveAsync(node);
+		});
+
+	private Task ExecuteConnectRemoteCommandAsync(object? parameter)
+		=> RunCommandAsync("Connection failed", async interaction =>
+		{
+			if (await interaction.RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName)
+				await ConnectRemoteAsync(computerName);
+		});
+
+	private Task ExecuteDisconnectRemoteCommandAsync(object? parameter)
+		=> RunCommandAsync("Disconnect failed", async interaction =>
+		{
+			if (!await interaction.ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
+				return;
+
+			await DisconnectRemoteAsync(ResolveNode(parameter));
+		});
+
+	private Task ExecutePrintCommandAsync(object? parameter)
+		=> RunCommandAsync("Print failed", async interaction =>
+		{
+			RegistryNodeViewModel? node = ResolveNode(parameter);
+			if (node?.Hive is null)
+				return;
+
+			string filePath = Path.Combine(Path.GetTempPath(), $"RegistryEditor-{Guid.NewGuid():N}.reg");
+			try
+			{
+				await ExportAsync(filePath, node);
+				await interaction.PrintFileAsync(filePath);
+			}
+			finally
+			{
+				TryDeleteFile(filePath);
+			}
+		});
+
+	private async Task ExecuteExpandNodeCommandAsync(object? parameter)
+	{
+		RegistryNodeViewModel? node = ResolveNode(parameter);
+		if (node is null)
+			return;
+
+		await RunCommandAsync("Registry operation failed", async _ =>
+		{
+			node.IsExpanded = !node.IsExpanded;
+			if (node.IsExpanded)
+				await LoadChildrenAsync(node);
+		});
+	}
+
+	private Task ExecuteNewKeyCommandAsync(object? parameter)
+		=> RunCommandAsync("Registry operation failed", async interaction =>
+		{
+			RegistryNodeViewModel? node = ResolveNode(parameter);
+			if (node is not null
+				&& await interaction.RequestTextAsync("New key", "Key name", "New Key") is { } keyName)
+				await CreateKeyAsync(node, keyName);
+		});
+
+	private Task CreateValueFromCommandAsync(object? parameter, RegistryValueKind kind)
+		=> RunCommandAsync("Registry operation failed", async interaction =>
+		{
+			RegistryNodeViewModel? node = ResolveNode(parameter);
+			if (node is not null
+				&& await interaction.RequestTextAsync("New value", "Value name", "New Value") is { } name)
+				await CreateValueAsync(node, name, kind);
+		});
+
+	private Task ExecuteFindCommandAsync(object? parameter)
+		=> RunCommandAsync("Find failed", async interaction =>
+		{
+			if (await interaction.RequestTextAsync("Find", "Search for a key, value, or data", "") is not { } query)
+				return;
+
+			RegistryNodeViewModel? result = await FindAsync(query, parameter as RegistryNodeViewModel);
+			if (result is null)
+			{
+				await interaction.ShowMessageAsync("Find", $"No match was found for '{query}'.");
+				return;
+			}
+
+			result.IsExpanded = true;
+			await SelectNodeAsync(result);
+		});
+
+	private Task ExecuteDeleteKeyCommandAsync(object? parameter)
+		=> RunCommandAsync("Registry operation failed", async interaction =>
+		{
+			RegistryNodeViewModel? node = ResolveNode(parameter);
+			if (node is not null
+				&& await interaction.ConfirmAsync("Delete key", $"Delete '{node.Name}' and all of its subkeys?"))
+				await DeleteKeyAsync(node);
+		});
+
+	private Task ExecuteRenameKeyCommandAsync(object? parameter)
+		=> RunCommandAsync("Registry operation failed", async interaction =>
+		{
+			RegistryNodeViewModel? node = ResolveNode(parameter);
+			if (node is null
+				|| await interaction.RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName)
+				return;
+
+			if (await RenameKeyAsync(node, newName) is { } renamedNode)
+				await SelectNodeAsync(renamedNode);
+		});
+
+	private Task ExecutePermissionsCommandAsync(object? parameter)
+		=> RunCommandAsync("Registry operation failed", async interaction =>
+		{
+			if (ResolveNode(parameter) is { } node)
+				await interaction.EditPermissionsAsync(node);
+		});
+
+	private void ExecuteCopyKeyCommand(object? parameter)
+	{
+		if (ResolveNode(parameter) is { Hive: not null } node)
+			_interaction?.CopyText(GetRegistryPath(node));
+	}
+
+	private Task ExecuteDisplayBinaryDataCommandAsync(object? parameter)
+		=> RunCommandAsync("Unable to display the value", async interaction =>
+		{
+			if (SelectedValue is { } value)
+				await interaction.ShowValueAsync(value);
+		});
+
+	public Task DisplaySelectedValueAsync()
+		=> ExecuteDisplayBinaryDataCommandAsync(null);
+
+	private Task ExecuteRefreshCommandAsync(object? parameter)
+		=> RunCommandAsync("Refresh failed", _ => RefreshAsync());
+
+	private Task ExecuteFontCommandAsync(object? parameter)
+		=> RunCommandAsync("Font size failed", async interaction =>
+		{
+			if (await interaction.RequestTextAsync("Font size", "Size in pixels", FontSize.ToString()) is { } value
+				&& double.TryParse(value, out double fontSize)
+				&& fontSize is >= 8 and <= 48)
+				FontSize = fontSize;
+		});
+
+	private Task ExecuteAddFavoriteCommandAsync(object? parameter)
+		=> RunCommandAsync("Favorites failed", async interaction =>
+		{
+			if (ResolveNode(parameter) is not { Hive: not null } node)
+				return;
+
+			string path = GetRegistryPath(node);
+			string message = SaveFavorite(path)
+				? $"Added '{path}' to Favorites."
+				: "The favorite could not be saved.";
+			await interaction.ShowMessageAsync("Favorites", message);
+		});
+
+	private Task ExecuteRemoveFavoriteCommandAsync(object? parameter)
+		=> RunCommandAsync("Favorites failed", async interaction =>
+		{
+			if (ResolveNode(parameter) is not { Hive: not null } node)
+				return;
+
+			string path = GetRegistryPath(node);
+			if (_favorites.Remove(path))
+			{
+				DeleteFavorite(path);
+				await interaction.ShowMessageAsync("Favorites", $"Removed '{path}' from Favorites.");
+			}
+		});
+
+	private Task ExecuteAboutCommandAsync(object? parameter)
+		=> _interaction is null
+			? Task.CompletedTask
+			: _interaction.ShowMessageAsync("About Registry Editor", "Registry Editor\nWinUI 3 registry browser");
+
+	private void NotifyCommandStates()
+	{
+		if (ImportCommand is null)
+			return;
+
+		ImportCommand.NotifyCanExecuteChanged();
+		ExportCommand.NotifyCanExecuteChanged();
+		LoadHiveCommand.NotifyCanExecuteChanged();
+		UnloadHiveCommand.NotifyCanExecuteChanged();
+		ConnectRemoteCommand.NotifyCanExecuteChanged();
+		DisconnectRemoteCommand.NotifyCanExecuteChanged();
+		PrintCommand.NotifyCanExecuteChanged();
+		ExpandNodeCommand.NotifyCanExecuteChanged();
+		NewKeyCommand.NotifyCanExecuteChanged();
+		NewStringValueCommand.NotifyCanExecuteChanged();
+		NewBinaryValueCommand.NotifyCanExecuteChanged();
+		NewDWordValueCommand.NotifyCanExecuteChanged();
+		NewQWordValueCommand.NotifyCanExecuteChanged();
+		NewMultiStringValueCommand.NotifyCanExecuteChanged();
+		NewExpandableStringValueCommand.NotifyCanExecuteChanged();
+		FindCommand.NotifyCanExecuteChanged();
+		DeleteKeyCommand.NotifyCanExecuteChanged();
+		RenameKeyCommand.NotifyCanExecuteChanged();
+		PermissionsCommand.NotifyCanExecuteChanged();
+		CopyKeyCommand.NotifyCanExecuteChanged();
+		DisplayBinaryDataCommand.NotifyCanExecuteChanged();
+		RefreshCommand.NotifyCanExecuteChanged();
+		AddFavoriteCommand.NotifyCanExecuteChanged();
+		RemoveFavoriteCommand.NotifyCanExecuteChanged();
+		AboutCommand.NotifyCanExecuteChanged();
+	}
 
 	public async Task LoadChildrenAsync(RegistryNodeViewModel node)
 	{
@@ -774,6 +1212,130 @@ public sealed class RootViewModel : INotifyPropertyChanged
 		return node.IsRemote ? $"{node.ComputerName}\\{path}" : path;
 	}
 
+	public IReadOnlyList<RegistryPermissionRuleViewModel> GetPermissionRules(RegistryNodeViewModel node)
+	{
+		if (node.Hive is null)
+			throw new InvalidOperationException("Select a registry key first.");
+
+		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+		RegistrySecurity security = key.GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
+		return security
+			.GetAccessRules(includeExplicit: true, includeInherited: true, typeof(NTAccount))
+			.OfType<RegistryAccessRule>()
+			.Select(rule => new RegistryPermissionRuleViewModel(
+				$"{rule.IdentityReference} — {rule.AccessControlType} — {rule.RegistryRights}"))
+			.ToArray();
+	}
+
+	public void AddPermission(
+		RegistryNodeViewModel node,
+		string account,
+		RegistryPermissionChoice permission,
+		AccessControlType accessType)
+	{
+		if (node.Hive is null)
+			throw new InvalidOperationException("Select a registry key first.");
+		if (string.IsNullOrWhiteSpace(account))
+			throw new ArgumentException("Enter an account name.", nameof(account));
+
+		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+		RegistrySecurity security = key.GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
+		security.AddAccessRule(new RegistryAccessRule(
+			new NTAccount(account.Trim()),
+			permission.Rights,
+			InheritanceFlags.ContainerInherit,
+			PropagationFlags.None,
+			accessType));
+		key.SetAccessControl(security);
+	}
+
+	private void LoadFavorites()
+	{
+		try
+		{
+			using RegistryKey? key = Registry.CurrentUser.OpenSubKey(FavoritesRegistryPath, writable: false);
+			if (key is null)
+				return;
+
+			foreach (string valueName in key.GetValueNames())
+			{
+				if (key.GetValue(valueName, defaultValue: null, RegistryValueOptions.DoNotExpandEnvironmentNames) is string path
+					&& !string.IsNullOrWhiteSpace(path))
+					_favorites.Add(path);
+			}
+		}
+		catch (SecurityException)
+		{
+		}
+		catch (UnauthorizedAccessException)
+		{
+		}
+		catch (IOException)
+		{
+		}
+	}
+
+	private bool SaveFavorite(string path)
+	{
+		try
+		{
+			using RegistryKey key = Registry.CurrentUser.CreateSubKey(FavoritesRegistryPath, writable: true)
+				?? throw new UnauthorizedAccessException("The Favorites registry key could not be opened.");
+			key.SetValue(path, path, RegistryValueKind.String);
+			_favorites.Add(path);
+			return true;
+		}
+		catch (SecurityException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return false;
+		}
+		catch (ArgumentException)
+		{
+			return false;
+		}
+		catch (IOException)
+		{
+			return false;
+		}
+	}
+
+	private static void DeleteFavorite(string path)
+	{
+		try
+		{
+			using RegistryKey? key = Registry.CurrentUser.OpenSubKey(FavoritesRegistryPath, writable: true);
+			key?.DeleteValue(path, throwOnMissingValue: false);
+		}
+		catch (SecurityException)
+		{
+		}
+		catch (UnauthorizedAccessException)
+		{
+		}
+		catch (IOException)
+		{
+		}
+	}
+
+	private static void TryDeleteFile(string path)
+	{
+		try
+		{
+			if (File.Exists(path))
+				File.Delete(path);
+		}
+		catch (IOException)
+		{
+		}
+		catch (UnauthorizedAccessException)
+		{
+		}
+	}
+
 	private void AddHiveNodes(RegistryNodeViewModel computerNode)
 	{
 		computerNode.Children.Add(CreateNode("HKEY_CLASSES_ROOT", RegistryHive.ClassesRoot, string.Empty, FolderImageUri, hasUnrealizedChildren: true, computerNode.ComputerName, computerNode));
@@ -847,19 +1409,6 @@ public sealed class RootViewModel : INotifyPropertyChanged
 	}
 
 	private static BitmapImage CreateBitmapImage(string uri) => new(new Uri(uri));
-
-	private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
-	{
-		if (EqualityComparer<T>.Default.Equals(storage, value))
-			return false;
-
-		storage = value;
-		OnPropertyChanged(propertyName);
-		return true;
-	}
-
-	private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-		=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
 	private sealed record RegistrySubKeyData(string Name, string Path, bool HasChildren);
 

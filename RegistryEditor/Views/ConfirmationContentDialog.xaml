@@ -1,0 +1,9 @@
+<ContentDialog
+	x:Class="RegistryEditor.Views.ConfirmationContentDialog"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	CloseButtonText="No"
+	PrimaryButtonText="Yes"
+	Style="{StaticResource DefaultContentDialogStyle}">
+	<TextBlock x:Name="MessageTextBlock" TextWrapping="Wrap" />
+</ContentDialog>
