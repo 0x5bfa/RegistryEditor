@@ -515,7 +515,8 @@ public sealed class RootViewModel : ObservableObject
 		=> RunCommandAsync("Refresh failed", () => RefreshAsync());
 
 	private Task ExecuteSettingsCommandAsync(object? parameter)
-		=> RunCommandAsync("Settings failed", async () =>
+	{
+		return RunCommandAsync("Settings failed", async () =>
 		{
 			SettingsContentDialog dialog = new(this)
 			{
@@ -523,6 +524,7 @@ public sealed class RootViewModel : ObservableObject
 			};
 			await dialog.ShowAsync();
 		});
+	}
 
 	private async Task ExecuteBackCommandAsync(object? parameter)
 	{

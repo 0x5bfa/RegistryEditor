@@ -6,6 +6,7 @@ using RegistryEditor.ViewModels;
 using RegistryBreadcrumbBar = RegistryEditor.Controls.BreadcrumbBar;
 using RegistryBreadcrumbBarItemClickedEventArgs = RegistryEditor.Controls.BreadcrumbBarItemClickedEventArgs;
 using Microsoft.UI.Xaml.Input;
+using WinUI.TableView;
 
 namespace RegistryEditor.Views;
 
@@ -89,13 +90,16 @@ public sealed partial class RootView : UserControl
 		}
 	}
 
-	private void RegistryValueListView_SelectionChanged(object sender, SelectionChangedEventArgs args)
+	private void RegistryValueTableView_SelectionChanged(object sender, SelectionChangedEventArgs args)
 	{
 		ViewModel.SelectedValue = args.AddedItems.OfType<RegistryValueViewModel>().FirstOrDefault();
 	}
 
-	private async void RegistryValueListView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
-		=> await ViewModel.DisplaySelectedValueAsync();
+	private async void RegistryValueTableView_RowDoubleTapped(object sender, TableViewRowDoubleTappedEventArgs args)
+	{
+		ViewModel.SelectedValue = args.Item as RegistryValueViewModel;
+		await ViewModel.DisplaySelectedValueAsync();
+	}
 
 	private void RegistryTreeItem_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
 	{
