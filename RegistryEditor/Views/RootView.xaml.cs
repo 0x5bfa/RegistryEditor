@@ -43,7 +43,9 @@ public sealed partial class RootView : UserControl
 	}
 
 	private async void PathBreadcrumbBar_ItemClicked(RegistryBreadcrumbBar sender, RegistryBreadcrumbBarItemClickedEventArgs args)
-		=> await ViewModel.NavigateToBreadcrumbAsync(args.Index, args.IsRootItem);
+	{
+		await ViewModel.NavigateToBreadcrumbAsync(args.Index, args.IsRootItem);
+	}
 
 	private async void PathBreadcrumbBar_ItemDropDownFlyoutOpening(object? sender, BreadcrumbBarItemDropDownFlyoutEventArgs args)
 	{
@@ -95,7 +97,28 @@ public sealed partial class RootView : UserControl
 		ViewModel.SelectedValue = args.AddedItems.OfType<RegistryValueViewModel>().FirstOrDefault();
 	}
 
-	private async void RegistryValueTableView_RowDoubleTapped(object sender, TableViewRowDoubleTappedEventArgs args)
+	private void RegistryValueTableView_RowContextFlyoutOpening(object sender, TableViewRowContextFlyoutEventArgs args)
+	{
+		if (args.Item is not RegistryValueViewModel value
+			|| args.Flyout is not MenuFlyout flyout)
+			return;
+
+		ViewModel.SelectedValue = value;
+		foreach (MenuFlyoutItem item in flyout.Items.OfType<MenuFlyoutItem>())
+		{
+			item.Command = (item.Tag as string) switch
+			{
+				"Modify" => ViewModel.ModifyValueCommand,
+				"Delete" => ViewModel.DeleteValueCommand,
+				"Rename" => ViewModel.RenameValueCommand,
+				_ => null,
+			};
+			item.CommandParameter = value;
+			item.IsEnabled = item.Command?.CanExecute(value) ?? false;
+		}
+	}
+
+	private async void RegistryValueTableView_CellDoubleTapped(object sender, TableViewCellDoubleTappedEventArgs args)
 	{
 		ViewModel.SelectedValue = args.Item as RegistryValueViewModel;
 		await ViewModel.DisplaySelectedValueAsync();

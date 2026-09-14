@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
+using System.Globalization;
 using System.Security;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -109,6 +110,12 @@ public sealed class RootViewModel : ObservableObject
 	public AsyncRelayCommand<object?> NewMultiStringValueCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> NewExpandableStringValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> ModifyValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> DeleteValueCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> RenameValueCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> FindCommand { get; private set; } = null!;
 
@@ -273,6 +280,9 @@ public sealed class RootViewModel : ObservableObject
 		NewExpandableStringValueCommand = new(
 			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.ExpandString),
 			CanEditNode);
+		ModifyValueCommand = new(ExecuteModifyValueCommandAsync, CanModifyValue);
+		DeleteValueCommand = new(ExecuteDeleteValueCommandAsync, CanDeleteValue);
+		RenameValueCommand = new(ExecuteRenameValueCommandAsync, CanRenameValue);
 		FindCommand = new(ExecuteFindCommandAsync);
 		DeleteKeyCommand = new(ExecuteDeleteKeyCommandAsync, CanDeleteNode);
 		RenameKeyCommand = new(ExecuteRenameKeyCommandAsync, CanRenameNode);
@@ -317,8 +327,32 @@ public sealed class RootViewModel : ObservableObject
 	private bool CanExportNode(object? parameter)
 		=> CanKeyNode(parameter);
 
+	private bool CanModifyValue(object? parameter)
+	{
+		RegistryValueViewModel? value = ResolveValue(parameter);
+		return value is not null
+			&& value.Kind is RegistryValueKind.String or RegistryValueKind.DWord or RegistryValueKind.QWord
+			&& SelectedNode?.Hive is not null;
+	}
+
+	private bool CanDeleteValue(object? parameter)
+	{
+		RegistryValueViewModel? value = ResolveValue(parameter);
+		return value?.RawValue is not null && SelectedNode?.Hive is not null;
+	}
+
+	private bool CanRenameValue(object? parameter)
+	{
+		return CanDeleteValue(parameter);
+	}
+
 	private RegistryNodeViewModel? ResolveNode(object? parameter)
 		=> parameter as RegistryNodeViewModel ?? SelectedNode;
+
+	private RegistryValueViewModel? ResolveValue(object? parameter)
+	{
+		return parameter as RegistryValueViewModel ?? SelectedValue;
+	}
 
 	private async Task RunCommandAsync(string errorTitle, Func<Task> action)
 	{
@@ -450,6 +484,36 @@ public sealed class RootViewModel : ObservableObject
 				await CreateValueAsync(node, name, kind);
 		});
 
+	private async Task ExecuteModifyValueCommandAsync(object? parameter)
+	{
+		if (ResolveValue(parameter) is { } value)
+			await ModifyValueAsync(value);
+	}
+
+	private async Task ExecuteDeleteValueCommandAsync(object? parameter)
+	{
+		if (ResolveValue(parameter) is not { } value || !CanDeleteValue(value))
+			return;
+
+		await RunCommandAsync("Registry operation failed", async () =>
+		{
+			if (await ConfirmAsync("Delete value", $"Delete '{value.Name}'?"))
+				await DeleteValueAsync(value);
+		});
+	}
+
+	private async Task ExecuteRenameValueCommandAsync(object? parameter)
+	{
+		if (ResolveValue(parameter) is not { } value || !CanRenameValue(value))
+			return;
+
+		await RunCommandAsync("Registry operation failed", async () =>
+		{
+			if (await RequestTextAsync("Rename value", "New value name", value.RegistryName) is { } newName)
+				await RenameValueAsync(value, newName);
+		});
+	}
+
 	private Task ExecuteFindCommandAsync(object? parameter)
 		=> RunCommandAsync("Find failed", async () =>
 		{
@@ -508,8 +572,37 @@ public sealed class RootViewModel : ObservableObject
 				await ShowValueAsync(value);
 		});
 
-	public Task DisplaySelectedValueAsync()
-		=> ExecuteDisplayBinaryDataCommandAsync(null);
+	public async Task DisplaySelectedValueAsync()
+	{
+		if (SelectedValue is not { } value)
+			return;
+
+		if (value.Kind == RegistryValueKind.String)
+		{
+			await ModifyValueAsync(value);
+			return;
+		}
+
+		if (value.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord)
+		{
+			await ModifyValueAsync(value);
+			return;
+		}
+
+		await ShowValueAsync(value);
+	}
+
+	public async Task ModifyValueAsync(RegistryValueViewModel value)
+	{
+		if (value.Kind == RegistryValueKind.String)
+		{
+			await EditStringValueAsync(value);
+			return;
+		}
+
+		if (value.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord)
+			await EditIntegerValueAsync(value);
+	}
 
 	private Task ExecuteRefreshCommandAsync(object? parameter)
 		=> RunCommandAsync("Refresh failed", () => RefreshAsync());
@@ -597,6 +690,9 @@ public sealed class RootViewModel : ObservableObject
 		NewQWordValueCommand.NotifyCanExecuteChanged();
 		NewMultiStringValueCommand.NotifyCanExecuteChanged();
 		NewExpandableStringValueCommand.NotifyCanExecuteChanged();
+		ModifyValueCommand.NotifyCanExecuteChanged();
+		DeleteValueCommand.NotifyCanExecuteChanged();
+		RenameValueCommand.NotifyCanExecuteChanged();
 		FindCommand.NotifyCanExecuteChanged();
 		DeleteKeyCommand.NotifyCanExecuteChanged();
 		RenameKeyCommand.NotifyCanExecuteChanged();
@@ -738,6 +834,112 @@ public sealed class RootViewModel : ObservableObject
 		await ShowMessageAsync($"{value.Name} ({value.Type})", data.Length == 0 ? "(empty)" : data);
 	}
 
+	public async Task EditStringValueAsync(RegistryValueViewModel value)
+	{
+		if (value.Kind != RegistryValueKind.String)
+			return;
+
+		await EditRegistryValueAsync(value);
+	}
+
+	public async Task EditIntegerValueAsync(RegistryValueViewModel value)
+	{
+		if (value.Kind is not (RegistryValueKind.DWord or RegistryValueKind.QWord))
+			return;
+
+		await EditRegistryValueAsync(value);
+	}
+
+	private async Task EditRegistryValueAsync(RegistryValueViewModel value)
+	{
+		await RunCommandAsync("Registry operation failed", async () =>
+		{
+			if (SelectedNode is not { Hive: not null } node)
+				throw new InvalidOperationException("Select a registry key first.");
+
+			EditValueContentDialog dialog = new()
+			{
+				XamlRoot = GetXamlRoot(),
+			};
+			if (value.Kind == RegistryValueKind.String)
+				dialog.Configure(value.RegistryName, value.RawValue as string ?? string.Empty);
+			else
+				dialog.ConfigureInteger(value.RegistryName, GetIntegerValue(value));
+
+			if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+				return;
+
+			string newName = dialog.ValueName;
+			object newValue;
+			if (value.Kind == RegistryValueKind.String)
+				newValue = dialog.ValueData;
+			else if (value.Kind == RegistryValueKind.DWord)
+				newValue = unchecked((int)ParseIntegerValue(dialog.ValueData, value.Kind, dialog.IsHexadecimal));
+			else if (value.Kind == RegistryValueKind.QWord)
+				newValue = unchecked((long)ParseIntegerValue(dialog.ValueData, value.Kind, dialog.IsHexadecimal));
+			else
+				throw new InvalidOperationException("This registry value type cannot be edited.");
+
+			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+			bool nameChanged = !string.Equals(value.RegistryName, newName, StringComparison.OrdinalIgnoreCase);
+			if (nameChanged
+				&& key.GetValueNames().Any(existingName =>
+					string.Equals(existingName, newName, StringComparison.OrdinalIgnoreCase)))
+				throw new InvalidOperationException($"The value '{newName}' already exists.");
+
+			key.SetValue(newName, newValue, value.Kind);
+			if (nameChanged)
+				key.DeleteValue(value.RegistryName, throwOnMissingValue: true);
+
+			await RefreshAsync(node);
+		});
+	}
+
+	private static ulong GetIntegerValue(RegistryValueViewModel value)
+	{
+		if (value.RawValue is null)
+			return 0;
+
+		if (value.Kind == RegistryValueKind.DWord)
+		{
+			if (value.RawValue is int signedValue)
+				return unchecked((uint)signedValue);
+			if (value.RawValue is uint unsignedValue)
+				return unsignedValue;
+			return Convert.ToUInt32(value.RawValue, CultureInfo.InvariantCulture);
+		}
+
+		if (value.Kind == RegistryValueKind.QWord)
+		{
+			if (value.RawValue is long signedValue)
+				return unchecked((ulong)signedValue);
+			if (value.RawValue is ulong unsignedValue)
+				return unsignedValue;
+			return Convert.ToUInt64(value.RawValue, CultureInfo.InvariantCulture);
+		}
+
+		throw new InvalidOperationException("This registry value is not an integer value.");
+	}
+
+	private static ulong ParseIntegerValue(string text, RegistryValueKind kind, bool isHexadecimal)
+	{
+		string input = text.Trim();
+		if (isHexadecimal && input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+			input = input[2..];
+
+		bool parsed = isHexadecimal
+			? ulong.TryParse(input, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ulong value)
+			: ulong.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+		if (!parsed || (kind == RegistryValueKind.DWord && value > uint.MaxValue))
+		{
+			string valueType = kind == RegistryValueKind.DWord ? "DWORD" : "QWORD";
+			string valueBase = isHexadecimal ? "base 16" : "base 10";
+			throw new FormatException($"Enter a valid {valueType} value in {valueBase}.");
+		}
+
+		return value;
+	}
+
 	public void CopyText(string text)
 	{
 		DataPackage package = new();
@@ -818,12 +1020,31 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	public Task SelectNodeAsync(RegistryNodeViewModel? node)
-		=> SelectNodeAsync(node, recordHistory: true);
+	{
+		return SelectNodeAsync(node, recordHistory: true);
+	}
+
+	private async Task EnsureAncestorsExpandedAsync(RegistryNodeViewModel? node)
+	{
+		List<RegistryNodeViewModel> ancestors = [];
+		for (RegistryNodeViewModel? current = node?.Parent; current is not null; current = current.Parent)
+			ancestors.Add(current);
+
+		ancestors.Reverse();
+		foreach (RegistryNodeViewModel ancestor in ancestors)
+		{
+			ancestor.IsExpanded = true;
+			await LoadChildrenAsync(ancestor);
+		}
+	}
 
 	private async Task SelectNodeAsync(RegistryNodeViewModel? node, bool recordHistory)
 	{
 		if (recordHistory)
 			RecordNavigation(node);
+
+		if (node is not null)
+			await EnsureAncestorsExpandedAsync(node);
 
 		SelectedNode = node;
 		UpdateBreadcrumb(node);
@@ -935,6 +1156,40 @@ public sealed class RootViewModel : ObservableObject
 		await SelectNodeAsync(node);
 	}
 
+	public async Task DeleteValueAsync(RegistryValueViewModel? value)
+	{
+		if (value?.RawValue is null)
+			throw new InvalidOperationException("The selected value cannot be deleted.");
+
+		if (SelectedNode is not { Hive: not null } node)
+			throw new InvalidOperationException("Select a registry key first.");
+
+		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+		key.DeleteValue(value.RegistryName, throwOnMissingValue: true);
+		await RefreshAsync(node);
+	}
+
+	public async Task RenameValueAsync(RegistryValueViewModel? value, string newName)
+	{
+		if (value?.RawValue is null)
+			throw new InvalidOperationException("The selected value cannot be renamed.");
+
+		if (SelectedNode is not { Hive: not null } node)
+			throw new InvalidOperationException("Select a registry key first.");
+
+		if (string.Equals(value.RegistryName, newName, StringComparison.OrdinalIgnoreCase))
+			return;
+
+		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+		if (key.GetValueNames().Any(existingName =>
+			string.Equals(existingName, newName, StringComparison.OrdinalIgnoreCase)))
+			throw new InvalidOperationException($"The value '{newName}' already exists.");
+
+		key.SetValue(newName, value.RawValue, value.Kind);
+		key.DeleteValue(value.RegistryName, throwOnMissingValue: true);
+		await RefreshAsync(node);
+	}
+
 	public async Task DeleteKeyAsync(RegistryNodeViewModel? node)
 	{
 		if (node?.Hive is null || node.IsHiveRoot || node.Parent?.Hive is null)
@@ -954,7 +1209,10 @@ public sealed class RootViewModel : ObservableObject
 		ValidateKeyName(newName);
 		RegistryNodeViewModel parent = node.Parent;
 		using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
-		int status = RegistryNative.RegRenameKey(key.Handle.DangerousGetHandle(), newName);
+		int status = RegistryNative.RegRenameKey(
+			key.Handle.DangerousGetHandle(),
+			node.Name,
+			newName);
 		if (status != 0)
 			throw new Win32Exception(status);
 

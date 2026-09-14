@@ -1,0 +1,32 @@
+<ContentDialog
+	x:Class="RegistryEditor.Views.EditValueContentDialog"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	Title="Edit value"
+	CloseButtonText="Cancel"
+	DefaultButton="Primary"
+	PrimaryButtonText="OK"
+	Style="{StaticResource DefaultContentDialogStyle}">
+	<StackPanel MinWidth="360" Spacing="12">
+		<TextBox
+			x:Name="ValueNameTextBox"
+			AutomationProperties.AutomationId="ValueNameTextBox"
+			Header="Name of value:"
+			PlaceholderText="(Default)" />
+		<TextBox
+			x:Name="ValueDataTextBox"
+			AcceptsReturn="False"
+			AutomationProperties.AutomationId="ValueDataTextBox"
+			Header="Data of value:"
+			TextWrapping="NoWrap" />
+		<RadioButtons
+			x:Name="BaseRadioButtons"
+			AutomationProperties.AutomationId="ValueBaseRadioButtons"
+			Header="Base:"
+			SelectionChanged="BaseRadioButtons_SelectionChanged"
+			Visibility="Collapsed">
+			<RadioButton Content="Hexadecimal (base 16)" />
+			<RadioButton Content="Decimal (base 10)" />
+		</RadioButtons>
+	</StackPanel>
+</ContentDialog>

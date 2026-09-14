@@ -371,18 +371,36 @@
 					CanFilterColumns="False"
 					CanReorderColumns="False"
 					CanResizeColumns="True"
+					CellDoubleTapped="RegistryValueTableView_CellDoubleTapped"
 					CornerButtonMode="None"
 					CornerRadius="0"
 					GridLinesVisibility="None"
 					HeaderRowHeight="32"
 					IsReadOnly="True"
 					ItemsSource="{x:Bind ViewModel.RegistryValues, Mode=OneWay}"
-					RowDoubleTapped="RegistryValueTableView_RowDoubleTapped"
+					RowContextFlyoutOpening="RegistryValueTableView_RowContextFlyoutOpening"
 					RowMinHeight="32"
 					SelectedItem="{x:Bind ViewModel.SelectedValue, Mode=TwoWay}"
 					SelectionChanged="RegistryValueTableView_SelectionChanged"
 					SelectionMode="Single"
 					SelectionUnit="Row">
+					<tv:TableView.RowContextFlyout>
+						<MenuFlyout AreOpenCloseAnimationsEnabled="False">
+							<MenuFlyoutItem
+								AccessKey="M"
+								Tag="Modify"
+								Text="Modify" />
+							<MenuFlyoutSeparator />
+							<MenuFlyoutItem
+								AccessKey="D"
+								Tag="Delete"
+								Text="Delete" />
+							<MenuFlyoutItem
+								AccessKey="R"
+								Tag="Rename"
+								Text="Rename" />
+						</MenuFlyout>
+					</tv:TableView.RowContextFlyout>
 					<tv:TableView.Columns>
 						<tv:TableViewTemplateColumn
 							Width="220"

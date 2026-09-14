@@ -43,7 +43,7 @@ internal static partial class RegistryNative
 	internal static partial int RegUnLoadKey(nint hKey, string subKey);
 
 	[LibraryImport("advapi32.dll", EntryPoint = "RegRenameKey", StringMarshalling = StringMarshalling.Utf16)]
-	internal static partial int RegRenameKey(nint hKey, string newName);
+	internal static partial int RegRenameKey(nint hKey, string subKeyName, string newName);
 
 	internal static nint GetPredefinedHiveHandle(RegistryHive hive)
 		=> hive switch
