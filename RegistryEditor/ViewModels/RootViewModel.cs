@@ -7,8 +7,6 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
 using System.Globalization;
 using System.Security;
-using System.Security.AccessControl;
-using System.Security.Principal;
 using RegistryEditor.Services;
 using RegistryEditor.Views;
 using Windows.ApplicationModel.DataTransfer;
@@ -769,43 +767,12 @@ public sealed class RootViewModel : ObservableObject
 	{
 		try
 		{
-			PermissionsContentDialog dialog = new()
-			{
-				XamlRoot = GetXamlRoot(),
-			};
-			dialog.Configure(GetRegistryPath(node), GetPermissionRules(node));
-			dialog.PrimaryButtonClick += (_, eventArgs) =>
-			{
-				if (dialog.Account.Length == 0)
-				{
-					dialog.SetError("Enter an account name.");
-					eventArgs.Cancel = true;
-					return;
-				}
-
-				if (dialog.SelectedPermission is not { } permission)
-				{
-					dialog.SetError("Select a permission level.");
-					eventArgs.Cancel = true;
-					return;
-				}
-
-				try
-				{
-					AddPermission(node, dialog.Account, permission, dialog.SelectedAccessType);
-				}
-				catch (Exception exception)
-				{
-					dialog.SetError(exception.Message);
-					eventArgs.Cancel = true;
-				}
-			};
-
-			await dialog.ShowAsync();
+			RegistrySecurityEditor.Show(WindowNative.GetWindowHandle(App.Window), node);
+			await RefreshAsync(node);
 		}
 		catch (Exception exception)
 		{
-			await ShowMessageAsync("Unable to read access permissions", exception.Message);
+			await ShowMessageAsync("Unable to edit access permissions", exception.Message);
 		}
 	}
 
@@ -1709,43 +1676,6 @@ public sealed class RootViewModel : ObservableObject
 			: $"{GetHiveName(hive)}\\{node.SubKeyPath}";
 
 		return node.IsRemote ? $"{node.ComputerName}\\{path}" : path;
-	}
-
-	public IReadOnlyList<RegistryPermissionRuleViewModel> GetPermissionRules(RegistryNodeViewModel node)
-	{
-		if (node.Hive is null)
-			throw new InvalidOperationException("Select a registry key first.");
-
-		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
-		RegistrySecurity security = key.GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
-		return security
-			.GetAccessRules(includeExplicit: true, includeInherited: true, typeof(NTAccount))
-			.OfType<RegistryAccessRule>()
-			.Select(rule => new RegistryPermissionRuleViewModel(
-				$"{rule.IdentityReference} — {rule.AccessControlType} — {rule.RegistryRights}"))
-			.ToArray();
-	}
-
-	public void AddPermission(
-		RegistryNodeViewModel node,
-		string account,
-		RegistryPermissionChoice permission,
-		AccessControlType accessType)
-	{
-		if (node.Hive is null)
-			throw new InvalidOperationException("Select a registry key first.");
-		if (string.IsNullOrWhiteSpace(account))
-			throw new ArgumentException("Enter an account name.", nameof(account));
-
-		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
-		RegistrySecurity security = key.GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
-		security.AddAccessRule(new RegistryAccessRule(
-			new NTAccount(account.Trim()),
-			permission.Rights,
-			InheritanceFlags.ContainerInherit,
-			PropagationFlags.None,
-			accessType));
-		key.SetAccessControl(security);
 	}
 
 	private static void TryDeleteFile(string path)

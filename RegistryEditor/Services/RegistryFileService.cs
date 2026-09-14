@@ -45,13 +45,29 @@ internal static partial class RegistryNative
 	[LibraryImport("advapi32.dll", EntryPoint = "RegRenameKey", StringMarshalling = StringMarshalling.Utf16)]
 	internal static partial int RegRenameKey(nint hKey, string subKeyName, string newName);
 
+	[LibraryImport("advapi32.dll", EntryPoint = "RegOpenKeyExW", StringMarshalling = StringMarshalling.Utf16)]
+	internal static partial int RegOpenKeyEx(
+		nint hKey,
+		string? subKeyName,
+		uint options,
+		uint desiredAccess,
+		out nint result);
+
+	[LibraryImport("advapi32.dll", EntryPoint = "RegCloseKey")]
+	internal static partial int RegCloseKey(nint hKey);
+
 	internal static nint GetPredefinedHiveHandle(RegistryHive hive)
-		=> hive switch
+	{
+		return hive switch
 		{
-			RegistryHive.LocalMachine => new nint(-2147483646),
-			RegistryHive.Users => new nint(-2147483645),
+			RegistryHive.ClassesRoot => new nint(unchecked((int)0x80000000)),
+			RegistryHive.CurrentUser => new nint(unchecked((int)0x80000001)),
+			RegistryHive.LocalMachine => new nint(unchecked((int)0x80000002)),
+			RegistryHive.Users => new nint(unchecked((int)0x80000003)),
+			RegistryHive.CurrentConfig => new nint(unchecked((int)0x80000005)),
 			_ => throw new ArgumentOutOfRangeException(nameof(hive)),
 		};
+	}
 
 	internal static void EnablePrivilege(string privilegeName)
 	{
@@ -201,6 +217,59 @@ internal static class RegistryFileService
 		RegistryKey? key = baseKey.OpenSubKey(node.SubKeyPath, writable);
 		baseKey.Dispose();
 		return key ?? throw new UnauthorizedAccessException($"Unable to open registry key '{node.SubKeyPath}'.");
+	}
+
+	internal static RegistrySecurityKey OpenSecurityKey(RegistryNodeViewModel node)
+	{
+		if (node.Hive is not RegistryHive hive)
+			throw new InvalidOperationException("The selected item is not a registry key.");
+
+		const uint keyRead = 0x00020019;
+		const uint keyWrite = 0x00020006;
+		const uint writeDac = 0x00040000;
+		const uint writeOwner = 0x00080000;
+		const uint securityEditorAccess = keyRead | keyWrite | writeDac | writeOwner;
+		RegistryKey? remoteBaseKey = null;
+
+		try
+		{
+			nint baseHandle;
+			if (string.IsNullOrEmpty(node.ComputerName))
+			{
+				baseHandle = RegistryNative.GetPredefinedHiveHandle(hive);
+			}
+			else
+			{
+				remoteBaseKey = RegistryKey.OpenRemoteBaseKey(hive, node.ComputerName, RegistryView.Default);
+				baseHandle = remoteBaseKey.Handle.DangerousGetHandle();
+			}
+
+			string? subKeyName = string.IsNullOrEmpty(node.SubKeyPath) ? null : node.SubKeyPath;
+			int status = RegistryNative.RegOpenKeyEx(
+				baseHandle,
+				subKeyName,
+				options: 0,
+				securityEditorAccess,
+				out nint keyHandle);
+
+			if (status == 0)
+				return new RegistrySecurityKey(keyHandle, canWriteSecurity: true);
+
+			status = RegistryNative.RegOpenKeyEx(
+				baseHandle,
+				subKeyName,
+				options: 0,
+				keyRead,
+				out keyHandle);
+			if (status != 0)
+				throw new Win32Exception(status);
+
+			return new RegistrySecurityKey(keyHandle, canWriteSecurity: false);
+		}
+		finally
+		{
+			remoteBaseKey?.Dispose();
+		}
 	}
 
 	internal static RegistryKey OpenBaseKey(RegistryNodeViewModel node)
