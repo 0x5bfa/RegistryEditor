@@ -17,7 +17,7 @@
 					IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
 					ItemsSource="{x:Bind Children, Mode=OneWay}">
 					<TreeViewItem.ContextFlyout>
-						<MenuFlyout AreOpenCloseAnimationsEnabled="False">
+						<MenuFlyout AreOpenCloseAnimationsEnabled="False" Opening="RegistryTreeContextFlyout_Opening">
 							<MenuFlyoutItem Tag="Expand" Text="Expand" />
 							<MenuFlyoutSubItem AccessKey="N" Text="New">
 								<MenuFlyoutItem Tag="NewKey" Text="Key" />
@@ -288,25 +288,24 @@
 					<MenuFlyoutItem Command="{x:Bind ViewModel.RefreshCommand}" Text="Refresh" />
 				</MenuBarItem>
 
-				<!--
-				<MenuBarItem Title="Favorites">
-					<MenuFlyoutItem
-						Command="{x:Bind ViewModel.AddFavoriteCommand}"
-						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
-						Text="Add to Favorites..." />
-					<MenuFlyoutItem
-						Command="{x:Bind ViewModel.RemoveFavoriteCommand}"
-						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
-						Text="Remove Favorite..." />
-				</MenuBarItem>
-				-->
+				<!--  Favorites menu is temporarily disabled.  -->
 
-				<MenuBarItem Title="Help">
-					<MenuFlyoutItem Command="{x:Bind ViewModel.AboutCommand}" Text="About Registry Editor..." />
-				</MenuBarItem>
+				<!--  The former About menu is now available from the Settings button.  -->
 
 			</MenuBar>
 
+			<AppBarSeparator />
+
+			<AppBarButton
+				AutomationProperties.AutomationId="SettingsButton"
+				AutomationProperties.Name="Settings"
+				Command="{x:Bind ViewModel.SettingsCommand}"
+				Style="{StaticResource CompactAppBarButtonStyle}"
+				ToolTipService.ToolTip="Settings">
+				<AppBarButton.Icon>
+					<FontIcon Glyph="&#xE713;" />
+				</AppBarButton.Icon>
+			</AppBarButton>
 		</StackPanel>
 
 		<Grid
@@ -365,10 +364,10 @@
 		</Grid>
 
 		<ProgressBar
-			Grid.Row="2"
+			Grid.Row="3"
 			Height="2"
 			HorizontalAlignment="Stretch"
-			VerticalAlignment="Bottom"
+			VerticalAlignment="Top"
 			IsIndeterminate="True"
 			Visibility="{x:Bind ViewModel.LoadingVisibility, Mode=OneWay}" />
 
@@ -377,9 +376,9 @@
 			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
 			BorderThickness="0,1,0,0">
 			<Grid.ColumnDefinitions>
-				<ColumnDefinition Width="320" />
+				<ColumnDefinition Width="320" MinWidth="60" />
 				<ColumnDefinition Width="1" />
-				<ColumnDefinition Width="*" />
+				<ColumnDefinition Width="*" MinWidth="60" />
 			</Grid.ColumnDefinitions>
 
 			<TreeView

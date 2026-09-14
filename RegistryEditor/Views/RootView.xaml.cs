@@ -108,6 +108,15 @@ public sealed partial class RootView : UserControl
 		ConfigureContextMenu(flyout, node);
 	}
 
+	private void RegistryTreeContextFlyout_Opening(object sender, object args)
+	{
+		if (sender is not MenuFlyout { Target: TreeViewItem { DataContext: RegistryNodeViewModel node } } flyout)
+			return;
+
+		ViewModel.SelectedNode = node;
+		ConfigureContextMenu(flyout, node);
+	}
+
 	private void ConfigureContextMenu(MenuFlyout flyout, RegistryNodeViewModel node)
 	{
 		foreach (MenuFlyoutItem item in EnumerateMenuItems(flyout.Items))

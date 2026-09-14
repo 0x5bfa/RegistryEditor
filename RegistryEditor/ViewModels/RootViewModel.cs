@@ -19,7 +19,6 @@ namespace RegistryEditor.ViewModels;
 
 public sealed class RootViewModel : ObservableObject
 {
-	private const string FavoritesRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Applets\Regedit\Favorites";
 	private const string ComputerImageUri = "ms-appx:///Assets/Images/Computer.png";
 	private const string FolderImageUri = "ms-appx:///Assets/Images/Folder.png";
 	private const string BinaryValueImageUri = "ms-appx:///Assets/Images/BinaryValue.png";
@@ -37,11 +36,17 @@ public sealed class RootViewModel : ObservableObject
 	private bool _isLoading;
 	private int _activeLoads;
 	private readonly HashSet<string> _loadedHivePaths = new(StringComparer.OrdinalIgnoreCase);
-	private readonly HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Stack<RegistryNodeViewModel> _backHistory = [];
 	private readonly Stack<RegistryNodeViewModel> _forwardHistory = [];
 	private RegistryNodeViewModel? _navigationNode;
 	private bool _isAddressBarVisible = true;
+	private int _selectedThemeIndex;
+	private static readonly ElementTheme[] ThemeValues =
+	[
+		ElementTheme.Default,
+		ElementTheme.Light,
+		ElementTheme.Dark,
+	];
 
 	public RootViewModel()
 	{
@@ -57,7 +62,6 @@ public sealed class RootViewModel : ObservableObject
 
 		RootNodes.Add(computerNode);
 		InitializeCommands();
-		LoadFavorites();
 		SelectedNode = computerNode;
 		_navigationNode = computerNode;
 	}
@@ -122,11 +126,7 @@ public sealed class RootViewModel : ObservableObject
 
 	public AsyncRelayCommand<object?> RefreshCommand { get; private set; } = null!;
 
-	public AsyncRelayCommand<object?> AddFavoriteCommand { get; private set; } = null!;
-
-	public AsyncRelayCommand<object?> RemoveFavoriteCommand { get; private set; } = null!;
-
-	public AsyncRelayCommand<object?> AboutCommand { get; private set; } = null!;
+	public AsyncRelayCommand<object?> SettingsCommand { get; private set; } = null!;
 
 	public RegistryNodeViewModel? SelectedNode
 	{
@@ -200,6 +200,23 @@ public sealed class RootViewModel : ObservableObject
 
 	public Visibility AddressBarVisibility => IsAddressBarVisible ? Visibility.Visible : Visibility.Collapsed;
 
+	public ObservableCollection<string> ThemeOptions { get; } = ["System default", "Light", "Dark"];
+
+	public int SelectedThemeIndex
+	{
+		get => _selectedThemeIndex;
+		set
+		{
+			if (!SetProperty(ref _selectedThemeIndex, value)
+				|| value < 0
+				|| value >= ThemeValues.Length)
+				return;
+
+			if (App.Window.Content is FrameworkElement root)
+				root.RequestedTheme = ThemeValues[value];
+		}
+	}
+
 	public string BreadcrumbRootText
 	{
 		get => _breadcrumbRootText;
@@ -268,9 +285,7 @@ public sealed class RootViewModel : ObservableObject
 		});
 		DisplayBinaryDataCommand = new(ExecuteDisplayBinaryDataCommandAsync, _ => CanEditSelectedValue);
 		RefreshCommand = new(ExecuteRefreshCommandAsync, _ => SelectedNode is not null);
-		AddFavoriteCommand = new(ExecuteAddFavoriteCommandAsync, CanKeyNode);
-		RemoveFavoriteCommand = new(ExecuteRemoveFavoriteCommandAsync, CanKeyNode);
-		AboutCommand = new(ExecuteAboutCommandAsync);
+		SettingsCommand = new(ExecuteSettingsCommandAsync);
 	}
 
 	private bool CanKeyNode(object? parameter)
@@ -499,35 +514,15 @@ public sealed class RootViewModel : ObservableObject
 	private Task ExecuteRefreshCommandAsync(object? parameter)
 		=> RunCommandAsync("Refresh failed", () => RefreshAsync());
 
-	private Task ExecuteAddFavoriteCommandAsync(object? parameter)
-		=> RunCommandAsync("Favorites failed", async () =>
+	private Task ExecuteSettingsCommandAsync(object? parameter)
+		=> RunCommandAsync("Settings failed", async () =>
 		{
-			if (ResolveNode(parameter) is not { Hive: not null } node)
-				return;
-
-			string path = GetRegistryPath(node);
-			string message = SaveFavorite(path)
-				? $"Added '{path}' to Favorites."
-				: "The favorite could not be saved.";
-			await ShowMessageAsync("Favorites", message);
-		});
-
-	private Task ExecuteRemoveFavoriteCommandAsync(object? parameter)
-		=> RunCommandAsync("Favorites failed", async () =>
-		{
-			if (ResolveNode(parameter) is not { Hive: not null } node)
-				return;
-
-			string path = GetRegistryPath(node);
-			if (_favorites.Remove(path))
+			SettingsContentDialog dialog = new(this)
 			{
-				DeleteFavorite(path);
-				await ShowMessageAsync("Favorites", $"Removed '{path}' from Favorites.");
-			}
+				XamlRoot = GetXamlRoot(),
+			};
+			await dialog.ShowAsync();
 		});
-
-	private Task ExecuteAboutCommandAsync(object? parameter)
-		=> ShowMessageAsync("About Registry Editor", "Registry Editor\nWinUI 3 registry browser");
 
 	private async Task ExecuteBackCommandAsync(object? parameter)
 	{
@@ -607,9 +602,6 @@ public sealed class RootViewModel : ObservableObject
 		CopyKeyCommand.NotifyCanExecuteChanged();
 		DisplayBinaryDataCommand.NotifyCanExecuteChanged();
 		RefreshCommand.NotifyCanExecuteChanged();
-		AddFavoriteCommand.NotifyCanExecuteChanged();
-		RemoveFavoriteCommand.NotifyCanExecuteChanged();
-		AboutCommand.NotifyCanExecuteChanged();
 	}
 
 	public async Task<string?> RequestTextAsync(string title, string placeholder, string initialText)
@@ -1494,78 +1486,6 @@ public sealed class RootViewModel : ObservableObject
 			PropagationFlags.None,
 			accessType));
 		key.SetAccessControl(security);
-	}
-
-	private void LoadFavorites()
-	{
-		try
-		{
-			using RegistryKey? key = Registry.CurrentUser.OpenSubKey(FavoritesRegistryPath, writable: false);
-			if (key is null)
-				return;
-
-			foreach (string valueName in key.GetValueNames())
-			{
-				if (key.GetValue(valueName, defaultValue: null, RegistryValueOptions.DoNotExpandEnvironmentNames) is string path
-					&& !string.IsNullOrWhiteSpace(path))
-					_favorites.Add(path);
-			}
-		}
-		catch (SecurityException)
-		{
-		}
-		catch (UnauthorizedAccessException)
-		{
-		}
-		catch (IOException)
-		{
-		}
-	}
-
-	private bool SaveFavorite(string path)
-	{
-		try
-		{
-			using RegistryKey key = Registry.CurrentUser.CreateSubKey(FavoritesRegistryPath, writable: true)
-				?? throw new UnauthorizedAccessException("The Favorites registry key could not be opened.");
-			key.SetValue(path, path, RegistryValueKind.String);
-			_favorites.Add(path);
-			return true;
-		}
-		catch (SecurityException)
-		{
-			return false;
-		}
-		catch (UnauthorizedAccessException)
-		{
-			return false;
-		}
-		catch (ArgumentException)
-		{
-			return false;
-		}
-		catch (IOException)
-		{
-			return false;
-		}
-	}
-
-	private static void DeleteFavorite(string path)
-	{
-		try
-		{
-			using RegistryKey? key = Registry.CurrentUser.OpenSubKey(FavoritesRegistryPath, writable: true);
-			key?.DeleteValue(path, throwOnMissingValue: false);
-		}
-		catch (SecurityException)
-		{
-		}
-		catch (UnauthorizedAccessException)
-		{
-		}
-		catch (IOException)
-		{
-		}
 	}
 
 	private static void TryDeleteFile(string path)
