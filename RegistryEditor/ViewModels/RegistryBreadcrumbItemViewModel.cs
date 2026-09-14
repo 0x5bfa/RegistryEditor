@@ -5,11 +5,14 @@ namespace RegistryEditor.ViewModels;
 
 public sealed class RegistryBreadcrumbItemViewModel
 {
-	public RegistryBreadcrumbItemViewModel(string text, bool isChevronVisible)
+	public RegistryBreadcrumbItemViewModel(RegistryNodeViewModel node, string text, bool isChevronVisible)
 	{
+		Node = node;
 		Text = text;
 		IsChevronVisible = isChevronVisible;
 	}
+
+	public RegistryNodeViewModel Node { get; }
 
 	public string Text { get; }
 

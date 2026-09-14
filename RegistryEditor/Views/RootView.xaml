@@ -352,6 +352,7 @@
 							x:Name="PathBreadcrumbBar"
 							EllipsisButtonToolTip="Show hidden path items"
 							ItemClicked="PathBreadcrumbBar_ItemClicked"
+							ItemDropDownFlyoutOpening="PathBreadcrumbBar_ItemDropDownFlyoutOpening"
 							ItemsSource="{x:Bind ViewModel.BreadcrumbItems, Mode=OneWay}"
 							RootItemChevronToolTip="Show child keys"
 							RootItemToolTip="Computer">

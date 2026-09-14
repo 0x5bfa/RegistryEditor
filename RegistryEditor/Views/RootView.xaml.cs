@@ -47,10 +47,53 @@ public sealed partial class RootView : UserControl, IRegistryEditorInteraction
 			await ViewModel.NavigateToPathAsync(args.Text);
 	}
 
-	private async void PathBreadcrumbBar_ItemClicked(
-		RegistryBreadcrumbBar sender,
-		RegistryBreadcrumbBarItemClickedEventArgs args)
+	private async void PathBreadcrumbBar_ItemClicked(RegistryBreadcrumbBar sender, RegistryBreadcrumbBarItemClickedEventArgs args)
 		=> await ViewModel.NavigateToBreadcrumbAsync(args.Index, args.IsRootItem);
+
+	private async void PathBreadcrumbBar_ItemDropDownFlyoutOpening(object? sender, BreadcrumbBarItemDropDownFlyoutEventArgs args)
+	{
+		args.Flyout.Items.Clear();
+		args.Flyout.Items.Add(new MenuFlyoutItem
+		{
+			IsEnabled = false,
+			Text = "Loading...",
+		});
+
+		try
+		{
+			IReadOnlyList<RegistryNodeViewModel> children = await ViewModel.GetBreadcrumbChildrenAsync(args.Index, args.IsRootItem);
+			args.Flyout.Items.Clear();
+
+			if (children.Count == 0)
+			{
+				args.Flyout.Items.Add(new MenuFlyoutItem
+				{
+					IsEnabled = false,
+					Text = "No subkeys",
+				});
+				return;
+			}
+
+			foreach (RegistryNodeViewModel child in children)
+			{
+				args.Flyout.Items.Add(new MenuFlyoutItem
+				{
+					Command = ViewModel.NavigateToNodeCommand,
+					CommandParameter = child,
+					Text = child.Name,
+				});
+			}
+		}
+		catch (Exception exception)
+		{
+			args.Flyout.Items.Clear();
+			args.Flyout.Items.Add(new MenuFlyoutItem
+			{
+				IsEnabled = false,
+				Text = exception.Message,
+			});
+		}
+	}
 
 	private void RegistryValueListView_SelectionChanged(object sender, SelectionChangedEventArgs args)
 	{

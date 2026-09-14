@@ -85,6 +85,8 @@ public sealed class RootViewModel : ObservableObject
 
 	public AsyncRelayCommand<object?> ExpandNodeCommand { get; private set; } = null!;
 
+	public AsyncRelayCommand<object?> NavigateToNodeCommand { get; private set; } = null!;
+
 	public AsyncRelayCommand<object?> NewKeyCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> NewStringValueCommand { get; private set; } = null!;
@@ -231,6 +233,7 @@ public sealed class RootViewModel : ObservableObject
 		ExitCommand = new(_ => _interaction?.Close());
 
 		ExpandNodeCommand = new(ExecuteExpandNodeCommandAsync, CanKeyNode);
+		NavigateToNodeCommand = new(ExecuteNavigateToNodeCommandAsync, CanNavigateToNode);
 		NewKeyCommand = new(ExecuteNewKeyCommandAsync, CanEditNode);
 		NewStringValueCommand = new(
 			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.String),
@@ -276,6 +279,9 @@ public sealed class RootViewModel : ObservableObject
 
 	private bool CanKeyNode(object? parameter)
 		=> ResolveNode(parameter)?.Hive is not null;
+
+	private static bool CanNavigateToNode(object? parameter)
+		=> parameter is RegistryNodeViewModel;
 
 	private bool CanEditNode(object? parameter)
 		=> ResolveNode(parameter)?.Hive is not null;
@@ -408,6 +414,11 @@ public sealed class RootViewModel : ObservableObject
 				await LoadChildrenAsync(node);
 		});
 	}
+
+	private Task ExecuteNavigateToNodeCommandAsync(object? parameter)
+		=> parameter is RegistryNodeViewModel node
+			? SelectNodeAsync(node)
+			: Task.CompletedTask;
 
 	private Task ExecuteNewKeyCommandAsync(object? parameter)
 		=> RunCommandAsync("Registry operation failed", async interaction =>
@@ -605,6 +616,21 @@ public sealed class RootViewModel : ObservableObject
 			node.IsChildrenLoading = false;
 			EndLoad();
 		}
+	}
+
+	public async Task<IReadOnlyList<RegistryNodeViewModel>> GetBreadcrumbChildrenAsync(int index, bool isRootItem)
+	{
+		RegistryNodeViewModel? node = isRootItem
+			? GetComputerNode(SelectedNode)
+			: index >= 0 && index < BreadcrumbItems.Count
+				? BreadcrumbItems[index].Node
+				: null;
+
+		if (node is null)
+			return [];
+
+		await LoadChildrenAsync(node);
+		return node.Children.ToArray();
 	}
 
 	public async Task SelectNodeAsync(RegistryNodeViewModel? node)
@@ -929,23 +955,33 @@ public sealed class RootViewModel : ObservableObject
 		string computerName = GetComputerNode(node)?.Name ?? "Computer";
 		BreadcrumbRootText = computerName;
 		BreadcrumbItems.Clear();
+
+		List<RegistryNodeViewModel> pathNodes = [];
+		for (RegistryNodeViewModel? current = node; current?.Hive is not null; current = current.Parent)
+			pathNodes.Add(current);
+		pathNodes.Reverse();
+
+		if (pathNodes.Count == 0 || pathNodes[0].Hive is not RegistryHive rootHive)
+			return;
+
 		BreadcrumbItems.Add(new RegistryBreadcrumbItemViewModel(
-			GetHiveName(hive),
-			!string.IsNullOrEmpty(node.SubKeyPath)));
+			pathNodes[0],
+			GetHiveName(rootHive),
+			HasBreadcrumbChildren(pathNodes[0])));
 
-		string[] segments = string.IsNullOrEmpty(node.SubKeyPath)
-			? []
-			: node.SubKeyPath.Split('\\');
-
-		for (int index = 0; index < segments.Length; index++)
+		for (int index = 1; index < pathNodes.Count; index++)
 		{
 			BreadcrumbItems.Add(new RegistryBreadcrumbItemViewModel(
-				segments[index],
-				index != segments.Length - 1));
+				pathNodes[index],
+				pathNodes[index].Name,
+				HasBreadcrumbChildren(pathNodes[index])));
 		}
 
 		BreadcrumbPathText = computerName + "\\" + string.Join("\\", BreadcrumbItems.Select(item => item.Text));
 	}
+
+	private static bool HasBreadcrumbChildren(RegistryNodeViewModel node)
+		=> node.HasUnrealizedChildren || node.Children.Count > 0;
 
 	private void SetEmptyValuesMessage(string text, bool isEmpty)
 	{
