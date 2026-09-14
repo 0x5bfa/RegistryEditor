@@ -5,8 +5,7 @@
 	xmlns:controls="using:RegistryEditor.Controls"
 	xmlns:viewModels="using:RegistryEditor.ViewModels"
 	xmlns:wctcontrols="using:CommunityToolkit.WinUI.Controls"
-	x:Name="RootViewControl"
-	FontSize="{x:Bind ViewModel.FontSize, Mode=OneWay}">
+	x:Name="RootViewControl">
 
 	<UserControl.Resources>
 		<ResourceDictionary>
@@ -19,72 +18,42 @@
 					ItemsSource="{x:Bind Children, Mode=OneWay}">
 					<TreeViewItem.ContextFlyout>
 						<MenuFlyout AreOpenCloseAnimationsEnabled="False">
-							<MenuFlyoutItem
-								Command="{Binding Path=ViewModel.ExpandNodeCommand, ElementName=RootViewControl}"
-								CommandParameter="{x:Bind}"
-								Text="{x:Bind ExpandMenuText, Mode=OneWay}" />
+							<MenuFlyoutItem Tag="Expand" Text="Expand" />
 							<MenuFlyoutSubItem AccessKey="N" Text="New">
-								<MenuFlyoutItem
-									Command="{Binding Path=ViewModel.NewKeyCommand, ElementName=RootViewControl}"
-									CommandParameter="{x:Bind}"
-									Text="Key" />
-								<MenuFlyoutItem
-									Command="{Binding Path=ViewModel.NewStringValueCommand, ElementName=RootViewControl}"
-									CommandParameter="{x:Bind}"
-									Text="String Value" />
-								<MenuFlyoutItem
-									Command="{Binding Path=ViewModel.NewBinaryValueCommand, ElementName=RootViewControl}"
-									CommandParameter="{x:Bind}"
-									Text="Binary Value" />
-								<MenuFlyoutItem
-									Command="{Binding Path=ViewModel.NewDWordValueCommand, ElementName=RootViewControl}"
-									CommandParameter="{x:Bind}"
-									Text="DWORD (32-bit) Value" />
-								<MenuFlyoutItem
-									Command="{Binding Path=ViewModel.NewQWordValueCommand, ElementName=RootViewControl}"
-									CommandParameter="{x:Bind}"
-									Text="QWORD (64-bit) Value" />
-								<MenuFlyoutItem
-									Command="{Binding Path=ViewModel.NewMultiStringValueCommand, ElementName=RootViewControl}"
-									CommandParameter="{x:Bind}"
-									Text="Multi-String Value" />
-								<MenuFlyoutItem
-									Command="{Binding Path=ViewModel.NewExpandableStringValueCommand, ElementName=RootViewControl}"
-									CommandParameter="{x:Bind}"
-									Text="Expandable String Value" />
+								<MenuFlyoutItem Tag="NewKey" Text="Key" />
+								<MenuFlyoutItem Tag="NewStringValue" Text="String Value" />
+								<MenuFlyoutItem Tag="NewBinaryValue" Text="Binary Value" />
+								<MenuFlyoutItem Tag="NewDWordValue" Text="DWORD (32-bit) Value" />
+								<MenuFlyoutItem Tag="NewQWordValue" Text="QWORD (64-bit) Value" />
+								<MenuFlyoutItem Tag="NewMultiStringValue" Text="Multi-String Value" />
+								<MenuFlyoutItem Tag="NewExpandableStringValue" Text="Expandable String Value" />
 							</MenuFlyoutSubItem>
 							<MenuFlyoutItem
 								AccessKey="F"
-								Command="{Binding Path=ViewModel.FindCommand, ElementName=RootViewControl}"
-								CommandParameter="{x:Bind}"
+								Tag="Find"
 								Text="Find..." />
 							<MenuFlyoutSeparator />
 							<MenuFlyoutItem
 								AccessKey="D"
-								Command="{Binding Path=ViewModel.DeleteKeyCommand, ElementName=RootViewControl}"
-								CommandParameter="{x:Bind}"
+								Tag="DeleteKey"
 								Text="Delete" />
 							<MenuFlyoutItem
 								AccessKey="R"
-								Command="{Binding Path=ViewModel.RenameKeyCommand, ElementName=RootViewControl}"
-								CommandParameter="{x:Bind}"
+								Tag="RenameKey"
 								Text="Rename" />
 							<MenuFlyoutSeparator />
 							<MenuFlyoutItem
 								AccessKey="E"
-								Command="{Binding Path=ViewModel.ExportCommand, ElementName=RootViewControl}"
-								CommandParameter="{x:Bind}"
+								Tag="Export"
 								Text="Export" />
 							<MenuFlyoutItem
 								AccessKey="P"
-								Command="{Binding Path=ViewModel.PermissionsCommand, ElementName=RootViewControl}"
-								CommandParameter="{x:Bind}"
+								Tag="Permissions"
 								Text="Access permissions..." />
 							<MenuFlyoutSeparator />
 							<MenuFlyoutItem
 								AccessKey="C"
-								Command="{Binding Path=ViewModel.CopyKeyCommand, ElementName=RootViewControl}"
-								CommandParameter="{x:Bind}"
+								Tag="CopyKey"
 								Text="Copy Key Name" />
 						</MenuFlyout>
 					</TreeViewItem.ContextFlyout>
@@ -188,19 +157,34 @@
 			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
 			Orientation="Horizontal">
 
-			<AppBarButton Style="{StaticResource CompactAppBarButtonStyle}">
+			<AppBarButton
+				AutomationProperties.AutomationId="BackButton"
+				AutomationProperties.Name="Back"
+				Command="{x:Bind ViewModel.BackCommand}"
+				Style="{StaticResource CompactAppBarButtonStyle}"
+				ToolTipService.ToolTip="Back">
 				<AppBarButton.Icon>
 					<FontIcon Glyph="&#xE72B;" />
 				</AppBarButton.Icon>
 			</AppBarButton>
 
-			<AppBarButton Style="{StaticResource CompactAppBarButtonStyle}">
+			<AppBarButton
+				AutomationProperties.AutomationId="ForwardButton"
+				AutomationProperties.Name="Forward"
+				Command="{x:Bind ViewModel.ForwardCommand}"
+				Style="{StaticResource CompactAppBarButtonStyle}"
+				ToolTipService.ToolTip="Forward">
 				<AppBarButton.Icon>
 					<FontIcon Glyph="&#xE72A;" />
 				</AppBarButton.Icon>
 			</AppBarButton>
 
-			<AppBarButton Style="{StaticResource CompactAppBarButtonStyle}">
+			<AppBarButton
+				AutomationProperties.AutomationId="RefreshButton"
+				AutomationProperties.Name="Refresh"
+				Command="{x:Bind ViewModel.RefreshCommand}"
+				Style="{StaticResource CompactAppBarButtonStyle}"
+				ToolTipService.ToolTip="Refresh">
 				<AppBarButton.Icon>
 					<FontIcon Glyph="&#xE72C;" />
 				</AppBarButton.Icon>
@@ -300,12 +284,11 @@
 						Command="{x:Bind ViewModel.ToggleAddressBarCommand}"
 						IsChecked="{x:Bind ViewModel.IsAddressBarVisible, Mode=OneWay}"
 						Text="Address bar" />
-					<MenuFlyoutItem Command="{x:Bind ViewModel.SplitCommand}" Text="Split" />
 					<MenuFlyoutItem Command="{x:Bind ViewModel.DisplayBinaryDataCommand}" Text="Display binary data..." />
 					<MenuFlyoutItem Command="{x:Bind ViewModel.RefreshCommand}" Text="Refresh" />
-					<MenuFlyoutItem Command="{x:Bind ViewModel.FontCommand}" Text="Font..." />
 				</MenuBarItem>
 
+				<!--
 				<MenuBarItem Title="Favorites">
 					<MenuFlyoutItem
 						Command="{x:Bind ViewModel.AddFavoriteCommand}"
@@ -316,6 +299,7 @@
 						CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 						Text="Remove Favorite..." />
 				</MenuBarItem>
+				-->
 
 				<MenuBarItem Title="Help">
 					<MenuFlyoutItem Command="{x:Bind ViewModel.AboutCommand}" Text="About Registry Editor..." />
@@ -330,7 +314,8 @@
 			Grid.Row="2"
 			Padding="12,4,12,10"
 			Background="{ThemeResource LayerFillColorDefaultBrush}"
-			ColumnSpacing="8">
+			ColumnSpacing="8"
+			Visibility="{x:Bind ViewModel.AddressBarVisibility, Mode=OneWay}">
 
 			<controls:Omnibar
 				x:Name="NavigationOmnibar"
@@ -392,7 +377,7 @@
 			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
 			BorderThickness="0,1,0,0">
 			<Grid.ColumnDefinitions>
-				<ColumnDefinition x:Name="RegistryTreeColumn" Width="320" />
+				<ColumnDefinition Width="320" />
 				<ColumnDefinition Width="1" />
 				<ColumnDefinition Width="*" />
 			</Grid.ColumnDefinitions>
@@ -458,9 +443,9 @@
 								<Setter Property="Padding" Value="0" />
 							</Style>
 						</ListView.ItemContainerStyle>
-						<ListView.Transitions>
+						<ListView.ItemContainerTransitions>
 							<TransitionCollection />
-						</ListView.Transitions>
+						</ListView.ItemContainerTransitions>
 					</ListView>
 
 					<TextBlock

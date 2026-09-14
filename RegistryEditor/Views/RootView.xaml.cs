@@ -2,19 +2,14 @@
 // Licensed under the MIT license.
 
 using RegistryEditor.Controls;
-using RegistryEditor.Services;
 using RegistryEditor.ViewModels;
 using RegistryBreadcrumbBar = RegistryEditor.Controls.BreadcrumbBar;
 using RegistryBreadcrumbBarItemClickedEventArgs = RegistryEditor.Controls.BreadcrumbBarItemClickedEventArgs;
 using Microsoft.UI.Xaml.Input;
-using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace RegistryEditor.Views;
 
-public sealed partial class RootView : UserControl, IRegistryEditorInteraction
+public sealed partial class RootView : UserControl
 {
 	public RootViewModel ViewModel { get; }
 
@@ -22,7 +17,6 @@ public sealed partial class RootView : UserControl, IRegistryEditorInteraction
 	{
 		ViewModel = new RootViewModel();
 		InitializeComponent();
-		ViewModel.Interaction = this;
 	}
 
 	private async void RegistryTreeView_Expanding(TreeView sender, TreeViewExpandingEventArgs args)
@@ -105,157 +99,60 @@ public sealed partial class RootView : UserControl, IRegistryEditorInteraction
 
 	private void RegistryTreeItem_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
 	{
-		if (sender is TreeViewItem { DataContext: RegistryNodeViewModel node })
-			ViewModel.SelectedNode = node;
+		if (sender is not TreeViewItem treeViewItem
+			|| treeViewItem.DataContext is not RegistryNodeViewModel node
+			|| treeViewItem.ContextFlyout is not MenuFlyout flyout)
+			return;
+
+		ViewModel.SelectedNode = node;
+		ConfigureContextMenu(flyout, node);
 	}
 
-	public async Task<string?> RequestTextAsync(string title, string placeholder, string initialText)
+	private void ConfigureContextMenu(MenuFlyout flyout, RegistryNodeViewModel node)
 	{
-		InputContentDialog dialog = new()
+		foreach (MenuFlyoutItem item in EnumerateMenuItems(flyout.Items))
 		{
-			XamlRoot = XamlRoot,
-		};
-		dialog.Configure(title, placeholder, initialText);
-		ContentDialogResult result = await dialog.ShowAsync();
-		return result == ContentDialogResult.Primary ? dialog.Text.Trim() : null;
-	}
-
-	public async Task<bool> ConfirmAsync(string title, string message)
-	{
-		ConfirmationContentDialog dialog = new()
-		{
-			XamlRoot = XamlRoot,
-		};
-		dialog.Configure(title, message);
-		return await dialog.ShowAsync() == ContentDialogResult.Primary;
-	}
-
-	public async Task ShowMessageAsync(string title, string message)
-	{
-		MessageContentDialog dialog = new()
-		{
-			XamlRoot = XamlRoot,
-		};
-		dialog.Configure(title, message);
-		await dialog.ShowAsync();
-	}
-
-	public async Task<string?> PickImportFileAsync()
-	{
-		FileOpenPicker picker = new();
-		picker.FileTypeFilter.Add(".reg");
-		InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.Window));
-		StorageFile? file = await picker.PickSingleFileAsync();
-		return file?.Path;
-	}
-
-	public async Task<string?> PickHiveFileAsync()
-	{
-		FileOpenPicker picker = new();
-		picker.FileTypeFilter.Add(".hiv");
-		picker.FileTypeFilter.Add(".dat");
-		picker.FileTypeFilter.Add(".*");
-		InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.Window));
-		StorageFile? file = await picker.PickSingleFileAsync();
-		return file?.Path;
-	}
-
-	public async Task<string?> PickExportFileAsync()
-	{
-		FileSavePicker picker = new()
-		{
-			SuggestedFileName = "registry.reg",
-		};
-		picker.FileTypeChoices.Add("Registry file", [".reg"]);
-		InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.Window));
-		StorageFile? file = await picker.PickSaveFileAsync();
-		return file?.Path;
-	}
-
-	public async Task EditPermissionsAsync(RegistryNodeViewModel node)
-	{
-		try
-		{
-			PermissionsContentDialog dialog = new()
+			item.Command = (item.Tag as string) switch
 			{
-				XamlRoot = XamlRoot,
+				"Expand" => ViewModel.ExpandNodeCommand,
+				"NewKey" => ViewModel.NewKeyCommand,
+				"NewStringValue" => ViewModel.NewStringValueCommand,
+				"NewBinaryValue" => ViewModel.NewBinaryValueCommand,
+				"NewDWordValue" => ViewModel.NewDWordValueCommand,
+				"NewQWordValue" => ViewModel.NewQWordValueCommand,
+				"NewMultiStringValue" => ViewModel.NewMultiStringValueCommand,
+				"NewExpandableStringValue" => ViewModel.NewExpandableStringValueCommand,
+				"Find" => ViewModel.FindCommand,
+				"DeleteKey" => ViewModel.DeleteKeyCommand,
+				"RenameKey" => ViewModel.RenameKeyCommand,
+				"Export" => ViewModel.ExportCommand,
+				"Permissions" => ViewModel.PermissionsCommand,
+				"CopyKey" => ViewModel.CopyKeyCommand,
+				_ => null,
 			};
-			dialog.Configure(ViewModel.GetRegistryPath(node), ViewModel.GetPermissionRules(node));
-			dialog.PrimaryButtonClick += (_, eventArgs) =>
-			{
-				if (dialog.Account.Length == 0)
-				{
-					dialog.SetError("Enter an account name.");
-					eventArgs.Cancel = true;
-					return;
-				}
+			item.CommandParameter = node;
 
-				if (dialog.SelectedPermission is not { } permission)
-				{
-					dialog.SetError("Select a permission level.");
-					eventArgs.Cancel = true;
-					return;
-				}
+			if (item.Tag as string == "Expand")
+				item.Text = node.ExpandMenuText;
 
-				try
-				{
-					ViewModel.AddPermission(node, dialog.Account, permission, dialog.SelectedAccessType);
-				}
-				catch (Exception exception)
-				{
-					dialog.SetError(exception.Message);
-					eventArgs.Cancel = true;
-				}
-			};
-
-			await dialog.ShowAsync();
-		}
-		catch (Exception exception)
-		{
-			await ShowMessageAsync("Unable to read access permissions", exception.Message);
+			item.IsEnabled = item.Command?.CanExecute(node) ?? false;
 		}
 	}
 
-	public async Task PrintFileAsync(string filePath)
+	private static IEnumerable<MenuFlyoutItem> EnumerateMenuItems(IEnumerable<MenuFlyoutItemBase> items)
 	{
-		Process? process = Process.Start(new ProcessStartInfo
+		foreach (MenuFlyoutItemBase item in items)
 		{
-			FileName = "notepad.exe",
-			UseShellExecute = true,
-			ArgumentList = { "/p", filePath },
-		});
-
-		if (process is null)
-			throw new InvalidOperationException("The system print helper could not be started.");
-
-		await process.WaitForExitAsync();
+			if (item is MenuFlyoutItem menuItem)
+			{
+				yield return menuItem;
+			}
+			else if (item is MenuFlyoutSubItem subItem)
+			{
+				foreach (MenuFlyoutItem child in EnumerateMenuItems(subItem.Items))
+					yield return child;
+			}
+		}
 	}
 
-	public async Task ShowValueAsync(RegistryValueViewModel value)
-	{
-		string data = value.RawValue switch
-		{
-			byte[] bytes => string.Join(" ", bytes.Select(item => item.ToString("x2"))),
-			_ => value.Data,
-		};
-		await ShowMessageAsync($"{value.Name} ({value.Type})", data.Length == 0 ? "(empty)" : data);
-	}
-
-	public void CopyText(string text)
-	{
-		DataPackage package = new();
-		package.SetText(text);
-		Clipboard.SetContent(package);
-	}
-
-	public void Close()
-		=> App.Window.Close();
-
-	public void SetAddressBarVisibility(bool isVisible)
-		=> NavigationBarHost.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
-
-	public void SetTreePaneWidth(bool isWide)
-		=> RegistryTreeColumn.Width = isWide
-			? new GridLength(1, GridUnitType.Star)
-			: new GridLength(320);
 }

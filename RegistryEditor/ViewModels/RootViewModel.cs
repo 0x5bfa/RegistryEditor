@@ -9,6 +9,11 @@ using System.Security;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using RegistryEditor.Services;
+using RegistryEditor.Views;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace RegistryEditor.ViewModels;
 
@@ -20,6 +25,7 @@ public sealed class RootViewModel : ObservableObject
 	private const string BinaryValueImageUri = "ms-appx:///Assets/Images/BinaryValue.png";
 	private const string StringValueImageUri = "ms-appx:///Assets/Images/StringValue.png";
 	private const string UnknownValueImageUri = "ms-appx:///Assets/Images/UnknownImage.png";
+	private const string NoValueText = "(No value)";
 
 	private CancellationTokenSource? _valueLoadingCancellation;
 	private RegistryNodeViewModel? _selectedNode;
@@ -32,10 +38,10 @@ public sealed class RootViewModel : ObservableObject
 	private int _activeLoads;
 	private readonly HashSet<string> _loadedHivePaths = new(StringComparer.OrdinalIgnoreCase);
 	private readonly HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
-	private IRegistryEditorInteraction? _interaction;
+	private readonly Stack<RegistryNodeViewModel> _backHistory = [];
+	private readonly Stack<RegistryNodeViewModel> _forwardHistory = [];
+	private RegistryNodeViewModel? _navigationNode;
 	private bool _isAddressBarVisible = true;
-	private bool _isTreePaneWide;
-	private double _fontSize = 14;
 
 	public RootViewModel()
 	{
@@ -53,6 +59,7 @@ public sealed class RootViewModel : ObservableObject
 		InitializeCommands();
 		LoadFavorites();
 		SelectedNode = computerNode;
+		_navigationNode = computerNode;
 	}
 
 	public ObservableCollection<RegistryNodeViewModel> RootNodes { get; } = [];
@@ -60,12 +67,6 @@ public sealed class RootViewModel : ObservableObject
 	public ObservableCollection<RegistryBreadcrumbItemViewModel> BreadcrumbItems { get; } = [];
 
 	public ObservableCollection<RegistryValueViewModel> RegistryValues { get; } = [];
-
-	public IRegistryEditorInteraction? Interaction
-	{
-		get => _interaction;
-		set => _interaction = value;
-	}
 
 	public AsyncRelayCommand<object?> ImportCommand { get; private set; } = null!;
 
@@ -82,6 +83,10 @@ public sealed class RootViewModel : ObservableObject
 	public AsyncRelayCommand<object?> PrintCommand { get; private set; } = null!;
 
 	public RelayCommand<object?> ExitCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> BackCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> ForwardCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> ExpandNodeCommand { get; private set; } = null!;
 
@@ -113,13 +118,9 @@ public sealed class RootViewModel : ObservableObject
 
 	public RelayCommand<object?> ToggleAddressBarCommand { get; private set; } = null!;
 
-	public RelayCommand<object?> SplitCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> DisplayBinaryDataCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> RefreshCommand { get; private set; } = null!;
-
-	public AsyncRelayCommand<object?> FontCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> AddFavoriteCommand { get; private set; } = null!;
 
@@ -181,23 +182,23 @@ public sealed class RootViewModel : ObservableObject
 
 	public bool CanDisconnectRemote => GetComputerNode(SelectedNode)?.IsRemote is true;
 
+	public bool CanGoBack => _backHistory.Count > 0;
+
+	public bool CanGoForward => _forwardHistory.Count > 0;
+
 	public bool IsAddressBarVisible
 	{
 		get => _isAddressBarVisible;
-		private set => SetProperty(ref _isAddressBarVisible, value);
+		private set
+		{
+			if (!SetProperty(ref _isAddressBarVisible, value))
+				return;
+
+			OnPropertyChanged(nameof(AddressBarVisibility));
+		}
 	}
 
-	public bool IsTreePaneWide
-	{
-		get => _isTreePaneWide;
-		private set => SetProperty(ref _isTreePaneWide, value);
-	}
-
-	public double FontSize
-	{
-		get => _fontSize;
-		private set => SetProperty(ref _fontSize, value);
-	}
+	public Visibility AddressBarVisibility => IsAddressBarVisible ? Visibility.Visible : Visibility.Collapsed;
 
 	public string BreadcrumbRootText
 	{
@@ -230,9 +231,11 @@ public sealed class RootViewModel : ObservableObject
 		ConnectRemoteCommand = new(ExecuteConnectRemoteCommandAsync);
 		DisconnectRemoteCommand = new(ExecuteDisconnectRemoteCommandAsync, _ => CanDisconnectRemote);
 		PrintCommand = new(ExecutePrintCommandAsync, CanExportNode);
-		ExitCommand = new(_ => _interaction?.Close());
+		ExitCommand = new(_ => Close());
 
-		ExpandNodeCommand = new(ExecuteExpandNodeCommandAsync, CanKeyNode);
+		BackCommand = new(ExecuteBackCommandAsync, _ => CanGoBack);
+		ForwardCommand = new(ExecuteForwardCommandAsync, _ => CanGoForward);
+		ExpandNodeCommand = new(ExecuteExpandNodeCommandAsync, CanExpandNode);
 		NavigateToNodeCommand = new(ExecuteNavigateToNodeCommandAsync, CanNavigateToNode);
 		NewKeyCommand = new(ExecuteNewKeyCommandAsync, CanEditNode);
 		NewStringValueCommand = new(
@@ -261,17 +264,10 @@ public sealed class RootViewModel : ObservableObject
 
 		ToggleAddressBarCommand = new(_ =>
 		{
-			IsAddressBarVisible = !IsAddressBarVisible;
-			_interaction?.SetAddressBarVisibility(IsAddressBarVisible);
-		});
-		SplitCommand = new(_ =>
-		{
-			IsTreePaneWide = !IsTreePaneWide;
-			_interaction?.SetTreePaneWidth(IsTreePaneWide);
+			SetAddressBarVisibility(!IsAddressBarVisible);
 		});
 		DisplayBinaryDataCommand = new(ExecuteDisplayBinaryDataCommandAsync, _ => CanEditSelectedValue);
 		RefreshCommand = new(ExecuteRefreshCommandAsync, _ => SelectedNode is not null);
-		FontCommand = new(ExecuteFontCommandAsync);
 		AddFavoriteCommand = new(ExecuteAddFavoriteCommandAsync, CanKeyNode);
 		RemoveFavoriteCommand = new(ExecuteRemoveFavoriteCommandAsync, CanKeyNode);
 		AboutCommand = new(ExecuteAboutCommandAsync);
@@ -279,6 +275,10 @@ public sealed class RootViewModel : ObservableObject
 
 	private bool CanKeyNode(object? parameter)
 		=> ResolveNode(parameter)?.Hive is not null;
+
+	private bool CanExpandNode(object? parameter)
+		=> ResolveNode(parameter) is { Hive: not null } node
+			&& (node.IsExpanded || node.HasUnrealizedChildren || node.Children.Count > 0);
 
 	private static bool CanNavigateToNode(object? parameter)
 		=> parameter is RegistryNodeViewModel;
@@ -305,85 +305,82 @@ public sealed class RootViewModel : ObservableObject
 	private RegistryNodeViewModel? ResolveNode(object? parameter)
 		=> parameter as RegistryNodeViewModel ?? SelectedNode;
 
-	private async Task RunCommandAsync(string errorTitle, Func<IRegistryEditorInteraction, Task> action)
+	private async Task RunCommandAsync(string errorTitle, Func<Task> action)
 	{
-		if (_interaction is null)
-			return;
-
 		try
 		{
-			await action(_interaction);
+			await action();
 		}
 		catch (Exception exception)
 		{
-			await _interaction.ShowMessageAsync(errorTitle, exception.Message);
+			await ShowMessageAsync(errorTitle, exception.Message);
 		}
 	}
 
 	private Task ExecuteImportCommandAsync(object? parameter)
-		=> RunCommandAsync("Import failed", async interaction =>
+		=> RunCommandAsync("Import failed", async () =>
 		{
-			if (await interaction.PickImportFileAsync() is not { } filePath)
+			if (await PickImportFileAsync() is not { } filePath)
 				return;
 
 			int count = await ImportAsync(filePath);
-			await interaction.ShowMessageAsync(
+			await ShowMessageAsync(
 				"Import",
 				$"Imported {count} value(s) from '{Path.GetFileName(filePath)}'.");
 		});
 
 	private Task ExecuteExportCommandAsync(object? parameter)
-		=> RunCommandAsync("Export failed", async interaction =>
+		=> RunCommandAsync("Export failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node?.Hive is null || await interaction.PickExportFileAsync() is not { } filePath)
+			if (node?.Hive is null || await PickExportFileAsync() is not { } filePath)
 				return;
 
 			await ExportAsync(filePath, node);
-			await interaction.ShowMessageAsync(
+			await ShowMessageAsync(
 				"Export",
 				$"Exported '{GetRegistryPath(node)}' to '{Path.GetFileName(filePath)}'.");
 		});
 
 	private Task ExecuteLoadHiveCommandAsync(object? parameter)
-		=> RunCommandAsync("Load hive failed", async interaction =>
+		=> RunCommandAsync("Load hive failed", async () =>
 		{
 			if (SelectedNode is not { } parent
-				|| await interaction.PickHiveFileAsync() is not { } filePath
-				|| await interaction.RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName)
+				|| await PickHiveFileAsync() is not { } filePath
+				|| await RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName)
 				return;
 
 			await LoadHiveAsync(parent, filePath, keyName);
 		});
 
 	private Task ExecuteUnloadHiveCommandAsync(object? parameter)
-		=> RunCommandAsync("Unload hive failed", async interaction =>
+		=> RunCommandAsync("Unload hive failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node is null || !await interaction.ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
+			if (node is null || !await ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
 				return;
 
 			await UnloadHiveAsync(node);
 		});
 
 	private Task ExecuteConnectRemoteCommandAsync(object? parameter)
-		=> RunCommandAsync("Connection failed", async interaction =>
+		=> RunCommandAsync("Connection failed", async () =>
 		{
-			if (await interaction.RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName)
+			if (await RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName)
 				await ConnectRemoteAsync(computerName);
 		});
 
 	private Task ExecuteDisconnectRemoteCommandAsync(object? parameter)
-		=> RunCommandAsync("Disconnect failed", async interaction =>
+		=> RunCommandAsync("Disconnect failed", async () =>
 		{
-			if (!await interaction.ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
+			if (!await ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
 				return;
 
 			await DisconnectRemoteAsync(ResolveNode(parameter));
 		});
 
 	private Task ExecutePrintCommandAsync(object? parameter)
-		=> RunCommandAsync("Print failed", async interaction =>
+		=> RunCommandAsync("Print failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node?.Hive is null)
@@ -393,7 +390,7 @@ public sealed class RootViewModel : ObservableObject
 			try
 			{
 				await ExportAsync(filePath, node);
-				await interaction.PrintFileAsync(filePath);
+				await PrintFileAsync(filePath);
 			}
 			finally
 			{
@@ -407,7 +404,7 @@ public sealed class RootViewModel : ObservableObject
 		if (node is null)
 			return;
 
-		await RunCommandAsync("Registry operation failed", async _ =>
+		await RunCommandAsync("Registry operation failed", async () =>
 		{
 			node.IsExpanded = !node.IsExpanded;
 			if (node.IsExpanded)
@@ -421,33 +418,33 @@ public sealed class RootViewModel : ObservableObject
 			: Task.CompletedTask;
 
 	private Task ExecuteNewKeyCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async interaction =>
+		=> RunCommandAsync("Registry operation failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is not null
-				&& await interaction.RequestTextAsync("New key", "Key name", "New Key") is { } keyName)
+				&& await RequestTextAsync("New key", "Key name", "New Key") is { } keyName)
 				await CreateKeyAsync(node, keyName);
 		});
 
 	private Task CreateValueFromCommandAsync(object? parameter, RegistryValueKind kind)
-		=> RunCommandAsync("Registry operation failed", async interaction =>
+		=> RunCommandAsync("Registry operation failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is not null
-				&& await interaction.RequestTextAsync("New value", "Value name", "New Value") is { } name)
+				&& await RequestTextAsync("New value", "Value name", "New Value") is { } name)
 				await CreateValueAsync(node, name, kind);
 		});
 
 	private Task ExecuteFindCommandAsync(object? parameter)
-		=> RunCommandAsync("Find failed", async interaction =>
+		=> RunCommandAsync("Find failed", async () =>
 		{
-			if (await interaction.RequestTextAsync("Find", "Search for a key, value, or data", "") is not { } query)
+			if (await RequestTextAsync("Find", "Search for a key, value, or data", "") is not { } query)
 				return;
 
 			RegistryNodeViewModel? result = await FindAsync(query, parameter as RegistryNodeViewModel);
 			if (result is null)
 			{
-				await interaction.ShowMessageAsync("Find", $"No match was found for '{query}'.");
+				await ShowMessageAsync("Find", $"No match was found for '{query}'.");
 				return;
 			}
 
@@ -456,20 +453,20 @@ public sealed class RootViewModel : ObservableObject
 		});
 
 	private Task ExecuteDeleteKeyCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async interaction =>
+		=> RunCommandAsync("Registry operation failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is not null
-				&& await interaction.ConfirmAsync("Delete key", $"Delete '{node.Name}' and all of its subkeys?"))
+				&& await ConfirmAsync("Delete key", $"Delete '{node.Name}' and all of its subkeys?"))
 				await DeleteKeyAsync(node);
 		});
 
 	private Task ExecuteRenameKeyCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async interaction =>
+		=> RunCommandAsync("Registry operation failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is null
-				|| await interaction.RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName)
+				|| await RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName)
 				return;
 
 			if (await RenameKeyAsync(node, newName) is { } renamedNode)
@@ -477,42 +474,33 @@ public sealed class RootViewModel : ObservableObject
 		});
 
 	private Task ExecutePermissionsCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async interaction =>
+		=> RunCommandAsync("Registry operation failed", async () =>
 		{
 			if (ResolveNode(parameter) is { } node)
-				await interaction.EditPermissionsAsync(node);
+				await EditPermissionsAsync(node);
 		});
 
 	private void ExecuteCopyKeyCommand(object? parameter)
 	{
 		if (ResolveNode(parameter) is { Hive: not null } node)
-			_interaction?.CopyText(GetRegistryPath(node));
+			CopyText(GetRegistryPath(node));
 	}
 
 	private Task ExecuteDisplayBinaryDataCommandAsync(object? parameter)
-		=> RunCommandAsync("Unable to display the value", async interaction =>
+		=> RunCommandAsync("Unable to display the value", async () =>
 		{
 			if (SelectedValue is { } value)
-				await interaction.ShowValueAsync(value);
+				await ShowValueAsync(value);
 		});
 
 	public Task DisplaySelectedValueAsync()
 		=> ExecuteDisplayBinaryDataCommandAsync(null);
 
 	private Task ExecuteRefreshCommandAsync(object? parameter)
-		=> RunCommandAsync("Refresh failed", _ => RefreshAsync());
-
-	private Task ExecuteFontCommandAsync(object? parameter)
-		=> RunCommandAsync("Font size failed", async interaction =>
-		{
-			if (await interaction.RequestTextAsync("Font size", "Size in pixels", FontSize.ToString()) is { } value
-				&& double.TryParse(value, out double fontSize)
-				&& fontSize is >= 8 and <= 48)
-				FontSize = fontSize;
-		});
+		=> RunCommandAsync("Refresh failed", () => RefreshAsync());
 
 	private Task ExecuteAddFavoriteCommandAsync(object? parameter)
-		=> RunCommandAsync("Favorites failed", async interaction =>
+		=> RunCommandAsync("Favorites failed", async () =>
 		{
 			if (ResolveNode(parameter) is not { Hive: not null } node)
 				return;
@@ -521,11 +509,11 @@ public sealed class RootViewModel : ObservableObject
 			string message = SaveFavorite(path)
 				? $"Added '{path}' to Favorites."
 				: "The favorite could not be saved.";
-			await interaction.ShowMessageAsync("Favorites", message);
+			await ShowMessageAsync("Favorites", message);
 		});
 
 	private Task ExecuteRemoveFavoriteCommandAsync(object? parameter)
-		=> RunCommandAsync("Favorites failed", async interaction =>
+		=> RunCommandAsync("Favorites failed", async () =>
 		{
 			if (ResolveNode(parameter) is not { Hive: not null } node)
 				return;
@@ -534,14 +522,61 @@ public sealed class RootViewModel : ObservableObject
 			if (_favorites.Remove(path))
 			{
 				DeleteFavorite(path);
-				await interaction.ShowMessageAsync("Favorites", $"Removed '{path}' from Favorites.");
+				await ShowMessageAsync("Favorites", $"Removed '{path}' from Favorites.");
 			}
 		});
 
 	private Task ExecuteAboutCommandAsync(object? parameter)
-		=> _interaction is null
-			? Task.CompletedTask
-			: _interaction.ShowMessageAsync("About Registry Editor", "Registry Editor\nWinUI 3 registry browser");
+		=> ShowMessageAsync("About Registry Editor", "Registry Editor\nWinUI 3 registry browser");
+
+	private async Task ExecuteBackCommandAsync(object? parameter)
+	{
+		if (!CanGoBack)
+			return;
+
+		RegistryNodeViewModel target = _backHistory.Pop();
+		if (_navigationNode is not null)
+			_forwardHistory.Push(_navigationNode);
+
+		_navigationNode = target;
+		NotifyNavigationState();
+		await SelectNodeAsync(target, recordHistory: false);
+	}
+
+	private async Task ExecuteForwardCommandAsync(object? parameter)
+	{
+		if (!CanGoForward)
+			return;
+
+		RegistryNodeViewModel target = _forwardHistory.Pop();
+		if (_navigationNode is not null)
+			_backHistory.Push(_navigationNode);
+
+		_navigationNode = target;
+		NotifyNavigationState();
+		await SelectNodeAsync(target, recordHistory: false);
+	}
+
+	private void RecordNavigation(RegistryNodeViewModel? node)
+	{
+		if (node is null || ReferenceEquals(_navigationNode, node))
+			return;
+
+		if (_navigationNode is not null)
+			_backHistory.Push(_navigationNode);
+
+		_navigationNode = node;
+		_forwardHistory.Clear();
+		NotifyNavigationState();
+	}
+
+	private void NotifyNavigationState()
+	{
+		OnPropertyChanged(nameof(CanGoBack));
+		OnPropertyChanged(nameof(CanGoForward));
+		BackCommand?.NotifyCanExecuteChanged();
+		ForwardCommand?.NotifyCanExecuteChanged();
+	}
 
 	private void NotifyCommandStates()
 	{
@@ -555,6 +590,8 @@ public sealed class RootViewModel : ObservableObject
 		ConnectRemoteCommand.NotifyCanExecuteChanged();
 		DisconnectRemoteCommand.NotifyCanExecuteChanged();
 		PrintCommand.NotifyCanExecuteChanged();
+		BackCommand.NotifyCanExecuteChanged();
+		ForwardCommand.NotifyCanExecuteChanged();
 		ExpandNodeCommand.NotifyCanExecuteChanged();
 		NewKeyCommand.NotifyCanExecuteChanged();
 		NewStringValueCommand.NotifyCanExecuteChanged();
@@ -573,6 +610,159 @@ public sealed class RootViewModel : ObservableObject
 		AddFavoriteCommand.NotifyCanExecuteChanged();
 		RemoveFavoriteCommand.NotifyCanExecuteChanged();
 		AboutCommand.NotifyCanExecuteChanged();
+	}
+
+	public async Task<string?> RequestTextAsync(string title, string placeholder, string initialText)
+	{
+		InputContentDialog dialog = new()
+		{
+			XamlRoot = GetXamlRoot(),
+		};
+		dialog.Configure(title, placeholder, initialText);
+		ContentDialogResult result = await dialog.ShowAsync();
+		return result == ContentDialogResult.Primary ? dialog.Text.Trim() : null;
+	}
+
+	public async Task<bool> ConfirmAsync(string title, string message)
+	{
+		ConfirmationContentDialog dialog = new()
+		{
+			XamlRoot = GetXamlRoot(),
+		};
+		dialog.Configure(title, message);
+		return await dialog.ShowAsync() == ContentDialogResult.Primary;
+	}
+
+	public async Task ShowMessageAsync(string title, string message)
+	{
+		MessageContentDialog dialog = new()
+		{
+			XamlRoot = GetXamlRoot(),
+		};
+		dialog.Configure(title, message);
+		await dialog.ShowAsync();
+	}
+
+	public async Task<string?> PickImportFileAsync()
+	{
+		FileOpenPicker picker = new();
+		picker.FileTypeFilter.Add(".reg");
+		InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.Window));
+		StorageFile? file = await picker.PickSingleFileAsync();
+		return file?.Path;
+	}
+
+	public async Task<string?> PickHiveFileAsync()
+	{
+		FileOpenPicker picker = new();
+		picker.FileTypeFilter.Add(".hiv");
+		picker.FileTypeFilter.Add(".dat");
+		picker.FileTypeFilter.Add(".*");
+		InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.Window));
+		StorageFile? file = await picker.PickSingleFileAsync();
+		return file?.Path;
+	}
+
+	public async Task<string?> PickExportFileAsync()
+	{
+		FileSavePicker picker = new()
+		{
+			SuggestedFileName = "registry.reg",
+		};
+		picker.FileTypeChoices.Add("Registry file", [".reg"]);
+		InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.Window));
+		StorageFile? file = await picker.PickSaveFileAsync();
+		return file?.Path;
+	}
+
+	public async Task EditPermissionsAsync(RegistryNodeViewModel node)
+	{
+		try
+		{
+			PermissionsContentDialog dialog = new()
+			{
+				XamlRoot = GetXamlRoot(),
+			};
+			dialog.Configure(GetRegistryPath(node), GetPermissionRules(node));
+			dialog.PrimaryButtonClick += (_, eventArgs) =>
+			{
+				if (dialog.Account.Length == 0)
+				{
+					dialog.SetError("Enter an account name.");
+					eventArgs.Cancel = true;
+					return;
+				}
+
+				if (dialog.SelectedPermission is not { } permission)
+				{
+					dialog.SetError("Select a permission level.");
+					eventArgs.Cancel = true;
+					return;
+				}
+
+				try
+				{
+					AddPermission(node, dialog.Account, permission, dialog.SelectedAccessType);
+				}
+				catch (Exception exception)
+				{
+					dialog.SetError(exception.Message);
+					eventArgs.Cancel = true;
+				}
+			};
+
+			await dialog.ShowAsync();
+		}
+		catch (Exception exception)
+		{
+			await ShowMessageAsync("Unable to read access permissions", exception.Message);
+		}
+	}
+
+	public async Task PrintFileAsync(string filePath)
+	{
+		Process? process = Process.Start(new ProcessStartInfo
+		{
+			FileName = "notepad.exe",
+			UseShellExecute = true,
+			ArgumentList = { "/p", filePath },
+		});
+
+		if (process is null)
+			throw new InvalidOperationException("The system print helper could not be started.");
+
+		await process.WaitForExitAsync();
+	}
+
+	public async Task ShowValueAsync(RegistryValueViewModel value)
+	{
+		string data = value.RawValue switch
+		{
+			byte[] bytes => string.Join(" ", bytes.Select(item => item.ToString("x2"))),
+			_ => value.Data,
+		};
+		await ShowMessageAsync($"{value.Name} ({value.Type})", data.Length == 0 ? "(empty)" : data);
+	}
+
+	public void CopyText(string text)
+	{
+		DataPackage package = new();
+		package.SetText(text);
+		Clipboard.SetContent(package);
+	}
+
+	public void Close()
+		=> App.Window.Close();
+
+	public void SetAddressBarVisibility(bool isVisible)
+		=> IsAddressBarVisible = isVisible;
+
+	private static XamlRoot GetXamlRoot()
+	{
+		if (App.Window is { Content: FrameworkElement content } && content.XamlRoot is { } xamlRoot)
+			return xamlRoot;
+
+		throw new InvalidOperationException("The registry editor window is not ready.");
 	}
 
 	public async Task LoadChildrenAsync(RegistryNodeViewModel node)
@@ -633,8 +823,14 @@ public sealed class RootViewModel : ObservableObject
 		return node.Children.ToArray();
 	}
 
-	public async Task SelectNodeAsync(RegistryNodeViewModel? node)
+	public Task SelectNodeAsync(RegistryNodeViewModel? node)
+		=> SelectNodeAsync(node, recordHistory: true);
+
+	private async Task SelectNodeAsync(RegistryNodeViewModel? node, bool recordHistory)
 	{
+		if (recordHistory)
+			RecordNavigation(node);
+
 		SelectedNode = node;
 		UpdateBreadcrumb(node);
 
@@ -695,14 +891,15 @@ public sealed class RootViewModel : ObservableObject
 
 		if (target.Hive is not null)
 		{
+			bool isExpanded = target.IsExpanded;
 			target.Children.Clear();
 			target.AreChildrenLoaded = false;
 			target.HasUnrealizedChildren = true;
 			await LoadChildrenAsync(target);
-			target.IsExpanded = true;
+			target.IsExpanded = isExpanded;
 		}
 
-		await SelectNodeAsync(target);
+		await SelectNodeAsync(target, recordHistory: false);
 	}
 
 	public async Task<RegistryNodeViewModel?> CreateKeyAsync(RegistryNodeViewModel? parent, string name)
@@ -1097,7 +1294,11 @@ public sealed class RootViewModel : ObservableObject
 				: baseKey.OpenSubKey(node.SubKeyPath, writable: false);
 			RegistryKey key = subKey ?? baseKey;
 
-			foreach (string valueName in key.GetValueNames().OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+			string[] valueNames = key.GetValueNames();
+			if (!valueNames.Any(string.IsNullOrEmpty))
+				values.Add(CreateUnsetDefaultValue());
+
+			foreach (string valueName in valueNames.OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
 			{
 				cancellationToken.ThrowIfCancellationRequested();
 				values.Add(ReadValue(key, valueName));
@@ -1160,6 +1361,16 @@ public sealed class RootViewModel : ObservableObject
 			RegistryValueKind.Unknown,
 			null);
 
+	private static RegistryValueData CreateUnsetDefaultValue()
+		=> new(
+			"(Default)",
+			"REG_SZ",
+			NoValueText,
+			StringValueImageUri,
+			string.Empty,
+			RegistryValueKind.String,
+			null);
+
 	private static string GetValueTypeName(RegistryValueKind kind) => kind switch
 	{
 		RegistryValueKind.None => "REG_NONE",
@@ -1183,7 +1394,7 @@ public sealed class RootViewModel : ObservableObject
 	private static string FormatValue(RegistryValueKind kind, object? value)
 	{
 		if (value is null)
-			return "(value not set)";
+			return NoValueText;
 
 		return kind switch
 		{
