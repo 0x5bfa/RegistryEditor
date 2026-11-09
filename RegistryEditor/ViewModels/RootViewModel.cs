@@ -401,7 +401,7 @@ public sealed class RootViewModel : ObservableObject
 	{
 		try
 		{
-			RegistryKeySummary summary = await Task.Run(() => RegistryFileService.ReadKeySummary(node));
+			RegistryKeySummary summary = await RunRegistryOperationAsync(() => RegistryFileService.ReadKeySummary(node));
 			if (!IsCurrentKeyOverviewRequest(node, requestId))
 				return;
 
@@ -792,6 +792,34 @@ public sealed class RootViewModel : ObservableObject
 		}
 	}
 
+	private async Task RunRegistryOperationAsync(Action operation, CancellationToken cancellationToken = default)
+	{
+		BeginLoad();
+		try
+		{
+			await Task.Run(operation, cancellationToken);
+		}
+		finally
+		{
+			EndLoad();
+		}
+	}
+
+	private async Task<TResult> RunRegistryOperationAsync<TResult>(
+		Func<TResult> operation,
+		CancellationToken cancellationToken = default)
+	{
+		BeginLoad();
+		try
+		{
+			return await Task.Run(operation, cancellationToken);
+		}
+		finally
+		{
+			EndLoad();
+		}
+	}
+
 	private Task ExecuteImportCommandAsync(object? parameter)
 		=> RunCommandAsync("Import failed", async () =>
 		{
@@ -965,12 +993,20 @@ public sealed class RootViewModel : ObservableObject
 			if (SelectedNode is not { Hive: not null } node)
 				throw new InvalidOperationException("Select a registry key first.");
 
-			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
-			key.SetValue(value.RegistryName, editedValue!, value.Kind);
-			_hasAttemptedValueSave = false;
-			ValueEditorError = string.Empty;
-			IsValueDirty = false;
-			await RefreshAsync(node);
+			string registryName = value.RegistryName;
+			RegistryValueKind kind = value.Kind;
+			await RunRegistryOperationAsync(() =>
+			{
+				using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+				key.SetValue(registryName, editedValue!, kind);
+			});
+			if (ReferenceEquals(SelectedNode, node) && ReferenceEquals(SelectedValue, value))
+			{
+				_hasAttemptedValueSave = false;
+				ValueEditorError = string.Empty;
+				IsValueDirty = false;
+				await RefreshAsync(node);
+			}
 		});
 	}
 
@@ -1425,11 +1461,10 @@ public sealed class RootViewModel : ObservableObject
 			return;
 
 		node.IsChildrenLoading = true;
-		BeginLoad();
 
 		try
 		{
-			IReadOnlyList<RegistrySubKeyData>? children = await Task.Run(() => ReadSubkeys(node));
+			IReadOnlyList<RegistrySubKeyData>? children = await RunRegistryOperationAsync(() => ReadSubkeys(node));
 			if (children is null)
 				return;
 
@@ -1458,7 +1493,6 @@ public sealed class RootViewModel : ObservableObject
 		finally
 		{
 			node.IsChildrenLoading = false;
-			EndLoad();
 		}
 	}
 
@@ -1525,11 +1559,10 @@ public sealed class RootViewModel : ObservableObject
 		}
 
 		SetEmptyValuesMessage("Loading values...", isEmpty: true);
-		BeginLoad();
 
 		try
 		{
-			IReadOnlyList<RegistryValueData> values = await Task.Run(
+			IReadOnlyList<RegistryValueData> values = await RunRegistryOperationAsync(
 				() => ReadValues(node, cancellation.Token),
 				cancellation.Token);
 
@@ -1559,7 +1592,6 @@ public sealed class RootViewModel : ObservableObject
 		}
 		finally
 		{
-			EndLoad();
 			ClearValueCancellation(cancellation);
 		}
 	}
@@ -1569,6 +1601,8 @@ public sealed class RootViewModel : ObservableObject
 		RegistryNodeViewModel? target = node ?? SelectedNode;
 		if (target is null)
 			return;
+
+		bool wasSelected = ReferenceEquals(SelectedNode, target);
 
 		if (target.Hive is not null)
 		{
@@ -1580,7 +1614,32 @@ public sealed class RootViewModel : ObservableObject
 			target.IsExpanded = isExpanded;
 		}
 
-		await SelectNodeAsync(target, recordHistory: false, preserveSelectedValue: true);
+		if (wasSelected && ReferenceEquals(SelectedNode, target))
+			await SelectNodeAsync(target, recordHistory: false, preserveSelectedValue: true);
+	}
+
+	private async Task RefreshNodeChildrenAsync(RegistryNodeViewModel node)
+	{
+		if (node.Hive is null)
+			return;
+
+		bool isExpanded = node.IsExpanded;
+		node.Children.Clear();
+		node.AreChildrenLoaded = false;
+		node.HasUnrealizedChildren = true;
+		if (isExpanded)
+			await LoadChildrenAsync(node);
+	}
+
+	private static bool IsWithinSubtree(RegistryNodeViewModel? node, RegistryNodeViewModel root)
+	{
+		for (RegistryNodeViewModel? current = node; current is not null; current = current.Parent)
+		{
+			if (ReferenceEquals(current, root))
+				return true;
+		}
+
+		return false;
 	}
 
 	public async Task<RegistryNodeViewModel?> CreateKeyAsync(RegistryNodeViewModel? parent, string name)
@@ -1589,13 +1648,22 @@ public sealed class RootViewModel : ObservableObject
 			throw new InvalidOperationException("Select a registry key first.");
 
 		ValidateKeyName(name);
-		using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
-		using RegistryKey createdKey = key.CreateSubKey(name, writable: true)
-			?? throw new UnauthorizedAccessException("The registry key could not be created.");
+		await RunRegistryOperationAsync(() =>
+		{
+			using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
+			using RegistryKey createdKey = key.CreateSubKey(name, writable: true)
+				?? throw new UnauthorizedAccessException("The registry key could not be created.");
+		});
 
-		await RefreshAsync(parent);
-		parent.IsExpanded = true;
-		return parent.Children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.OrdinalIgnoreCase));
+		if (ReferenceEquals(SelectedNode, parent))
+		{
+			await RefreshAsync(parent);
+			parent.IsExpanded = true;
+			return parent.Children.FirstOrDefault(child => string.Equals(child.Name, name, StringComparison.OrdinalIgnoreCase));
+		}
+
+		await RefreshNodeChildrenAsync(parent);
+		return null;
 	}
 
 	public async Task CreateValueAsync(RegistryNodeViewModel? node, string name, RegistryValueKind kind)
@@ -1606,10 +1674,6 @@ public sealed class RootViewModel : ObservableObject
 		if (string.IsNullOrWhiteSpace(name))
 			throw new ArgumentException("A value name must not be empty.", nameof(name));
 
-		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
-		if (key.GetValueNames().Any(valueName => string.Equals(valueName, name, StringComparison.OrdinalIgnoreCase)))
-			throw new InvalidOperationException($"The value '{name}' already exists.");
-
 		object value = kind switch
 		{
 			RegistryValueKind.Binary => Array.Empty<byte>(),
@@ -1618,8 +1682,16 @@ public sealed class RootViewModel : ObservableObject
 			RegistryValueKind.MultiString => Array.Empty<string>(),
 			_ => string.Empty,
 		};
-		key.SetValue(name, value, kind);
-		await SelectNodeAsync(node);
+		await RunRegistryOperationAsync(() =>
+		{
+			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+			if (key.GetValueNames().Any(valueName => string.Equals(valueName, name, StringComparison.OrdinalIgnoreCase)))
+				throw new InvalidOperationException($"The value '{name}' already exists.");
+
+			key.SetValue(name, value, kind);
+		});
+		if (ReferenceEquals(SelectedNode, node))
+			await SelectNodeAsync(node);
 	}
 
 	public async Task DeleteValueAsync(RegistryValueViewModel? value)
@@ -1630,9 +1702,14 @@ public sealed class RootViewModel : ObservableObject
 		if (SelectedNode is not { Hive: not null } node)
 			throw new InvalidOperationException("Select a registry key first.");
 
-		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
-		key.DeleteValue(value.RegistryName, throwOnMissingValue: true);
-		await RefreshAsync(node);
+		string registryName = value.RegistryName;
+		await RunRegistryOperationAsync(() =>
+		{
+			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+			key.DeleteValue(registryName, throwOnMissingValue: true);
+		});
+		if (ReferenceEquals(SelectedNode, node))
+			await RefreshAsync(node);
 	}
 
 	public async Task RenameValueAsync(RegistryValueViewModel? value, string newName)
@@ -1646,16 +1723,25 @@ public sealed class RootViewModel : ObservableObject
 		if (string.Equals(value.RegistryName, newName, StringComparison.OrdinalIgnoreCase))
 			return;
 
-		using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
-		if (key.GetValueNames().Any(existingName =>
-			string.Equals(existingName, newName, StringComparison.OrdinalIgnoreCase)))
-			throw new InvalidOperationException($"The value '{newName}' already exists.");
+		string oldName = value.RegistryName;
+		RegistryValueKind kind = value.Kind;
+		object rawValue = value.RawValue;
+		await RunRegistryOperationAsync(() =>
+		{
+			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+			if (key.GetValueNames().Any(existingName =>
+				string.Equals(existingName, newName, StringComparison.OrdinalIgnoreCase)))
+				throw new InvalidOperationException($"The value '{newName}' already exists.");
 
-		key.SetValue(newName, value.RawValue, value.Kind);
-		key.DeleteValue(value.RegistryName, throwOnMissingValue: true);
-		await RefreshAsync(node);
-		SelectedValue = RegistryValues.FirstOrDefault(candidate =>
-			string.Equals(candidate.RegistryName, newName, StringComparison.OrdinalIgnoreCase));
+			key.SetValue(newName, rawValue, kind);
+			key.DeleteValue(oldName, throwOnMissingValue: true);
+		});
+		if (ReferenceEquals(SelectedNode, node))
+		{
+			await RefreshAsync(node);
+			SelectedValue = RegistryValues.FirstOrDefault(candidate =>
+				string.Equals(candidate.RegistryName, newName, StringComparison.OrdinalIgnoreCase));
+		}
 	}
 
 	public async Task DeleteKeyAsync(RegistryNodeViewModel? node)
@@ -1664,9 +1750,27 @@ public sealed class RootViewModel : ObservableObject
 			throw new InvalidOperationException("The selected item cannot be deleted.");
 
 		RegistryNodeViewModel parent = node.Parent;
-		using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
-		key.DeleteSubKeyTree(node.Name, throwOnMissingSubKey: true);
-		await RefreshAsync(parent);
+		string keyName = node.Name;
+		await RunRegistryOperationAsync(() =>
+		{
+			using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
+			key.DeleteSubKeyTree(keyName, throwOnMissingSubKey: true);
+		});
+
+		if (IsWithinSubtree(SelectedNode, node))
+		{
+			await RefreshNodeChildrenAsync(parent);
+			SelectedValue = null;
+			await SelectNodeAsync(parent, recordHistory: false);
+		}
+		else if (ReferenceEquals(SelectedNode, parent))
+		{
+			await RefreshAsync(parent);
+		}
+		else
+		{
+			await RefreshNodeChildrenAsync(parent);
+		}
 	}
 
 	public async Task<RegistryNodeViewModel?> RenameKeyAsync(RegistryNodeViewModel? node, string newName)
@@ -1676,28 +1780,34 @@ public sealed class RootViewModel : ObservableObject
 
 		ValidateKeyName(newName);
 		RegistryNodeViewModel parent = node.Parent;
-		using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
-		WIN32_ERROR status = PInvoke.RegRenameKey(
-			key.Handle,
-			node.Name,
-			newName);
+		string oldName = node.Name;
+		bool selectionWasAffected = ReferenceEquals(SelectedNode, parent) || IsWithinSubtree(SelectedNode, node);
+		WIN32_ERROR status = await RunRegistryOperationAsync(() =>
+		{
+			using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
+			return PInvoke.RegRenameKey(key.Handle, oldName, newName);
+		});
 		if (status != WIN32_ERROR.NO_ERROR)
 			throw new Win32Exception((int)status);
 
-		await RefreshAsync(parent);
+		bool selectionStillAffected = ReferenceEquals(SelectedNode, parent) || IsWithinSubtree(SelectedNode, node);
+		await RefreshNodeChildrenAsync(parent);
+		if (!selectionWasAffected || !selectionStillAffected)
+			return null;
+
 		parent.IsExpanded = true;
 		return parent.Children.FirstOrDefault(child => string.Equals(child.Name, newName, StringComparison.OrdinalIgnoreCase));
 	}
 
 	public async Task<int> ImportAsync(string filePath)
 	{
-		int importedValueCount = await Task.Run(() => RegistryFileService.Import(filePath));
+		int importedValueCount = await RunRegistryOperationAsync(() => RegistryFileService.Import(filePath));
 		await RefreshAsync();
 		return importedValueCount;
 	}
 
 	public Task ExportAsync(string filePath, RegistryNodeViewModel node)
-		=> Task.Run(() => RegistryFileService.Export(filePath, node));
+		=> RunRegistryOperationAsync(() => RegistryFileService.Export(filePath, node));
 
 	public async Task LoadHiveAsync(RegistryNodeViewModel? parent, string filePath, string keyName)
 	{
@@ -1705,15 +1815,15 @@ public sealed class RootViewModel : ObservableObject
 			throw new InvalidOperationException("Select HKEY_USERS or HKEY_LOCAL_MACHINE first.");
 
 		ValidateKeyName(keyName);
-		RegistryFileService.EnablePrivilege("SeRestorePrivilege");
-		RegistryFileService.EnablePrivilege("SeBackupPrivilege");
-		using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
-		WIN32_ERROR status = PInvoke.RegLoadKey(
-			hiveKey.Handle,
-			keyName,
-			filePath);
-		if (status != WIN32_ERROR.NO_ERROR)
-			throw new Win32Exception((int)status);
+		await RunRegistryOperationAsync(() =>
+		{
+			RegistryFileService.EnablePrivilege("SeRestorePrivilege");
+			RegistryFileService.EnablePrivilege("SeBackupPrivilege");
+			using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
+			WIN32_ERROR status = PInvoke.RegLoadKey(hiveKey.Handle, keyName, filePath);
+			if (status != WIN32_ERROR.NO_ERROR)
+				throw new Win32Exception((int)status);
+		});
 
 		_loadedHivePaths.Add($"{GetRegistryPath(parent)}\\{keyName}");
 		await RefreshAsync(parent);
@@ -1727,16 +1837,31 @@ public sealed class RootViewModel : ObservableObject
 			throw new InvalidOperationException("Select a loaded hive first.");
 
 		RegistryNodeViewModel parent = node.Parent;
-		RegistryFileService.EnablePrivilege("SeRestorePrivilege");
-		using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
-		WIN32_ERROR status = PInvoke.RegUnLoadKey(
-			hiveKey.Handle,
-			node.Name);
-		if (status != WIN32_ERROR.NO_ERROR)
-			throw new Win32Exception((int)status);
+		string keyName = node.Name;
+		await RunRegistryOperationAsync(() =>
+		{
+			RegistryFileService.EnablePrivilege("SeRestorePrivilege");
+			using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
+			WIN32_ERROR status = PInvoke.RegUnLoadKey(hiveKey.Handle, keyName);
+			if (status != WIN32_ERROR.NO_ERROR)
+				throw new Win32Exception((int)status);
+		});
 
 		_loadedHivePaths.Remove(GetRegistryPath(node));
-		await RefreshAsync(parent);
+		if (IsWithinSubtree(SelectedNode, node))
+		{
+			await RefreshNodeChildrenAsync(parent);
+			SelectedValue = null;
+			await SelectNodeAsync(parent, recordHistory: false);
+		}
+		else if (ReferenceEquals(SelectedNode, parent))
+		{
+			await RefreshAsync(parent);
+		}
+		else
+		{
+			await RefreshNodeChildrenAsync(parent);
+		}
 	}
 
 	public async Task<RegistryNodeViewModel> ConnectRemoteAsync(string computerName)
@@ -1748,7 +1873,7 @@ public sealed class RootViewModel : ObservableObject
 		if (RootNodes.Any(node => string.Equals(node.ComputerName, normalizedName, StringComparison.OrdinalIgnoreCase)))
 			throw new InvalidOperationException("That computer is already connected.");
 
-		await Task.Run(() =>
+		await RunRegistryOperationAsync(() =>
 		{
 			using RegistryKey key = RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, normalizedName, RegistryView.Default);
 		});
@@ -2227,7 +2352,7 @@ public sealed class RootViewModel : ObservableObject
 			return null;
 		}
 
-		IReadOnlyList<RegistryValueData> values = await Task.Run(
+		IReadOnlyList<RegistryValueData> values = await RunRegistryOperationAsync(
 			() => ReadValues(node, cancellationToken),
 			cancellationToken);
 		if (values.Any(value => value.Name.Contains(query, StringComparison.OrdinalIgnoreCase)

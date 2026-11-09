@@ -71,14 +71,21 @@ internal static class RegistryFileService
 		writer.WriteLine(RegeditHeader);
 		writer.WriteLine();
 
-		if (node.Hive is null)
+		if (node.Hive is RegistryHive hive)
 		{
-			foreach (RegistryNodeViewModel child in node.Children.Where(child => child.Hive is not null))
-				WriteNode(writer, child);
+			WriteNode(writer, hive, node.SubKeyPath, node.ComputerName);
 		}
 		else
 		{
-			WriteNode(writer, node);
+			foreach (RegistryHive rootHive in new[]
+			{
+				RegistryHive.ClassesRoot,
+				RegistryHive.CurrentUser,
+				RegistryHive.LocalMachine,
+				RegistryHive.Users,
+				RegistryHive.CurrentConfig,
+			})
+				WriteNode(writer, rootHive, string.Empty, node.ComputerName);
 		}
 	}
 
@@ -149,13 +156,18 @@ internal static class RegistryFileService
 		if (node.Hive is not RegistryHive hive)
 			throw new InvalidOperationException("The selected item is not a registry key.");
 
-		RegistryKey baseKey = OpenBaseKey(hive, node.ComputerName);
-		if (string.IsNullOrEmpty(node.SubKeyPath))
+		return OpenKey(hive, node.SubKeyPath, node.ComputerName, writable);
+	}
+
+	private static RegistryKey OpenKey(RegistryHive hive, string subKeyPath, string? computerName, bool writable)
+	{
+		RegistryKey baseKey = OpenBaseKey(hive, computerName);
+		if (string.IsNullOrEmpty(subKeyPath))
 			return baseKey;
 
-		RegistryKey? key = baseKey.OpenSubKey(node.SubKeyPath, writable);
+		RegistryKey? key = baseKey.OpenSubKey(subKeyPath, writable);
 		baseKey.Dispose();
-		return key ?? throw new UnauthorizedAccessException($"Unable to open registry key '{node.SubKeyPath}'.");
+		return key ?? throw new UnauthorizedAccessException($"Unable to open registry key '{subKeyPath}'.");
 	}
 
 	internal static RegistryKeySummary ReadKeySummary(RegistryNodeViewModel node)
@@ -282,10 +294,10 @@ internal static class RegistryFileService
 			? RegistryKey.OpenBaseKey(hive, RegistryView.Default)
 			: RegistryKey.OpenRemoteBaseKey(hive, computerName, RegistryView.Default);
 
-	private static void WriteNode(StreamWriter writer, RegistryNodeViewModel node)
+	private static void WriteNode(StreamWriter writer, RegistryHive hive, string subKeyPath, string? computerName)
 	{
-		using RegistryKey key = OpenKey(node, writable: false);
-		string path = GetRegistryPath(node);
+		using RegistryKey key = OpenKey(hive, subKeyPath, computerName, writable: false);
+		string path = GetRegistryPath(hive, subKeyPath);
 
 		writer.WriteLine($"[{path}]");
 		foreach (string valueName in key.GetValueNames().OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
@@ -297,22 +309,13 @@ internal static class RegistryFileService
 
 		writer.WriteLine();
 		foreach (string childName in key.GetSubKeyNames().OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
-		{
-			RegistryNodeViewModel child = node.Children.FirstOrDefault(candidate =>
-				string.Equals(candidate.Name, childName, StringComparison.OrdinalIgnoreCase))
-				?? new RegistryNodeViewModel(childName, node.Hive, AppendPath(node.SubKeyPath, childName),
-					"ms-appx:///Assets/Images/Folder.png", hasUnrealizedChildren: true, node.ComputerName, node);
-
-			WriteNode(writer, child);
-		}
+			WriteNode(writer, hive, AppendPath(subKeyPath, childName), computerName);
 	}
 
-	private static string GetRegistryPath(RegistryNodeViewModel node)
-		=> node.Hive is RegistryHive hive
-			? string.IsNullOrEmpty(node.SubKeyPath)
-				? GetHiveName(hive)
-				: $"{GetHiveName(hive)}\\{node.SubKeyPath}"
-			: string.Empty;
+	private static string GetRegistryPath(RegistryHive hive, string subKeyPath)
+		=> string.IsNullOrEmpty(subKeyPath)
+			? GetHiveName(hive)
+			: $"{GetHiveName(hive)}\\{subKeyPath}";
 
 	private static string AppendPath(string parent, string child)
 		=> string.IsNullOrEmpty(parent) ? child : $"{parent}\\{child}";
