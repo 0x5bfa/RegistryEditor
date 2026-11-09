@@ -10,6 +10,9 @@ using System.Security;
 using RegistryEditor.Services;
 using RegistryEditor.Views;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.System.Registry;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -1674,12 +1677,12 @@ public sealed class RootViewModel : ObservableObject
 		ValidateKeyName(newName);
 		RegistryNodeViewModel parent = node.Parent;
 		using RegistryKey key = RegistryFileService.OpenKey(parent, writable: true);
-		int status = RegistryNative.RegRenameKey(
-			key.Handle.DangerousGetHandle(),
+		WIN32_ERROR status = PInvoke.RegRenameKey(
+			key.Handle,
 			node.Name,
 			newName);
-		if (status != 0)
-			throw new Win32Exception(status);
+		if (status != WIN32_ERROR.NO_ERROR)
+			throw new Win32Exception((int)status);
 
 		await RefreshAsync(parent);
 		parent.IsExpanded = true;
@@ -1702,14 +1705,15 @@ public sealed class RootViewModel : ObservableObject
 			throw new InvalidOperationException("Select HKEY_USERS or HKEY_LOCAL_MACHINE first.");
 
 		ValidateKeyName(keyName);
-		RegistryNative.EnablePrivilege("SeRestorePrivilege");
-		RegistryNative.EnablePrivilege("SeBackupPrivilege");
-		int status = RegistryNative.RegLoadKey(
-			RegistryNative.GetPredefinedHiveHandle(parent.Hive!.Value),
+		RegistryFileService.EnablePrivilege("SeRestorePrivilege");
+		RegistryFileService.EnablePrivilege("SeBackupPrivilege");
+		using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
+		WIN32_ERROR status = PInvoke.RegLoadKey(
+			hiveKey.Handle,
 			keyName,
 			filePath);
-		if (status != 0)
-			throw new Win32Exception(status);
+		if (status != WIN32_ERROR.NO_ERROR)
+			throw new Win32Exception((int)status);
 
 		_loadedHivePaths.Add($"{GetRegistryPath(parent)}\\{keyName}");
 		await RefreshAsync(parent);
@@ -1723,12 +1727,13 @@ public sealed class RootViewModel : ObservableObject
 			throw new InvalidOperationException("Select a loaded hive first.");
 
 		RegistryNodeViewModel parent = node.Parent;
-		RegistryNative.EnablePrivilege("SeRestorePrivilege");
-		int status = RegistryNative.RegUnLoadKey(
-			RegistryNative.GetPredefinedHiveHandle(parent.Hive!.Value),
+		RegistryFileService.EnablePrivilege("SeRestorePrivilege");
+		using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
+		WIN32_ERROR status = PInvoke.RegUnLoadKey(
+			hiveKey.Handle,
 			node.Name);
-		if (status != 0)
-			throw new Win32Exception(status);
+		if (status != WIN32_ERROR.NO_ERROR)
+			throw new Win32Exception((int)status);
 
 		_loadedHivePaths.Remove(GetRegistryPath(node));
 		await RefreshAsync(parent);

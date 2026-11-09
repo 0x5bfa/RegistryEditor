@@ -2,9 +2,18 @@
 // Licensed under the MIT license.
 
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 using RegistryEditor.ViewModels;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
+using System.Security.AccessControl;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.Security;
+using Windows.Win32.Security.Authorization;
+using Windows.Win32.Security.Authorization.UI;
+using Windows.Win32.System.Registry;
 
 namespace RegistryEditor.Services;
 
@@ -14,92 +23,40 @@ namespace RegistryEditor.Services;
 internal partial interface IRegistrySecurityInformation
 {
 	[PreserveSig]
-	int GetObjectInformation(ref SecurityObjectInfo objectInfo);
+	HRESULT GetObjectInformation(ref SI_OBJECT_INFO objectInfo);
 
 	[PreserveSig]
-	int GetSecurity(uint requestedInformation, out nint securityDescriptor, int defaultSecurity);
+	HRESULT GetSecurity(OBJECT_SECURITY_INFORMATION requestedInformation, out nint securityDescriptor, int defaultSecurity);
 
 	[PreserveSig]
-	int SetSecurity(uint securityInformation, nint securityDescriptor);
+	HRESULT SetSecurity(OBJECT_SECURITY_INFORMATION securityInformation, nint securityDescriptor);
 
 	[PreserveSig]
-	int GetAccessRights(nint objectType, uint flags, out nint access, out uint accessCount, out uint defaultIndex);
+	HRESULT GetAccessRights(nint objectType, uint flags, out nint access, out uint accessCount, out uint defaultIndex);
 
 	[PreserveSig]
-	int MapGeneric(nint objectType, ref byte aceFlags, ref uint accessMask);
+	HRESULT MapGeneric(nint objectType, ref byte aceFlags, ref uint accessMask);
 
 	[PreserveSig]
-	int GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount);
+	HRESULT GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount);
 
 	[PreserveSig]
-	int PropertySheetPageCallback(nint hwnd, uint message, uint page);
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct SecurityObjectInfo
-{
-	internal uint Flags;
-	internal nint Instance;
-	internal nint ServerName;
-	internal nint ObjectName;
-	internal nint PageTitle;
-	internal Guid ObjectType;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct SecurityAccess
-{
-	internal nint ObjectType;
-	internal uint Mask;
-	internal nint Name;
-	internal uint Flags;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct SecurityInheritType
-{
-	internal nint ObjectType;
-	internal uint Flags;
-	internal nint Name;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct RegistryGenericMapping
-{
-	internal uint GenericRead;
-	internal uint GenericWrite;
-	internal uint GenericExecute;
-	internal uint GenericAll;
+	HRESULT PropertySheetPageCallback(nint hwnd, uint message, uint page);
 }
 
 internal sealed class RegistrySecurityKey : IDisposable
 {
-	private nint _handle;
-
-	internal RegistrySecurityKey(nint handle, bool canWriteSecurity)
+	internal RegistrySecurityKey(SafeRegistryHandle handle, bool canWriteSecurity)
 	{
-		_handle = handle;
+		Handle = handle;
 		CanWriteSecurity = canWriteSecurity;
 	}
 
-	internal nint Handle
-	{
-		get
-		{
-			return _handle;
-		}
-	}
+	internal SafeRegistryHandle Handle { get; }
 
 	internal bool CanWriteSecurity { get; }
 
-	public void Dispose()
-	{
-		if (_handle == nint.Zero)
-			return;
-
-		RegistryNative.RegCloseKey(_handle);
-		_handle = nint.Zero;
-	}
+	public void Dispose() => Handle.Dispose();
 }
 
 internal static class RegistrySecurityEditor
@@ -112,7 +69,7 @@ internal static class RegistrySecurityEditor
 			void* securityInformation = ComInterfaceMarshaller<IRegistrySecurityInformation>.ConvertToUnmanaged(information);
 			try
 			{
-				if (RegistryNative.EditSecurity(owner, (nint)securityInformation) == 0)
+				if (!PInvoke.EditSecurity(new HWND(owner), (ISecurityInformation*)securityInformation))
 				{
 					int error = Marshal.GetLastWin32Error();
 					if (error == 0)
@@ -130,89 +87,47 @@ internal static class RegistrySecurityEditor
 }
 
 [GeneratedComClass]
-internal sealed partial class RegistrySecurityInformation : IRegistrySecurityInformation, IDisposable
+internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecurityInformation, IDisposable
 {
-	private const int HResultSuccess = 0;
-	private const int HResultNotImplemented = unchecked((int)0x80004001);
-	private const int HResultInvalidArgument = unchecked((int)0x80070057);
-	private const int HResultAccessDenied = unchecked((int)0x80070005);
-	private const int HResultOutOfMemory = unchecked((int)0x8007000E);
-
-	private const uint SiEditOwner = 0x00000001;
-	private const uint SiContainer = 0x00000004;
-	private const uint SiReadOnly = 0x00000008;
-	private const uint SiAdvanced = 0x00000010;
-	private const uint SiNoTreeApply = 0x00000400;
-
-	private const uint SiAccessSpecific = 0x00010000;
-	private const uint SiAccessGeneral = 0x00020000;
-	private const uint SiAccessContainer = 0x00040000;
-
-	private const uint RegistryObjectType = 4;
-	private const uint OwnerSecurityInformation = 0x00000001;
-	private const uint GroupSecurityInformation = 0x00000002;
-	private const uint DaclSecurityInformation = 0x00000004;
-	private const uint SaclSecurityInformation = 0x00000008;
-	private const uint ProtectedDaclSecurityInformation = 0x80000000;
-	private const uint ProtectedSaclSecurityInformation = 0x40000000;
-	private const uint UnprotectedDaclSecurityInformation = 0x20000000;
-	private const uint UnprotectedSaclSecurityInformation = 0x10000000;
-	private const uint SecurityInformationMask =
-		OwnerSecurityInformation
-		| GroupSecurityInformation
-		| DaclSecurityInformation
-		| SaclSecurityInformation
-		| ProtectedDaclSecurityInformation
-		| ProtectedSaclSecurityInformation
-		| UnprotectedDaclSecurityInformation
-		| UnprotectedSaclSecurityInformation;
-
-	private const ushort DaclProtected = 0x1000;
-	private const ushort SaclProtected = 0x2000;
-	private const uint GenericRead = 0x80000000;
-	private const uint GenericWrite = 0x40000000;
-	private const uint GenericExecute = 0x20000000;
-	private const uint GenericAll = 0x10000000;
-	private const uint KeyQueryValue = 0x00000001;
-	private const uint KeySetValue = 0x00000002;
-	private const uint KeyCreateSubKey = 0x00000004;
-	private const uint KeyEnumerateSubKeys = 0x00000008;
-	private const uint KeyNotify = 0x00000010;
-	private const uint KeyCreateLink = 0x00000020;
-	private const uint Delete = 0x00010000;
-	private const uint ReadControl = 0x00020000;
-	private const uint WriteDac = 0x00040000;
-
 	private static readonly SecurityAccessDefinition[] AccessDefinitions =
 	[
-		new("Query value", KeyQueryValue, SiAccessSpecific),
-		new("Set value", KeySetValue, SiAccessSpecific),
-		new("Create subkey", KeyCreateSubKey, SiAccessSpecific),
-		new("Enumerate subkeys", KeyEnumerateSubKeys, SiAccessSpecific),
-		new("Notify", KeyNotify, SiAccessSpecific),
-		new("Create link", KeyCreateLink, SiAccessSpecific),
-		new("Delete", Delete, SiAccessSpecific),
-		new("Read permissions", ReadControl, SiAccessSpecific),
-		new("Change permissions", WriteDac, SiAccessSpecific),
-		new("Read", GenericRead, SiAccessGeneral | SiAccessContainer),
-		new("Write", GenericWrite, SiAccessGeneral | SiAccessContainer),
-		new("Full control", GenericAll, SiAccessGeneral | SiAccessContainer),
+		new("Query value", (uint)REG_SAM_FLAGS.KEY_QUERY_VALUE, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Set value", (uint)REG_SAM_FLAGS.KEY_SET_VALUE, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Create subkey", (uint)REG_SAM_FLAGS.KEY_CREATE_SUB_KEY, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Enumerate subkeys", (uint)REG_SAM_FLAGS.KEY_ENUMERATE_SUB_KEYS, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Notify", (uint)REG_SAM_FLAGS.KEY_NOTIFY, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Create link", (uint)REG_SAM_FLAGS.KEY_CREATE_LINK, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Delete", (uint)TOKEN_ACCESS_MASK.TOKEN_DELETE, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Read permissions", (uint)TOKEN_ACCESS_MASK.TOKEN_READ_CONTROL, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Change permissions", (uint)TOKEN_ACCESS_MASK.TOKEN_WRITE_DAC, 0x00010000 /* SI_ACCESS_SPECIFIC */),
+		new("Read", (uint)GENERIC_ACCESS_RIGHTS.GENERIC_READ, 0x00020000 /* SI_ACCESS_GENERAL */ | 0x00040000 /* SI_ACCESS_CONTAINER */),
+		new("Write", (uint)GENERIC_ACCESS_RIGHTS.GENERIC_WRITE, 0x00020000 /* SI_ACCESS_GENERAL */ | 0x00040000 /* SI_ACCESS_CONTAINER */),
+		new("Full control", (uint)GENERIC_ACCESS_RIGHTS.GENERIC_ALL, 0x00020000 /* SI_ACCESS_GENERAL */ | 0x00040000 /* SI_ACCESS_CONTAINER */),
 	];
 
 	private static readonly SecurityInheritDefinition[] InheritDefinitions =
 	[
-		new("This key and subkeys", 0x00000003),
-		new("Subkeys only", 0x00000002),
-		new("This key only", 0x00000000),
+		new("This key and subkeys", ACE_FLAGS.SUB_CONTAINERS_AND_OBJECTS_INHERIT),
+		new("Subkeys only", ACE_FLAGS.SUB_CONTAINERS_ONLY_INHERIT),
+		new("This key only", ACE_FLAGS.NO_INHERITANCE),
 	];
 
-	private static readonly RegistryGenericMapping GenericMapping = new()
+	private static readonly GENERIC_MAPPING GenericMapping = new()
 	{
 		GenericRead = 0x00020019,
 		GenericWrite = 0x00020006,
 		GenericExecute = 0x00020019,
 		GenericAll = 0x000F003F,
 	};
+	private const OBJECT_SECURITY_INFORMATION SecurityInformationMask =
+		OBJECT_SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION
+		| OBJECT_SECURITY_INFORMATION.GROUP_SECURITY_INFORMATION
+		| OBJECT_SECURITY_INFORMATION.DACL_SECURITY_INFORMATION
+		| OBJECT_SECURITY_INFORMATION.SACL_SECURITY_INFORMATION
+		| OBJECT_SECURITY_INFORMATION.PROTECTED_DACL_SECURITY_INFORMATION
+		| OBJECT_SECURITY_INFORMATION.PROTECTED_SACL_SECURITY_INFORMATION
+		| OBJECT_SECURITY_INFORMATION.UNPROTECTED_DACL_SECURITY_INFORMATION
+		| OBJECT_SECURITY_INFORMATION.UNPROTECTED_SACL_SECURITY_INFORMATION;
 
 	private readonly List<nint> _allocatedStrings = [];
 	private RegistrySecurityKey? _key;
@@ -243,170 +158,146 @@ internal sealed partial class RegistrySecurityInformation : IRegistrySecurityInf
 		}
 	}
 
-	public int GetObjectInformation(ref SecurityObjectInfo objectInfo)
+	public HRESULT GetObjectInformation(ref SI_OBJECT_INFO objectInfo)
 	{
 		if (_key is null)
-			return HResultInvalidArgument;
+			return HRESULT.E_INVALIDARG;
 
-		objectInfo = new SecurityObjectInfo
+		objectInfo = new SI_OBJECT_INFO
 		{
-			Flags = SiEditOwner | SiContainer | SiAdvanced | SiNoTreeApply,
-			Instance = nint.Zero,
-			ServerName = _serverName,
-			ObjectName = _objectName,
-			PageTitle = nint.Zero,
-			ObjectType = Guid.Empty,
+			dwFlags = (SI_OBJECT_INFO_FLAGS)(
+				0x00000001 /* SI_EDIT_OWNER */
+				| 0x00000004 /* SI_CONTAINER */
+				| 0x00000010 /* SI_ADVANCED */
+				| 0x00000400 /* SI_NO_TREE_APPLY */),
+			pszServerName = new PWSTR(_serverName),
+			pszObjectName = new PWSTR(_objectName),
+			guidObjectType = Guid.Empty,
 		};
 		if (!_key.CanWriteSecurity)
-			objectInfo.Flags |= SiReadOnly;
+			objectInfo.dwFlags |= (SI_OBJECT_INFO_FLAGS)0x00000008 /* SI_READONLY */;
 
-		return HResultSuccess;
+		return HRESULT.S_OK;
 	}
 
-	public int GetSecurity(uint requestedInformation, out nint securityDescriptor, int defaultSecurity)
+	public unsafe HRESULT GetSecurity(OBJECT_SECURITY_INFORMATION requestedInformation, out nint securityDescriptor, int defaultSecurity)
 	{
 		securityDescriptor = nint.Zero;
 		if (_key is null)
-			return HResultInvalidArgument;
+			return HRESULT.E_INVALIDARG;
 		if (defaultSecurity != 0)
-			return HResultNotImplemented;
+			return HRESULT.E_NOTIMPL;
 
-		uint result = RegistryNative.GetSecurityInfo(
+		WIN32_ERROR result = PInvoke.GetSecurityInfo(
 			_key.Handle,
-			RegistryObjectType,
+			SE_OBJECT_TYPE.SE_REGISTRY_KEY,
 			requestedInformation,
-			out nint owner,
-			out nint group,
-			out nint dacl,
-			out nint sacl,
-			out securityDescriptor);
-		if (result == 0)
-			return HResultSuccess;
+			out _,
+			out _,
+			out _,
+			out _,
+			out PSECURITY_DESCRIPTOR descriptor);
+		securityDescriptor = (nint)descriptor.Value;
+		if (result == WIN32_ERROR.NO_ERROR)
+			return HRESULT.S_OK;
 
-		if (securityDescriptor != nint.Zero)
+		if (descriptor.Value is not null)
 		{
-			RegistryNative.LocalFree(securityDescriptor);
+			PInvoke.LocalFree((HLOCAL)(IntPtr)descriptor);
 			securityDescriptor = nint.Zero;
 		}
 
-		return ToHResult(result);
+		return HRESULT.FromWin32Error(result);
 	}
 
-	public int SetSecurity(uint securityInformation, nint securityDescriptor)
+	public unsafe HRESULT SetSecurity(OBJECT_SECURITY_INFORMATION securityInformation, nint securityDescriptor)
 	{
 		if (_key is null || securityDescriptor == nint.Zero)
-			return HResultInvalidArgument;
+			return HRESULT.E_INVALIDARG;
 		if (!_key.CanWriteSecurity)
-			return HResultAccessDenied;
+			return HRESULT.E_ACCESSDENIED;
 
-		int status = RegistryNative.GetSecurityDescriptorControl(
-			securityDescriptor,
-			out ushort control,
-			out uint revision);
-		if (status == 0)
+		PSECURITY_DESCRIPTOR descriptor = (PSECURITY_DESCRIPTOR)securityDescriptor;
+		if (!PInvoke.GetSecurityDescriptorControl(descriptor, out ushort controlValue, out _))
+			return LastErrorAsHResult();
+		if (!PInvoke.GetSecurityDescriptorOwner(descriptor, out PSID owner, out _))
+			return LastErrorAsHResult();
+		if (!PInvoke.GetSecurityDescriptorGroup(descriptor, out PSID group, out _))
+			return LastErrorAsHResult();
+		if (!PInvoke.GetSecurityDescriptorDacl(descriptor, out _, out ACL* dacl, out _))
+			return LastErrorAsHResult();
+		if (!PInvoke.GetSecurityDescriptorSacl(descriptor, out _, out ACL* sacl, out _))
 			return LastErrorAsHResult();
 
-		status = RegistryNative.GetSecurityDescriptorOwner(
-			securityDescriptor,
-			out nint owner,
-			out int ownerDefaulted);
-		if (status == 0)
-			return LastErrorAsHResult();
-
-		status = RegistryNative.GetSecurityDescriptorGroup(
-			securityDescriptor,
-			out nint group,
-			out int groupDefaulted);
-		if (status == 0)
-			return LastErrorAsHResult();
-
-		status = RegistryNative.GetSecurityDescriptorDacl(
-			securityDescriptor,
-			out int daclPresent,
-			out nint dacl,
-			out int daclDefaulted);
-		if (status == 0)
-			return LastErrorAsHResult();
-
-		status = RegistryNative.GetSecurityDescriptorSacl(
-			securityDescriptor,
-			out int saclPresent,
-			out nint sacl,
-			out int saclDefaulted);
-		if (status == 0)
-			return LastErrorAsHResult();
-
-		uint effectiveInformation = securityInformation & SecurityInformationMask;
-		if ((effectiveInformation & DaclSecurityInformation) != 0)
+		ControlFlags control = (ControlFlags)controlValue;
+		OBJECT_SECURITY_INFORMATION effectiveInformation = securityInformation & SecurityInformationMask;
+		if ((effectiveInformation & OBJECT_SECURITY_INFORMATION.DACL_SECURITY_INFORMATION) != 0)
 		{
-			effectiveInformation &= ~(ProtectedDaclSecurityInformation | UnprotectedDaclSecurityInformation);
-			if ((control & DaclProtected) != 0)
-				effectiveInformation |= ProtectedDaclSecurityInformation;
-			else
-				effectiveInformation |= UnprotectedDaclSecurityInformation;
+			effectiveInformation &= ~(OBJECT_SECURITY_INFORMATION.PROTECTED_DACL_SECURITY_INFORMATION
+				| OBJECT_SECURITY_INFORMATION.UNPROTECTED_DACL_SECURITY_INFORMATION);
+			effectiveInformation |= (control & ControlFlags.DiscretionaryAclProtected) != 0
+				? OBJECT_SECURITY_INFORMATION.PROTECTED_DACL_SECURITY_INFORMATION
+				: OBJECT_SECURITY_INFORMATION.UNPROTECTED_DACL_SECURITY_INFORMATION;
 		}
-		if ((effectiveInformation & SaclSecurityInformation) != 0)
+		if ((effectiveInformation & OBJECT_SECURITY_INFORMATION.SACL_SECURITY_INFORMATION) != 0)
 		{
-			effectiveInformation &= ~(ProtectedSaclSecurityInformation | UnprotectedSaclSecurityInformation);
-			if ((control & SaclProtected) != 0)
-				effectiveInformation |= ProtectedSaclSecurityInformation;
-			else
-				effectiveInformation |= UnprotectedSaclSecurityInformation;
+			effectiveInformation &= ~(OBJECT_SECURITY_INFORMATION.PROTECTED_SACL_SECURITY_INFORMATION
+				| OBJECT_SECURITY_INFORMATION.UNPROTECTED_SACL_SECURITY_INFORMATION);
+			effectiveInformation |= (control & ControlFlags.SystemAclProtected) != 0
+				? OBJECT_SECURITY_INFORMATION.PROTECTED_SACL_SECURITY_INFORMATION
+				: OBJECT_SECURITY_INFORMATION.UNPROTECTED_SACL_SECURITY_INFORMATION;
 		}
 
-		uint result = RegistryNative.SetSecurityInfo(
+		WIN32_ERROR result = PInvoke.SetSecurityInfo(
 			_key.Handle,
-			RegistryObjectType,
+			SE_OBJECT_TYPE.SE_REGISTRY_KEY,
 			effectiveInformation,
 			owner,
 			group,
-			dacl,
-			sacl);
-		return ToHResult(result);
+			dacl is null ? null : *dacl,
+			sacl is null ? null : *sacl);
+		return HRESULT.FromWin32Error(result);
 	}
 
-	public int GetAccessRights(nint objectType, uint flags, out nint access, out uint accessCount, out uint defaultIndex)
+	public HRESULT GetAccessRights(nint objectType, uint flags, out nint access, out uint accessCount, out uint defaultIndex)
 	{
 		access = _accessRights;
 		accessCount = (uint)AccessDefinitions.Length;
 		defaultIndex = 9;
-		return _accessRights == nint.Zero ? HResultOutOfMemory : HResultSuccess;
+		return _accessRights == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
 	}
 
-	public int MapGeneric(nint objectType, ref byte aceFlags, ref uint accessMask)
+	public HRESULT MapGeneric(nint objectType, ref byte aceFlags, ref uint accessMask)
 	{
 		aceFlags &= 0xFE;
-		RegistryNative.MapGenericMask(ref accessMask, in GenericMapping);
-		return HResultSuccess;
+		PInvoke.MapGenericMask(ref accessMask, in GenericMapping);
+		return HRESULT.S_OK;
 	}
 
-	public int GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount)
+	public HRESULT GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount)
 	{
 		inheritTypes = _inheritTypes;
 		inheritTypeCount = (uint)InheritDefinitions.Length;
-		return _inheritTypes == nint.Zero ? HResultOutOfMemory : HResultSuccess;
+		return _inheritTypes == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
 	}
 
-	public int PropertySheetPageCallback(nint hwnd, uint message, uint page)
-	{
-		return HResultSuccess;
-	}
+	public HRESULT PropertySheetPageCallback(nint hwnd, uint message, uint page) => HRESULT.S_OK;
 
 	public void Dispose()
 	{
 		if (_accessRights != nint.Zero)
 		{
-			Marshal.FreeHGlobal(_accessRights);
+			NativeMemory.Free((void*)_accessRights);
 			_accessRights = nint.Zero;
 		}
 		if (_inheritTypes != nint.Zero)
 		{
-			Marshal.FreeHGlobal(_inheritTypes);
+			NativeMemory.Free((void*)_inheritTypes);
 			_inheritTypes = nint.Zero;
 		}
 
 		foreach (nint allocatedString in _allocatedStrings)
-			Marshal.FreeCoTaskMem(allocatedString);
+			NativeMemory.Free((void*)allocatedString);
 		_allocatedStrings.Clear();
 
 		_key?.Dispose();
@@ -414,86 +305,83 @@ internal sealed partial class RegistrySecurityInformation : IRegistrySecurityInf
 		GC.SuppressFinalize(this);
 	}
 
-	private nint AllocateString(string value)
+	private unsafe nint AllocateString(string value)
 	{
-		nint pointer = Marshal.StringToCoTaskMemUni(value);
-		if (pointer == nint.Zero)
+		char* buffer = (char*)NativeMemory.Alloc((nuint)(value.Length + 1), (nuint)sizeof(char));
+		if (buffer is null)
 			throw new OutOfMemoryException();
 
+		value.AsSpan().CopyTo(new Span<char>(buffer, value.Length));
+		buffer[value.Length] = '\0';
+		nint pointer = (nint)buffer;
 		_allocatedStrings.Add(pointer);
 		return pointer;
 	}
 
-	private nint AllocateAccessRights()
+	private unsafe nint AllocateAccessRights()
 	{
-		int itemSize = Marshal.SizeOf<SecurityAccess>();
-		nint buffer = Marshal.AllocHGlobal(checked(itemSize * AccessDefinitions.Length));
+		SI_ACCESS* buffer = (SI_ACCESS*)NativeMemory.Alloc((nuint)AccessDefinitions.Length, (nuint)sizeof(SI_ACCESS));
+		if (buffer is null)
+			throw new OutOfMemoryException();
+
 		try
 		{
 			for (int index = 0; index < AccessDefinitions.Length; index++)
 			{
 				SecurityAccessDefinition definition = AccessDefinitions[index];
-				SecurityAccess access = new()
+				buffer[index] = new SI_ACCESS
 				{
-					ObjectType = nint.Zero,
-					Mask = definition.Mask,
-					Name = AllocateString(definition.Name),
-					Flags = definition.Flags,
+					pguid = null,
+					mask = definition.Mask,
+					pszName = (PCWSTR)(char*)AllocateString(definition.Name),
+					dwFlags = (uint)definition.Flags,
 				};
-				Marshal.StructureToPtr(access, IntPtr.Add(buffer, index * itemSize), fDeleteOld: false);
 			}
 
-			return buffer;
+			return (nint)buffer;
 		}
 		catch
 		{
-			Marshal.FreeHGlobal(buffer);
+			NativeMemory.Free(buffer);
 			throw;
 		}
 	}
 
-	private nint AllocateInheritTypes()
+	private unsafe nint AllocateInheritTypes()
 	{
-		int itemSize = Marshal.SizeOf<SecurityInheritType>();
-		nint buffer = Marshal.AllocHGlobal(checked(itemSize * InheritDefinitions.Length));
+		SI_INHERIT_TYPE* buffer = (SI_INHERIT_TYPE*)NativeMemory.Alloc((nuint)InheritDefinitions.Length, (nuint)sizeof(SI_INHERIT_TYPE));
+		if (buffer is null)
+			throw new OutOfMemoryException();
+
 		try
 		{
 			for (int index = 0; index < InheritDefinitions.Length; index++)
 			{
 				SecurityInheritDefinition definition = InheritDefinitions[index];
-				SecurityInheritType inheritType = new()
+				buffer[index] = new SI_INHERIT_TYPE
 				{
-					ObjectType = nint.Zero,
-					Flags = definition.Flags,
-					Name = AllocateString(definition.Name),
+					pguid = null,
+					dwFlags = (ACE_FLAGS)definition.Flags,
+					pszName = (PCWSTR)(char*)AllocateString(definition.Name),
 				};
-				Marshal.StructureToPtr(inheritType, IntPtr.Add(buffer, index * itemSize), fDeleteOld: false);
 			}
 
-			return buffer;
+			return (nint)buffer;
 		}
 		catch
 		{
-			Marshal.FreeHGlobal(buffer);
+			NativeMemory.Free(buffer);
 			throw;
 		}
 	}
 
-	private static int ToHResult(uint error)
-	{
-		if (error == 0)
-			return HResultSuccess;
-
-		return unchecked((int)(0x80070000u | error));
-	}
-
-	private static int LastErrorAsHResult()
+	private static HRESULT LastErrorAsHResult()
 	{
 		int error = Marshal.GetLastWin32Error();
 		if (error == 0)
 			error = 1;
 
-		return ToHResult((uint)error);
+		return HRESULT.FromWin32Error((WIN32_ERROR)error);
 	}
 
 	private static string GetRegistryPath(RegistryNodeViewModel node)
@@ -530,78 +418,13 @@ internal sealed partial class RegistrySecurityInformation : IRegistrySecurityInf
 
 	private readonly struct SecurityInheritDefinition
 	{
-		internal SecurityInheritDefinition(string name, uint flags)
+		internal SecurityInheritDefinition(string name, ACE_FLAGS flags)
 		{
 			Name = name;
-			Flags = flags;
+			Flags = (uint)flags;
 		}
 
 		internal string Name { get; }
 		internal uint Flags { get; }
 	}
-}
-
-internal static partial class RegistryNative
-{
-	[LibraryImport("aclui.dll", EntryPoint = "EditSecurity", SetLastError = true)]
-	internal static partial int EditSecurity(nint owner, nint securityInformation);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "GetSecurityInfo")]
-	internal static partial uint GetSecurityInfo(
-		nint handle,
-		uint objectType,
-		uint securityInformation,
-		out nint owner,
-		out nint group,
-		out nint dacl,
-		out nint sacl,
-		out nint securityDescriptor);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "SetSecurityInfo")]
-	internal static partial uint SetSecurityInfo(
-		nint handle,
-		uint objectType,
-		uint securityInformation,
-		nint owner,
-		nint group,
-		nint dacl,
-		nint sacl);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "GetSecurityDescriptorControl", SetLastError = true)]
-	internal static partial int GetSecurityDescriptorControl(
-		nint securityDescriptor,
-		out ushort control,
-		out uint revision);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "GetSecurityDescriptorOwner", SetLastError = true)]
-	internal static partial int GetSecurityDescriptorOwner(
-		nint securityDescriptor,
-		out nint owner,
-		out int ownerDefaulted);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "GetSecurityDescriptorGroup", SetLastError = true)]
-	internal static partial int GetSecurityDescriptorGroup(
-		nint securityDescriptor,
-		out nint group,
-		out int groupDefaulted);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "GetSecurityDescriptorDacl", SetLastError = true)]
-	internal static partial int GetSecurityDescriptorDacl(
-		nint securityDescriptor,
-		out int daclPresent,
-		out nint dacl,
-		out int daclDefaulted);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "GetSecurityDescriptorSacl", SetLastError = true)]
-	internal static partial int GetSecurityDescriptorSacl(
-		nint securityDescriptor,
-		out int saclPresent,
-		out nint sacl,
-		out int saclDefaulted);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "MapGenericMask")]
-	internal static partial void MapGenericMask(ref uint accessMask, in RegistryGenericMapping mapping);
-
-	[LibraryImport("kernel32.dll", EntryPoint = "LocalFree")]
-	internal static partial nint LocalFree(nint memory);
 }

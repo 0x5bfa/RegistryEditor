@@ -2,11 +2,17 @@
 // Licensed under the MIT license.
 
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
 using RegistryEditor.ViewModels;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.Security;
+using Windows.Win32.Security.Authorization;
+using Windows.Win32.System.Registry;
 
 namespace RegistryEditor.Services;
 
@@ -16,137 +22,41 @@ internal sealed record RegistryKeySummary(
 	DateTime LastWriteTime,
 	string Owner);
 
-[StructLayout(LayoutKind.Sequential)]
-internal struct RegistryFileTime
-{
-	internal uint LowDateTime;
-	internal uint HighDateTime;
-}
-
-internal static partial class RegistryNative
-{
-	private const uint TokenAdjustPrivileges = 0x0020;
-	private const uint TokenQuery = 0x0008;
-	private const uint SePrivilegeEnabled = 0x0002;
-
-	[LibraryImport("kernel32.dll", EntryPoint = "GetCurrentProcess")]
-	private static partial nint GetCurrentProcess();
-
-	[LibraryImport("kernel32.dll", EntryPoint = "CloseHandle", SetLastError = true)]
-	private static partial int CloseHandle(nint handle);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "OpenProcessToken", SetLastError = true)]
-	private static partial int OpenProcessToken(nint processHandle, uint desiredAccess, out nint tokenHandle);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "LookupPrivilegeValueW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
-	private static partial int LookupPrivilegeValue(string? systemName, string name, out Luid luid);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "AdjustTokenPrivileges", SetLastError = true)]
-	private static partial int AdjustTokenPrivileges(
-		nint tokenHandle,
-		int disableAllPrivileges,
-		in TokenPrivileges newState,
-		uint bufferLength,
-		nint previousState,
-		nint returnLength);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "RegLoadKeyW", StringMarshalling = StringMarshalling.Utf16)]
-	internal static partial int RegLoadKey(nint hKey, string subKey, string fileName);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "RegUnLoadKeyW", StringMarshalling = StringMarshalling.Utf16)]
-	internal static partial int RegUnLoadKey(nint hKey, string subKey);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "RegRenameKey", StringMarshalling = StringMarshalling.Utf16)]
-	internal static partial int RegRenameKey(nint hKey, string subKeyName, string newName);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "RegOpenKeyExW", StringMarshalling = StringMarshalling.Utf16)]
-	internal static partial int RegOpenKeyEx(
-		nint hKey,
-		string? subKeyName,
-		uint options,
-		uint desiredAccess,
-		out nint result);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "RegCloseKey")]
-	internal static partial int RegCloseKey(nint hKey);
-
-	[LibraryImport("advapi32.dll", EntryPoint = "RegQueryInfoKeyW")]
-	internal static partial int RegQueryInfoKey(
-		nint hKey,
-		nint keyClass,
-		nint classLength,
-		nint reserved,
-		out uint subKeyCount,
-		nint maxSubKeyNameLength,
-		nint maxClassLength,
-		out uint valueCount,
-		nint maxValueNameLength,
-		nint maxValueLength,
-		nint securityDescriptorLength,
-		out RegistryFileTime lastWriteTime);
-
-	internal static nint GetPredefinedHiveHandle(RegistryHive hive)
-	{
-		return hive switch
-		{
-			RegistryHive.ClassesRoot => new nint(unchecked((int)0x80000000)),
-			RegistryHive.CurrentUser => new nint(unchecked((int)0x80000001)),
-			RegistryHive.LocalMachine => new nint(unchecked((int)0x80000002)),
-			RegistryHive.Users => new nint(unchecked((int)0x80000003)),
-			RegistryHive.CurrentConfig => new nint(unchecked((int)0x80000005)),
-			_ => throw new ArgumentOutOfRangeException(nameof(hive)),
-		};
-	}
-
-	internal static void EnablePrivilege(string privilegeName)
-	{
-		const uint desiredAccess = TokenAdjustPrivileges | TokenQuery;
-		if (OpenProcessToken(GetCurrentProcess(), desiredAccess, out nint tokenHandle) == 0)
-			throw new Win32Exception(Marshal.GetLastWin32Error());
-
-		try
-		{
-			if (LookupPrivilegeValue(null, privilegeName, out Luid luid) == 0)
-				throw new Win32Exception(Marshal.GetLastWin32Error());
-
-			TokenPrivileges privileges = new()
-			{
-				PrivilegeCount = 1,
-				Luid = luid,
-				Attributes = SePrivilegeEnabled,
-			};
-			if (AdjustTokenPrivileges(tokenHandle, disableAllPrivileges: 0, in privileges, (uint)Marshal.SizeOf<TokenPrivileges>(), previousState: 0, returnLength: 0) == 0)
-				throw new Win32Exception(Marshal.GetLastWin32Error());
-
-			int error = Marshal.GetLastWin32Error();
-			if (error != 0)
-				throw new Win32Exception(error);
-		}
-		finally
-		{
-			CloseHandle(tokenHandle);
-		}
-	}
-
-	[StructLayout(LayoutKind.Sequential)]
-	private struct Luid
-	{
-		public uint LowPart;
-		public int HighPart;
-	}
-
-	[StructLayout(LayoutKind.Sequential)]
-	private struct TokenPrivileges
-	{
-		public uint PrivilegeCount;
-		public Luid Luid;
-		public uint Attributes;
-	}
-}
-
 internal static class RegistryFileService
 {
 	private const string RegeditHeader = "Windows Registry Editor Version 5.00";
+
+	internal static void EnablePrivilege(string privilegeName)
+	{
+		using SafeFileHandle processHandle = PInvoke.GetCurrentProcess_SafeHandle();
+		const TOKEN_ACCESS_MASK desiredAccess = TOKEN_ACCESS_MASK.TOKEN_ADJUST_PRIVILEGES | TOKEN_ACCESS_MASK.TOKEN_QUERY;
+		if (!PInvoke.OpenProcessToken(processHandle, desiredAccess, out SafeFileHandle tokenHandle))
+			throw new Win32Exception(Marshal.GetLastWin32Error());
+
+		using (tokenHandle)
+		{
+			if (!PInvoke.LookupPrivilegeValue(null, privilegeName, out LUID luid))
+				throw new Win32Exception(Marshal.GetLastWin32Error());
+
+			unsafe
+			{
+				TOKEN_PRIVILEGES* privileges = stackalloc TOKEN_PRIVILEGES[1];
+				privileges->PrivilegeCount = 1;
+				privileges->Privileges[0] = new LUID_AND_ATTRIBUTES
+				{
+					Luid = luid,
+					Attributes = TOKEN_PRIVILEGES_ATTRIBUTES.SE_PRIVILEGE_ENABLED,
+				};
+
+				if (!PInvoke.AdjustTokenPrivileges(tokenHandle, false, privileges, default, out _))
+					throw new Win32Exception(Marshal.GetLastWin32Error());
+
+				int error = Marshal.GetLastWin32Error();
+				if (error != 0)
+					throw new Win32Exception(error);
+			}
+		}
+	}
 
 	public static void Export(string filePath, RegistryNodeViewModel node)
 	{
@@ -251,57 +161,55 @@ internal static class RegistryFileService
 	internal static RegistryKeySummary ReadKeySummary(RegistryNodeViewModel node)
 	{
 		using RegistryKey key = OpenKey(node, writable: false);
-		int status = RegistryNative.RegQueryInfoKey(
-			key.Handle.DangerousGetHandle(),
-			keyClass: nint.Zero,
-			classLength: nint.Zero,
-			reserved: nint.Zero,
+		uint classLength = 0;
+		WIN32_ERROR status = PInvoke.RegQueryInfoKey(
+			key.Handle,
+			default,
+			ref classLength,
 			out uint subKeyCount,
-			maxSubKeyNameLength: nint.Zero,
-			maxClassLength: nint.Zero,
+			out _,
+			out _,
 			out uint valueCount,
-			maxValueNameLength: nint.Zero,
-			maxValueLength: nint.Zero,
-			securityDescriptorLength: nint.Zero,
-			out RegistryFileTime lastWriteTime);
-		if (status != 0)
-			throw new Win32Exception(status);
+			out _,
+			out _,
+			out _,
+			out System.Runtime.InteropServices.ComTypes.FILETIME lastWriteTime);
+		if (status != WIN32_ERROR.NO_ERROR)
+			throw new Win32Exception((int)status);
 
-		long fileTime = unchecked((long)(((ulong)lastWriteTime.HighDateTime << 32) | lastWriteTime.LowDateTime));
+		long fileTime = unchecked((long)(((ulong)(uint)lastWriteTime.dwHighDateTime << 32) | (uint)lastWriteTime.dwLowDateTime));
 		DateTime modified = DateTime.FromFileTimeUtc(fileTime).ToLocalTime();
 		return new RegistryKeySummary(subKeyCount, valueCount, modified, ReadOwner(node));
 	}
 
-	private static string ReadOwner(RegistryNodeViewModel node)
+	private static unsafe string ReadOwner(RegistryNodeViewModel node)
 	{
 		try
 		{
 			using RegistrySecurityKey key = OpenSecurityKey(node);
-			const uint registryObjectType = 4;
-			const uint ownerSecurityInformation = 0x00000001;
-			uint result = RegistryNative.GetSecurityInfo(
+			WIN32_ERROR result = PInvoke.GetSecurityInfo(
 				key.Handle,
-				registryObjectType,
-				ownerSecurityInformation,
-				out nint owner,
+				SE_OBJECT_TYPE.SE_REGISTRY_KEY,
+				OBJECT_SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION,
+				out PSID owner,
 				out _,
 				out _,
 				out _,
-				out nint securityDescriptor);
-			if (result != 0)
+				out PSECURITY_DESCRIPTOR securityDescriptor);
+			if (result != WIN32_ERROR.NO_ERROR)
 			{
-				if (securityDescriptor != nint.Zero)
-					RegistryNative.LocalFree(securityDescriptor);
+				if (securityDescriptor.Value is not null)
+					PInvoke.LocalFree((HLOCAL)(IntPtr)securityDescriptor.Value);
 
 				return "Unavailable";
 			}
 
 			try
 			{
-				if (owner == nint.Zero)
+				if (owner.Value is null)
 					return "Not set";
 
-				SecurityIdentifier ownerSid = new(owner);
+				SecurityIdentifier ownerSid = new((nint)owner.Value);
 				try
 				{
 					return ownerSid.Translate(typeof(NTAccount)).Value ?? ownerSid.Value;
@@ -313,8 +221,8 @@ internal static class RegistryFileService
 			}
 			finally
 			{
-				if (securityDescriptor != nint.Zero)
-					RegistryNative.LocalFree(securityDescriptor);
+				if (securityDescriptor.Value is not null)
+					PInvoke.LocalFree((HLOCAL)(IntPtr)securityDescriptor.Value);
 			}
 		}
 		catch (SystemException)
@@ -328,52 +236,37 @@ internal static class RegistryFileService
 		if (node.Hive is not RegistryHive hive)
 			throw new InvalidOperationException("The selected item is not a registry key.");
 
-		const uint keyRead = 0x00020019;
-		const uint keyWrite = 0x00020006;
-		const uint writeDac = 0x00040000;
-		const uint writeOwner = 0x00080000;
-		const uint securityEditorAccess = keyRead | keyWrite | writeDac | writeOwner;
-		RegistryKey? remoteBaseKey = null;
+		using RegistryKey baseKey = OpenBaseKey(hive, node.ComputerName);
+		string? subKeyName = string.IsNullOrEmpty(node.SubKeyPath) ? null : node.SubKeyPath;
+		REG_SAM_FLAGS keyRead = REG_SAM_FLAGS.KEY_READ;
+		REG_SAM_FLAGS securityEditorAccess = keyRead
+			| REG_SAM_FLAGS.KEY_WRITE
+			| (REG_SAM_FLAGS)TOKEN_ACCESS_MASK.TOKEN_WRITE_DAC
+			| (REG_SAM_FLAGS)TOKEN_ACCESS_MASK.TOKEN_WRITE_OWNER;
 
-		try
+		WIN32_ERROR status = PInvoke.RegOpenKeyEx(
+			baseKey.Handle,
+			subKeyName,
+			0,
+			securityEditorAccess,
+			out SafeRegistryHandle keyHandle);
+		if (status == WIN32_ERROR.NO_ERROR)
+			return new RegistrySecurityKey(keyHandle, canWriteSecurity: true);
+
+		keyHandle.Dispose();
+		status = PInvoke.RegOpenKeyEx(
+			baseKey.Handle,
+			subKeyName,
+			0,
+			keyRead,
+			out keyHandle);
+		if (status != WIN32_ERROR.NO_ERROR)
 		{
-			nint baseHandle;
-			if (string.IsNullOrEmpty(node.ComputerName))
-			{
-				baseHandle = RegistryNative.GetPredefinedHiveHandle(hive);
-			}
-			else
-			{
-				remoteBaseKey = RegistryKey.OpenRemoteBaseKey(hive, node.ComputerName, RegistryView.Default);
-				baseHandle = remoteBaseKey.Handle.DangerousGetHandle();
-			}
-
-			string? subKeyName = string.IsNullOrEmpty(node.SubKeyPath) ? null : node.SubKeyPath;
-			int status = RegistryNative.RegOpenKeyEx(
-				baseHandle,
-				subKeyName,
-				options: 0,
-				securityEditorAccess,
-				out nint keyHandle);
-
-			if (status == 0)
-				return new RegistrySecurityKey(keyHandle, canWriteSecurity: true);
-
-			status = RegistryNative.RegOpenKeyEx(
-				baseHandle,
-				subKeyName,
-				options: 0,
-				keyRead,
-				out keyHandle);
-			if (status != 0)
-				throw new Win32Exception(status);
-
-			return new RegistrySecurityKey(keyHandle, canWriteSecurity: false);
+			keyHandle.Dispose();
+			throw new Win32Exception((int)status);
 		}
-		finally
-		{
-			remoteBaseKey?.Dispose();
-		}
+
+		return new RegistrySecurityKey(keyHandle, canWriteSecurity: false);
 	}
 
 	internal static RegistryKey OpenBaseKey(RegistryNodeViewModel node)
