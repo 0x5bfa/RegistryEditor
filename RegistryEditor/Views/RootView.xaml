@@ -341,7 +341,7 @@
 				<ColumnDefinition Width="1" />
 				<ColumnDefinition Width="*" MinWidth="240" />
 				<ColumnDefinition Width="1" />
-				<ColumnDefinition Width="360" MinWidth="300" />
+				<ColumnDefinition Width="360" MinWidth="320" />
 			</Grid.ColumnDefinitions>
 
 			<TreeView
@@ -484,9 +484,7 @@
 
 				<ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
 					<StackPanel Padding="20,20,20,20" Spacing="18">
-						<StackPanel
-							Spacing="20"
-							Visibility="{x:Bind ViewModel.KeyOverviewVisibility, Mode=OneWay}">
+						<StackPanel Spacing="20" Visibility="{x:Bind ViewModel.KeyOverviewVisibility, Mode=OneWay}">
 							<Grid ColumnSpacing="12">
 								<Grid.ColumnDefinitions>
 									<ColumnDefinition Width="44" />
@@ -523,12 +521,8 @@
 									<RowDefinition Height="Auto" />
 									<RowDefinition Height="Auto" />
 								</Grid.RowDefinitions>
-								<TextBlock
-									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-									Text="Subkeys:" />
-								<TextBlock
-									Grid.Column="1"
-									Text="{x:Bind ViewModel.KeyOverviewSubKeyCount, Mode=OneWay}" />
+								<TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Subkeys:" />
+								<TextBlock Grid.Column="1" Text="{x:Bind ViewModel.KeyOverviewSubKeyCount, Mode=OneWay}" />
 								<TextBlock
 									Grid.Row="1"
 									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -582,12 +576,56 @@
 
 							<StackPanel Spacing="12" Visibility="{x:Bind ViewModel.ValueEditorFieldsVisibility, Mode=OneWay}">
 								<RadioButtons
-									Header="Number format"
+									Header="Number format:"
 									SelectedIndex="{x:Bind ViewModel.IntegerBaseIndex, Mode=TwoWay}"
 									Visibility="{x:Bind ViewModel.IntegerBaseVisibility, Mode=OneWay}">
 									<RadioButton Content="Hexadecimal (base 16)" />
 									<RadioButton Content="Decimal (base 10)" />
+									<RadioButton Content="Binary (base 2)" />
 								</RadioButtons>
+
+								<ItemsControl ItemsSource="{x:Bind ViewModel.IntegerBitBytes, Mode=OneWay}" Visibility="{x:Bind ViewModel.IntegerBitEditorVisibility, Mode=OneWay}">
+									<ItemsControl.ItemsPanel>
+										<ItemsPanelTemplate>
+											<StackPanel Spacing="8" />
+										</ItemsPanelTemplate>
+									</ItemsControl.ItemsPanel>
+									<ItemsControl.ItemTemplate>
+										<DataTemplate x:DataType="viewModels:RegistryIntegerByteViewModel">
+											<Grid ColumnSpacing="8">
+												<Grid.ColumnDefinitions>
+													<ColumnDefinition Width="36" />
+													<ColumnDefinition Width="*" />
+												</Grid.ColumnDefinitions>
+												<TextBlock
+													VerticalAlignment="Center"
+													FontSize="11"
+													Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+													Text="{x:Bind RangeLabel}" />
+												<ItemsControl Grid.Column="1" ItemsSource="{x:Bind Bits}">
+													<ItemsControl.ItemsPanel>
+														<ItemsPanelTemplate>
+															<StackPanel Orientation="Horizontal" Spacing="4" />
+														</ItemsPanelTemplate>
+													</ItemsControl.ItemsPanel>
+													<ItemsControl.ItemTemplate>
+														<DataTemplate x:DataType="viewModels:RegistryIntegerBitViewModel">
+															<ToggleButton
+																Width="24"
+																Height="28"
+																Padding="0"
+																AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+																Command="{x:Bind ToggleCommand}"
+																Content="{x:Bind DisplayValue, Mode=OneWay}"
+																IsChecked="{x:Bind IsSet, Mode=OneWay}"
+																ToolTipService.ToolTip="{x:Bind AccessibleName, Mode=OneWay}" />
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+											</Grid>
+										</DataTemplate>
+									</ItemsControl.ItemTemplate>
+								</ItemsControl>
 
 								<TextBox
 									x:Name="ValueEditorDataTextBox"
@@ -599,7 +637,8 @@
 									Header="{x:Bind ViewModel.ValueEditorDataHeader, Mode=OneWay}"
 									PlaceholderText="{x:Bind ViewModel.ValueEditorDataPlaceholder, Mode=OneWay}"
 									Text="{x:Bind ViewModel.ValueEditorData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-									TextWrapping="Wrap" />
+									TextWrapping="Wrap"
+									Visibility="{x:Bind ViewModel.ValueEditorDataTextBoxVisibility, Mode=OneWay}" />
 
 								<TextBlock
 									Foreground="{ThemeResource SystemFillColorCriticalBrush}"
@@ -607,10 +646,6 @@
 									TextWrapping="Wrap"
 									Visibility="{x:Bind ViewModel.ValueEditorErrorVisibility, Mode=OneWay}" />
 
-								<TextBlock
-									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-									Text="{x:Bind ViewModel.ValueEditorStatus, Mode=OneWay}"
-									TextWrapping="Wrap" />
 							</StackPanel>
 
 							<Border
@@ -635,9 +670,7 @@
 					Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
 				<Grid Grid.Row="2">
-					<Grid
-						Margin="20,16"
-						Visibility="{x:Bind ViewModel.KeyOverviewActionsVisibility, Mode=OneWay}">
+					<Grid Margin="20,16" Visibility="{x:Bind ViewModel.KeyOverviewActionsVisibility, Mode=OneWay}">
 						<Button
 							HorizontalAlignment="Right"
 							Command="{x:Bind ViewModel.ExportCommand}"
@@ -651,19 +684,12 @@
 						ColumnSpacing="8"
 						Visibility="{x:Bind ViewModel.ValueActionsVisibility, Mode=OneWay}">
 						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="Auto" />
 							<ColumnDefinition Width="*" />
 							<ColumnDefinition Width="Auto" />
 							<ColumnDefinition Width="Auto" />
 						</Grid.ColumnDefinitions>
 						<Button
-							Grid.Column="0"
-							Command="{x:Bind ViewModel.DeleteValueCommand}"
-							CommandParameter="{x:Bind ViewModel.SelectedValue, Mode=OneWay}"
-							Content="Delete"
-							IsEnabled="{x:Bind ViewModel.CanDeleteSelectedValue, Mode=OneWay}" />
-						<Button
-							Grid.Column="2"
+							Grid.Column="1"
 							Command="{x:Bind ViewModel.DiscardValueChangesCommand}"
 							Content="Discard"
 							IsEnabled="{x:Bind ViewModel.IsValueDirty, Mode=OneWay}" />

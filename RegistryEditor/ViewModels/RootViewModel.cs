@@ -30,7 +30,6 @@ public sealed class RootViewModel : ObservableObject
 	private RegistryValueViewModel? _selectedValue;
 	private string _valueEditorData = string.Empty;
 	private string _valueEditorError = string.Empty;
-	private string _valueEditorStatus = "Select a value to inspect and edit its data.";
 	private int _integerBaseIndex;
 	private bool _hasAttemptedValueSave;
 	private bool _isValueDirty;
@@ -158,10 +157,8 @@ public sealed class RootViewModel : ObservableObject
 			}
 
 			OnPropertyChanged(nameof(CanEditSelectedValue));
-			OnPropertyChanged(nameof(CanDeleteSelectedValue));
 			OnPropertyChanged(nameof(CanSaveValueChanges));
 			OnPropertyChanged(nameof(ValueEditorKeyPath));
-			OnPropertyChanged(nameof(ValueEditorStatus));
 			OnPropertyChanged(nameof(ValueEditorFieldsVisibility));
 			OnPropertyChanged(nameof(ValueEditorUnsupportedVisibility));
 			OnPropertyChanged(nameof(CanEditSelectedNode));
@@ -189,7 +186,6 @@ public sealed class RootViewModel : ObservableObject
 				return;
 
 			OnPropertyChanged(nameof(CanEditSelectedValue));
-			OnPropertyChanged(nameof(CanDeleteSelectedValue));
 			OnPropertyChanged(nameof(ValueEditorName));
 			OnPropertyChanged(nameof(ValueEditorType));
 			OnPropertyChanged(nameof(ValueEditorIcon));
@@ -199,10 +195,12 @@ public sealed class RootViewModel : ObservableObject
 			OnPropertyChanged(nameof(ValueActionsVisibility));
 			OnPropertyChanged(nameof(ValueEditorFieldsVisibility));
 			OnPropertyChanged(nameof(ValueEditorUnsupportedVisibility));
-			OnPropertyChanged(nameof(ValueEditorStatus));
 			OnPropertyChanged(nameof(ValueEditorAcceptsReturn));
 			OnPropertyChanged(nameof(IsIntegerValue));
+			OnPropertyChanged(nameof(IsBinaryIntegerFormat));
 			OnPropertyChanged(nameof(IntegerBaseVisibility));
+			OnPropertyChanged(nameof(ValueEditorDataTextBoxVisibility));
+			OnPropertyChanged(nameof(IntegerBitEditorVisibility));
 			OnPropertyChanged(nameof(IntegerBaseIndex));
 			LoadValueEditorDraft(value);
 			NotifyCommandStates();
@@ -221,8 +219,6 @@ public sealed class RootViewModel : ObservableObject
 
 	public bool CanEditSelectedValue => IsSupportedValue(SelectedValue) && SelectedNode?.Hive is not null;
 
-	public bool CanDeleteSelectedValue => CanDeleteValue(SelectedValue);
-
 	public bool IsValueDirty
 	{
 		get => _isValueDirty;
@@ -231,7 +227,6 @@ public sealed class RootViewModel : ObservableObject
 			if (!SetProperty(ref _isValueDirty, value))
 				return;
 
-			OnPropertyChanged(nameof(ValueEditorStatus));
 			OnPropertyChanged(nameof(CanSaveValueChanges));
 			DiscardValueChangesCommand?.NotifyCanExecuteChanged();
 			SaveValueChangesCommand?.NotifyCanExecuteChanged();
@@ -262,17 +257,6 @@ public sealed class RootViewModel : ObservableObject
 		}
 	}
 
-	public string ValueEditorStatus
-	{
-		get
-		{
-			if (SelectedValue?.RawValue is null && CanEditSelectedValue)
-				return "This default value has not been created yet. Save to create it.";
-
-			return IsValueDirty ? "Unsaved changes" : _valueEditorStatus;
-		}
-	}
-
 	public string ValueEditorName => SelectedValue?.Name ?? string.Empty;
 
 	public string ValueEditorType => SelectedValue?.Kind switch
@@ -293,9 +277,9 @@ public sealed class RootViewModel : ObservableObject
 
 	public string ValueEditorDataHeader => SelectedValue?.Kind switch
 	{
-		RegistryValueKind.Binary or RegistryValueKind.None => "Bytes",
-		RegistryValueKind.MultiString => "Strings",
-		_ => "Data",
+		RegistryValueKind.Binary or RegistryValueKind.None => "Bytes:",
+		RegistryValueKind.MultiString => "Strings:",
+		_ => "Data:",
 	};
 
 	public string ValueEditorDataPlaceholder => SelectedValue?.Kind switch
@@ -309,23 +293,20 @@ public sealed class RootViewModel : ObservableObject
 
 	public bool ValueEditorAcceptsReturn => SelectedValue?.Kind is not (RegistryValueKind.DWord or RegistryValueKind.QWord);
 
+	public ObservableCollection<RegistryIntegerByteViewModel> IntegerBitBytes { get; } = [];
+
 	public int IntegerBaseIndex
 	{
 		get => _integerBaseIndex;
 		set
 		{
-			if (value is < 0 or > 1 || value == _integerBaseIndex)
+			if (value is < 0 or > 2 || value == _integerBaseIndex)
 				return;
 
-			if (SelectedValue is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord } selectedValue
-				&& TryParseIntegerValue(ValueEditorData, selectedValue.Kind, _integerBaseIndex == 0, out ulong number))
-			{
-				_valueEditorData = number.ToString(
-					value == 0 ? (selectedValue.Kind == RegistryValueKind.DWord ? "x8" : "x16") : "0",
-					CultureInfo.InvariantCulture);
-				OnPropertyChanged(nameof(ValueEditorData));
-			}
-			else if (SelectedValue is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord })
+			RegistryValueViewModel? selectedValue = SelectedValue;
+			ulong number = 0;
+			if (selectedValue is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord }
+				&& !TryParseIntegerValue(ValueEditorData, selectedValue.Kind, _integerBaseIndex, out number))
 			{
 				ValueEditorError = "Enter a valid number before changing the base.";
 				OnPropertyChanged();
@@ -333,16 +314,29 @@ public sealed class RootViewModel : ObservableObject
 			}
 
 			SetProperty(ref _integerBaseIndex, value);
-			OnPropertyChanged(nameof(IsHexadecimal));
+			OnPropertyChanged(nameof(IsBinaryIntegerFormat));
+			OnPropertyChanged(nameof(ValueEditorDataTextBoxVisibility));
+			OnPropertyChanged(nameof(IntegerBitEditorVisibility));
+			if (selectedValue is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord })
+			{
+				_valueEditorData = FormatIntegerValue(number, selectedValue.Kind, value);
+				OnPropertyChanged(nameof(ValueEditorData));
+				UpdateIntegerBitBytes(number, selectedValue.Kind);
+			}
+
 			UpdateValueEditorState();
 		}
 	}
 
-	public bool IsHexadecimal => IntegerBaseIndex == 0;
-
 	public bool IsIntegerValue => SelectedValue?.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord;
 
+	public bool IsBinaryIntegerFormat => IsIntegerValue && IntegerBaseIndex == 2;
+
 	public Visibility IntegerBaseVisibility => IsIntegerValue ? Visibility.Visible : Visibility.Collapsed;
+
+	public Visibility ValueEditorDataTextBoxVisibility => IsBinaryIntegerFormat ? Visibility.Collapsed : Visibility.Visible;
+
+	public Visibility IntegerBitEditorVisibility => IsBinaryIntegerFormat ? Visibility.Visible : Visibility.Collapsed;
 
 	public bool CanSaveValueChanges => CanEditSelectedValue
 		&& (IsValueDirty || SelectedValue?.RawValue is null);
@@ -464,12 +458,13 @@ public sealed class RootViewModel : ObservableObject
 		ValueEditorError = string.Empty;
 		_integerBaseIndex = 0;
 		OnPropertyChanged(nameof(IntegerBaseIndex));
-		OnPropertyChanged(nameof(IsHexadecimal));
+		OnPropertyChanged(nameof(IsBinaryIntegerFormat));
+		OnPropertyChanged(nameof(ValueEditorDataTextBoxVisibility));
+		OnPropertyChanged(nameof(IntegerBitEditorVisibility));
 
 		_valueEditorData = value switch
 		{
 			{ Kind: RegistryValueKind.DWord or RegistryValueKind.QWord } integerValue
-				when integerValue.RawValue is not null
 				=> GetIntegerValue(integerValue).ToString(
 					integerValue.Kind == RegistryValueKind.DWord ? "x8" : "x16",
 					CultureInfo.InvariantCulture),
@@ -482,13 +477,12 @@ public sealed class RootViewModel : ObservableObject
 			_ => string.Empty,
 		};
 
-		_valueEditorStatus = value is null
-			? "Select a value to inspect and edit its data."
-			: value.RawValue is null && value.Kind == RegistryValueKind.String
-				? "The default value is not currently set."
-				: "All changes saved.";
+		if (value is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord })
+			UpdateIntegerBitBytes(GetIntegerValue(value), value.Kind);
+		else
+			IntegerBitBytes.Clear();
+
 		OnPropertyChanged(nameof(ValueEditorData));
-		OnPropertyChanged(nameof(ValueEditorStatus));
 		OnPropertyChanged(nameof(ValueEditorName));
 		OnPropertyChanged(nameof(ValueEditorType));
 		OnPropertyChanged(nameof(ValueEditorKeyPath));
@@ -512,11 +506,10 @@ public sealed class RootViewModel : ObservableObject
 	{
 		ValueEditorError = _hasAttemptedValueSave
 			&& SelectedValue is { } value
-			&& !TryCreateEditedValue(value, ValueEditorData, IsHexadecimal, out _, out string error)
+			&& !TryCreateEditedValue(value, ValueEditorData, IntegerBaseIndex, out _, out string error)
 			? error
 			: string.Empty;
 		IsValueDirty = IsValueDraftChanged();
-		OnPropertyChanged(nameof(ValueEditorStatus));
 		OnPropertyChanged(nameof(CanSaveValueChanges));
 		SaveValueChangesCommand?.NotifyCanExecuteChanged();
 	}
@@ -529,8 +522,49 @@ public sealed class RootViewModel : ObservableObject
 		if (value.RawValue is null)
 			return ValueEditorData.Length > 0;
 
-		return !TryCreateEditedValue(value, ValueEditorData, IsHexadecimal, out object? editedValue, out _)
+		return !TryCreateEditedValue(value, ValueEditorData, IntegerBaseIndex, out object? editedValue, out _)
 			|| !RegistryValuesEqual(value.RawValue, editedValue);
+	}
+
+	private void ToggleIntegerBit(int bitPosition)
+	{
+		if (SelectedValue is not { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord } value
+			|| IntegerBaseIndex != 2
+			|| !TryParseIntegerValue(ValueEditorData, value.Kind, IntegerBaseIndex, out ulong number))
+			return;
+
+		number ^= 1UL << bitPosition;
+		_valueEditorData = FormatIntegerValue(number, value.Kind, IntegerBaseIndex);
+		OnPropertyChanged(nameof(ValueEditorData));
+		UpdateIntegerBitBytes(number, value.Kind);
+		UpdateValueEditorState();
+	}
+
+	private void UpdateIntegerBitBytes(ulong value, RegistryValueKind kind)
+	{
+		int bitWidth = GetIntegerBitWidth(kind);
+		if (IntegerBitBytes.Count != bitWidth / 8)
+		{
+			IntegerBitBytes.Clear();
+			for (int highBit = bitWidth - 1; highBit >= 0; highBit -= 8)
+			{
+				int lowBit = highBit - 7;
+				ObservableCollection<RegistryIntegerBitViewModel> bits = [];
+				for (int bitPosition = highBit; bitPosition >= lowBit; bitPosition--)
+				{
+					int capturedBitPosition = bitPosition;
+					bits.Add(new RegistryIntegerBitViewModel(
+						bitPosition,
+						(value & (1UL << bitPosition)) != 0,
+						() => ToggleIntegerBit(capturedBitPosition)));
+				}
+
+				IntegerBitBytes.Add(new RegistryIntegerByteViewModel(highBit, lowBit, bits));
+			}
+		}
+
+		foreach (RegistryIntegerBitViewModel bit in IntegerBitBytes.SelectMany(byteGroup => byteGroup.Bits))
+			bit.IsSet = (value & (1UL << bit.BitPosition)) != 0;
 	}
 
 	private void DiscardValueEditorChanges()
@@ -917,7 +951,7 @@ public sealed class RootViewModel : ObservableObject
 			return;
 
 		_hasAttemptedValueSave = true;
-		if (!TryCreateEditedValue(value, ValueEditorData, IsHexadecimal, out object? editedValue, out string error))
+		if (!TryCreateEditedValue(value, ValueEditorData, IntegerBaseIndex, out object? editedValue, out string error))
 		{
 			ValueEditorError = error;
 			return;
@@ -1223,22 +1257,83 @@ public sealed class RootViewModel : ObservableObject
 		throw new InvalidOperationException("This registry value is not an integer value.");
 	}
 
-	private static bool TryParseIntegerValue(string text, RegistryValueKind kind, bool isHexadecimal, out ulong value)
+	private static int GetIntegerBitWidth(RegistryValueKind kind)
+		=> kind switch
+		{
+			RegistryValueKind.DWord => 32,
+			RegistryValueKind.QWord => 64,
+			_ => throw new InvalidOperationException("This registry value is not an integer value."),
+		};
+
+	private static string FormatIntegerValue(ulong value, RegistryValueKind kind, int numberBaseIndex)
+	{
+		if (numberBaseIndex == 0)
+			return value.ToString(kind == RegistryValueKind.DWord ? "x8" : "x16", CultureInfo.InvariantCulture);
+
+		if (numberBaseIndex == 1)
+			return value.ToString(CultureInfo.InvariantCulture);
+
+		int bitWidth = GetIntegerBitWidth(kind);
+		char[] bits = new char[bitWidth + (bitWidth / 8) - 1];
+		int outputIndex = 0;
+		for (int bitPosition = bitWidth - 1; bitPosition >= 0; bitPosition--)
+		{
+			bits[outputIndex++] = (value & (1UL << bitPosition)) == 0 ? '0' : '1';
+			if (bitPosition > 0 && bitPosition % 8 == 0)
+				bits[outputIndex++] = ' ';
+		}
+
+		return new string(bits);
+	}
+
+	private static bool TryParseIntegerValue(string text, RegistryValueKind kind, int numberBaseIndex, out ulong value)
 	{
 		string input = text.Trim();
-		if (isHexadecimal && input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-			input = input[2..];
+		bool parsed;
+		switch (numberBaseIndex)
+		{
+			case 0:
+				if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+					input = input[2..];
+				parsed = ulong.TryParse(input, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out value);
+				break;
+			case 1:
+				parsed = ulong.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+				break;
+			case 2:
+				parsed = TryParseBinaryInteger(input, kind, out value);
+				break;
+			default:
+				value = 0;
+				return false;
+		}
 
-		bool parsed = isHexadecimal
-			? ulong.TryParse(input, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out value)
-			: ulong.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
 		return parsed && (kind != RegistryValueKind.DWord || value <= uint.MaxValue);
+	}
+
+	private static bool TryParseBinaryInteger(string text, RegistryValueKind kind, out ulong value)
+	{
+		value = 0;
+		string input = text.Replace(" ", string.Empty, StringComparison.Ordinal);
+		int bitWidth = GetIntegerBitWidth(kind);
+		if (input.Length is < 1 || input.Length > bitWidth)
+			return false;
+
+		foreach (char bit in input)
+		{
+			if (bit is not ('0' or '1'))
+				return false;
+
+			value = (value << 1) | (uint)(bit - '0');
+		}
+
+		return true;
 	}
 
 	private static bool TryCreateEditedValue(
 		RegistryValueViewModel value,
 		string text,
-		bool isHexadecimal,
+		int numberBaseIndex,
 		out object? editedValue,
 		out string error)
 	{
@@ -1250,9 +1345,9 @@ public sealed class RootViewModel : ObservableObject
 				? Array.Empty<string>()
 				: text.Split(["\r\n", "\n"], StringSplitOptions.None),
 			RegistryValueKind.Binary or RegistryValueKind.None => ParseByteArray(text, out error),
-			RegistryValueKind.DWord when TryParseIntegerValue(text, value.Kind, isHexadecimal, out ulong dword)
+			RegistryValueKind.DWord when TryParseIntegerValue(text, value.Kind, numberBaseIndex, out ulong dword)
 				=> unchecked((int)dword),
-			RegistryValueKind.QWord when TryParseIntegerValue(text, value.Kind, isHexadecimal, out ulong qword)
+			RegistryValueKind.QWord when TryParseIntegerValue(text, value.Kind, numberBaseIndex, out ulong qword)
 				=> unchecked((long)qword),
 			_ => null,
 		};
@@ -1263,7 +1358,12 @@ public sealed class RootViewModel : ObservableObject
 		if (value.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord)
 		{
 			string valueType = value.Kind == RegistryValueKind.DWord ? "DWORD" : "QWORD";
-			string valueBase = isHexadecimal ? "hexadecimal" : "decimal";
+			string valueBase = numberBaseIndex switch
+			{
+				0 => "hexadecimal",
+				1 => "decimal",
+				_ => "binary",
+			};
 			error = $"Enter a valid {valueType} value in {valueBase} format.";
 		}
 		else
