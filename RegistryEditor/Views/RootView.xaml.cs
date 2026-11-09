@@ -6,6 +6,7 @@ using RegistryEditor.ViewModels;
 using RegistryBreadcrumbBar = RegistryEditor.Controls.BreadcrumbBar;
 using RegistryBreadcrumbBarItemClickedEventArgs = RegistryEditor.Controls.BreadcrumbBarItemClickedEventArgs;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using WinUI.TableView;
 
 namespace RegistryEditor.Views;
@@ -18,6 +19,14 @@ public sealed partial class RootView : UserControl
 	{
 		ViewModel = new RootViewModel();
 		InitializeComponent();
+		RegistryValueTableView.AddHandler(
+			UIElement.PointerPressedEvent,
+			(PointerEventHandler)RegistryValueTableView_PointerPressed,
+			handledEventsToo: true);
+		RegistryValueTableView.AddHandler(
+			UIElement.TappedEvent,
+			(TappedEventHandler)RegistryValueTableView_Tapped,
+			handledEventsToo: true);
 	}
 
 	private async void RegistryTreeView_Expanding(TreeView sender, TreeViewExpandingEventArgs args)
@@ -34,6 +43,8 @@ public sealed partial class RootView : UserControl
 			.FirstOrDefault();
 
 		await ViewModel.SelectNodeAsync(selectedNode);
+		if (!ReferenceEquals(ViewModel.SelectedNode, selectedNode))
+			RegistryTreeView.SelectedItem = ViewModel.SelectedNode;
 	}
 
 	private async void NavigationOmnibar_QuerySubmitted(Omnibar sender, OmnibarQuerySubmittedEventArgs args)
@@ -92,36 +103,85 @@ public sealed partial class RootView : UserControl
 		}
 	}
 
-	private void RegistryValueTableView_SelectionChanged(object sender, SelectionChangedEventArgs args)
+	private async void RegistryValueTableView_SelectionChanged(object sender, SelectionChangedEventArgs args)
 	{
-		ViewModel.SelectedValue = args.AddedItems.OfType<RegistryValueViewModel>().FirstOrDefault();
+		RegistryValueViewModel? selectedValue = args.AddedItems.OfType<RegistryValueViewModel>().FirstOrDefault();
+		if (selectedValue is not null && !await ViewModel.TrySelectValueAsync(selectedValue))
+			RegistryValueTableView.SelectedItem = ViewModel.SelectedValue;
 	}
 
-	private void RegistryValueTableView_RowContextFlyoutOpening(object sender, TableViewRowContextFlyoutEventArgs args)
+	private void RegistryValueTableView_PointerPressed(object sender, PointerRoutedEventArgs args)
+		=> RegistryValueTableView.Focus(FocusState.Pointer);
+
+	private async void RegistryValueTableView_Tapped(object sender, TappedRoutedEventArgs args)
+	{
+		if (IsTableContentElement(args.OriginalSource as DependencyObject))
+			return;
+
+		if (!await ViewModel.TrySelectValueAsync(null))
+		{
+			RegistryValueTableView.SelectedItem = ViewModel.SelectedValue;
+			return;
+		}
+
+		RegistryValueTableView.SelectedItem = null;
+	}
+
+	private bool IsTableContentElement(DependencyObject? element)
+	{
+		while (element is not null)
+		{
+			if (element is TableViewRow
+				or TableViewHeaderRow
+				or TableViewColumnHeader
+				or TableViewGroupHeaderRow)
+				return true;
+
+			if (ReferenceEquals(element, RegistryValueTableView))
+				return false;
+
+			element = VisualTreeHelper.GetParent(element);
+		}
+
+		return false;
+	}
+
+	private async void RegistryValueTableView_RowContextFlyoutOpening(object sender, TableViewRowContextFlyoutEventArgs args)
 	{
 		if (args.Item is not RegistryValueViewModel value
 			|| args.Flyout is not MenuFlyout flyout)
 			return;
 
-		ViewModel.SelectedValue = value;
+		if (!await ViewModel.TrySelectValueAsync(value))
+		{
+			flyout.Hide();
+			return;
+		}
+
 		foreach (MenuFlyoutItem item in flyout.Items.OfType<MenuFlyoutItem>())
 		{
 			item.Command = (item.Tag as string) switch
 			{
-				"Modify" => ViewModel.ModifyValueCommand,
 				"Delete" => ViewModel.DeleteValueCommand,
 				"Rename" => ViewModel.RenameValueCommand,
 				_ => null,
 			};
 			item.CommandParameter = value;
-			item.IsEnabled = item.Command?.CanExecute(value) ?? false;
+			item.IsEnabled = (item.Tag as string) switch
+			{
+				"Modify" => ViewModel.CanEditSelectedValue,
+				_ => item.Command?.CanExecute(value) ?? false,
+			};
 		}
 	}
 
-	private async void RegistryValueTableView_CellDoubleTapped(object sender, TableViewCellDoubleTappedEventArgs args)
+	private void RegistryValueTableView_EditInPaneClicked(object sender, RoutedEventArgs args)
 	{
-		ViewModel.SelectedValue = args.Item as RegistryValueViewModel;
-		await ViewModel.DisplaySelectedValueAsync();
+		if (!ViewModel.CanEditSelectedValue)
+			return;
+
+		ValueEditorDataTextBox.Focus(FocusState.Programmatic);
+		ValueEditorDataTextBox.SelectAll();
 	}
 
 	private void RegistryTreeItem_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
@@ -131,7 +191,6 @@ public sealed partial class RootView : UserControl
 			|| treeViewItem.ContextFlyout is not MenuFlyout flyout)
 			return;
 
-		ViewModel.SelectedNode = node;
 		ConfigureContextMenu(flyout, node);
 	}
 
@@ -140,7 +199,6 @@ public sealed partial class RootView : UserControl
 		if (sender is not MenuFlyout { Target: TreeViewItem { DataContext: RegistryNodeViewModel node } } flyout)
 			return;
 
-		ViewModel.SelectedNode = node;
 		ConfigureContextMenu(flyout, node);
 	}
 

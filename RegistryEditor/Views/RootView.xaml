@@ -337,9 +337,11 @@
 			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
 			BorderThickness="0,1,0,0">
 			<Grid.ColumnDefinitions>
-				<ColumnDefinition Width="320" MinWidth="60" />
+				<ColumnDefinition Width="320" MinWidth="180" />
 				<ColumnDefinition Width="1" />
-				<ColumnDefinition Width="*" MinWidth="60" />
+				<ColumnDefinition Width="*" MinWidth="240" />
+				<ColumnDefinition Width="1" />
+				<ColumnDefinition Width="360" MinWidth="300" />
 			</Grid.ColumnDefinitions>
 
 			<TreeView
@@ -348,7 +350,7 @@
 				Expanding="RegistryTreeView_Expanding"
 				ItemTemplate="{StaticResource RegistryTreeNodeTemplate}"
 				ItemsSource="{x:Bind ViewModel.RootNodes, Mode=OneWay}"
-				SelectedItem="{x:Bind ViewModel.SelectedNode, Mode=TwoWay}"
+				SelectedItem="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
 				SelectionChanged="RegistryTreeView_SelectionChanged"
 				SelectionMode="Single" />
 
@@ -363,7 +365,7 @@
 				ResizeBehavior="PreviousAndNext"
 				ResizeDirection="Columns" />
 
-			<Grid Grid.Column="2">
+			<Grid Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}">
 				<tv:TableView
 					x:Name="RegistryValueTableView"
 					AutoGenerateColumns="False"
@@ -371,16 +373,16 @@
 					CanFilterColumns="False"
 					CanReorderColumns="False"
 					CanResizeColumns="True"
-					CellDoubleTapped="RegistryValueTableView_CellDoubleTapped"
 					CornerButtonMode="None"
 					CornerRadius="0"
 					GridLinesVisibility="None"
 					HeaderRowHeight="32"
 					IsReadOnly="True"
+					IsTabStop="True"
 					ItemsSource="{x:Bind ViewModel.RegistryValues, Mode=OneWay}"
 					RowContextFlyoutOpening="RegistryValueTableView_RowContextFlyoutOpening"
 					RowMinHeight="32"
-					SelectedItem="{x:Bind ViewModel.SelectedValue, Mode=TwoWay}"
+					SelectedItem="{x:Bind ViewModel.SelectedValue, Mode=OneWay}"
 					SelectionChanged="RegistryValueTableView_SelectionChanged"
 					SelectionMode="Single"
 					SelectionUnit="Row">
@@ -388,8 +390,9 @@
 						<MenuFlyout AreOpenCloseAnimationsEnabled="False">
 							<MenuFlyoutItem
 								AccessKey="M"
+								Click="RegistryValueTableView_EditInPaneClicked"
 								Tag="Modify"
-								Text="Modify" />
+								Text="Edit in pane" />
 							<MenuFlyoutSeparator />
 							<MenuFlyoutItem
 								AccessKey="D"
@@ -459,6 +462,223 @@
 					IsHitTestVisible="False"
 					Text="{x:Bind ViewModel.ValuesEmptyText, Mode=OneWay}"
 					Visibility="{x:Bind ViewModel.ValuesEmptyVisibility, Mode=OneWay}" />
+			</Grid>
+
+			<wctcontrols:GridSplitter
+				Grid.Column="3"
+				MinWidth="1"
+				HorizontalAlignment="Stretch"
+				VerticalAlignment="Stretch"
+				Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+				Foreground="Transparent"
+				IsTabStop="False"
+				ResizeBehavior="PreviousAndNext"
+				ResizeDirection="Columns" />
+
+			<Grid Grid.Column="4" Background="{ThemeResource LayerFillColorDefaultBrush}">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="*" />
+					<RowDefinition Height="Auto" />
+					<RowDefinition Height="Auto" />
+				</Grid.RowDefinitions>
+
+				<ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+					<StackPanel Padding="20,20,20,20" Spacing="18">
+						<StackPanel
+							Spacing="20"
+							Visibility="{x:Bind ViewModel.KeyOverviewVisibility, Mode=OneWay}">
+							<Grid ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="44" />
+									<ColumnDefinition Width="*" />
+								</Grid.ColumnDefinitions>
+								<Viewbox
+									Grid.Column="0"
+									Width="36"
+									Height="36">
+									<Image Source="{x:Bind ViewModel.KeyOverviewIcon, Mode=OneWay}" />
+								</Viewbox>
+								<StackPanel Grid.Column="1" Spacing="4">
+									<TextBlock
+										Style="{StaticResource SubtitleTextBlockStyle}"
+										Text="{x:Bind ViewModel.KeyOverviewName, Mode=OneWay}"
+										TextTrimming="CharacterEllipsis"
+										TextWrapping="NoWrap" />
+									<TextBlock
+										Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+										Text="{x:Bind ViewModel.KeyOverviewPath, Mode=OneWay}"
+										TextTrimming="CharacterEllipsis"
+										ToolTipService.ToolTip="{x:Bind ViewModel.KeyOverviewPath, Mode=OneWay}" />
+								</StackPanel>
+							</Grid>
+
+							<Grid ColumnSpacing="8" RowSpacing="8">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="Auto" />
+									<ColumnDefinition Width="*" />
+								</Grid.ColumnDefinitions>
+								<Grid.RowDefinitions>
+									<RowDefinition Height="Auto" />
+									<RowDefinition Height="Auto" />
+									<RowDefinition Height="Auto" />
+									<RowDefinition Height="Auto" />
+								</Grid.RowDefinitions>
+								<TextBlock
+									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+									Text="Subkeys:" />
+								<TextBlock
+									Grid.Column="1"
+									Text="{x:Bind ViewModel.KeyOverviewSubKeyCount, Mode=OneWay}" />
+								<TextBlock
+									Grid.Row="1"
+									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+									Text="Values:" />
+								<TextBlock
+									Grid.Row="1"
+									Grid.Column="1"
+									Text="{x:Bind ViewModel.KeyOverviewValueCount, Mode=OneWay}" />
+								<TextBlock
+									Grid.Row="2"
+									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+									Text="Last modified:" />
+								<TextBlock
+									Grid.Row="2"
+									Grid.Column="1"
+									Text="{x:Bind ViewModel.KeyOverviewModified, Mode=OneWay}"
+									TextWrapping="Wrap" />
+								<TextBlock
+									Grid.Row="3"
+									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+									Text="Owner:" />
+								<TextBlock
+									Grid.Row="3"
+									Grid.Column="1"
+									Text="{x:Bind ViewModel.KeyOverviewOwner, Mode=OneWay}"
+									TextWrapping="Wrap" />
+							</Grid>
+						</StackPanel>
+
+						<StackPanel Spacing="18" Visibility="{x:Bind ViewModel.ValueEditorContentVisibility, Mode=OneWay}">
+							<Grid ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="36" />
+									<ColumnDefinition Width="*" />
+								</Grid.ColumnDefinitions>
+								<Viewbox
+									Grid.Column="0"
+									Width="44"
+									Height="44">
+									<Image VerticalAlignment="Top" Source="{x:Bind ViewModel.ValueEditorIcon, Mode=OneWay}" />
+								</Viewbox>
+								<StackPanel Grid.Column="1" Spacing="4">
+									<TextBlock
+										Style="{StaticResource SubtitleTextBlockStyle}"
+										Text="{x:Bind ViewModel.ValueEditorName, Mode=OneWay}"
+										TextTrimming="CharacterEllipsis"
+										TextWrapping="NoWrap" />
+									<TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.ValueEditorType, Mode=OneWay}" />
+								</StackPanel>
+							</Grid>
+
+							<StackPanel Spacing="12" Visibility="{x:Bind ViewModel.ValueEditorFieldsVisibility, Mode=OneWay}">
+								<RadioButtons
+									Header="Number format"
+									SelectedIndex="{x:Bind ViewModel.IntegerBaseIndex, Mode=TwoWay}"
+									Visibility="{x:Bind ViewModel.IntegerBaseVisibility, Mode=OneWay}">
+									<RadioButton Content="Hexadecimal (base 16)" />
+									<RadioButton Content="Decimal (base 10)" />
+								</RadioButtons>
+
+								<TextBox
+									x:Name="ValueEditorDataTextBox"
+									MinHeight="132"
+									MaxHeight="280"
+									VerticalContentAlignment="Top"
+									AcceptsReturn="{x:Bind ViewModel.ValueEditorAcceptsReturn, Mode=OneWay}"
+									AutomationProperties.AutomationId="ValueEditorDataTextBox"
+									Header="{x:Bind ViewModel.ValueEditorDataHeader, Mode=OneWay}"
+									PlaceholderText="{x:Bind ViewModel.ValueEditorDataPlaceholder, Mode=OneWay}"
+									Text="{x:Bind ViewModel.ValueEditorData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+									TextWrapping="Wrap" />
+
+								<TextBlock
+									Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+									Text="{x:Bind ViewModel.ValueEditorError, Mode=OneWay}"
+									TextWrapping="Wrap"
+									Visibility="{x:Bind ViewModel.ValueEditorErrorVisibility, Mode=OneWay}" />
+
+								<TextBlock
+									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+									Text="{x:Bind ViewModel.ValueEditorStatus, Mode=OneWay}"
+									TextWrapping="Wrap" />
+							</StackPanel>
+
+							<Border
+								Padding="12"
+								Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+								BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+								BorderThickness="1"
+								CornerRadius="8"
+								Visibility="{x:Bind ViewModel.ValueEditorUnsupportedVisibility, Mode=OneWay}">
+								<TextBlock
+									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+									Text="This value cannot be edited here. Its stored data is still shown in the list."
+									TextWrapping="Wrap" />
+							</Border>
+						</StackPanel>
+					</StackPanel>
+				</ScrollViewer>
+
+				<Rectangle
+					Grid.Row="1"
+					Height="1"
+					Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+				<Grid Grid.Row="2">
+					<Grid
+						Margin="20,16"
+						Visibility="{x:Bind ViewModel.KeyOverviewActionsVisibility, Mode=OneWay}">
+						<Button
+							HorizontalAlignment="Right"
+							Command="{x:Bind ViewModel.ExportCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedNode, Mode=OneWay}"
+							Content="Export..."
+							IsEnabled="{x:Bind ViewModel.CanExportSelectedNode, Mode=OneWay}" />
+					</Grid>
+
+					<Grid
+						Margin="20,16"
+						ColumnSpacing="8"
+						Visibility="{x:Bind ViewModel.ValueActionsVisibility, Mode=OneWay}">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="Auto" />
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="Auto" />
+							<ColumnDefinition Width="Auto" />
+						</Grid.ColumnDefinitions>
+						<Button
+							Grid.Column="0"
+							Command="{x:Bind ViewModel.DeleteValueCommand}"
+							CommandParameter="{x:Bind ViewModel.SelectedValue, Mode=OneWay}"
+							Content="Delete"
+							IsEnabled="{x:Bind ViewModel.CanDeleteSelectedValue, Mode=OneWay}" />
+						<Button
+							Grid.Column="2"
+							Command="{x:Bind ViewModel.DiscardValueChangesCommand}"
+							Content="Discard"
+							IsEnabled="{x:Bind ViewModel.IsValueDirty, Mode=OneWay}" />
+						<Button
+							Grid.Column="3"
+							Command="{x:Bind ViewModel.SaveValueChangesCommand}"
+							Content="Save changes"
+							IsEnabled="{x:Bind ViewModel.CanSaveValueChanges, Mode=OneWay}"
+							Style="{StaticResource AccentButtonStyle}">
+							<Button.KeyboardAccelerators>
+								<KeyboardAccelerator Key="S" Modifiers="Control" />
+							</Button.KeyboardAccelerators>
+						</Button>
+					</Grid>
+				</Grid>
 			</Grid>
 		</Grid>
 	</Grid>

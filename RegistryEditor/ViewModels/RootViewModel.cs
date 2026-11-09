@@ -28,6 +28,17 @@ public sealed class RootViewModel : ObservableObject
 	private CancellationTokenSource? _valueLoadingCancellation;
 	private RegistryNodeViewModel? _selectedNode;
 	private RegistryValueViewModel? _selectedValue;
+	private string _valueEditorData = string.Empty;
+	private string _valueEditorError = string.Empty;
+	private string _valueEditorStatus = "Select a value to inspect and edit its data.";
+	private int _integerBaseIndex;
+	private bool _hasAttemptedValueSave;
+	private bool _isValueDirty;
+	private int _keyOverviewRequestId;
+	private string _keyOverviewSubKeyCount = "—";
+	private string _keyOverviewValueCount = "—";
+	private string _keyOverviewModified = "—";
+	private string _keyOverviewOwner = "—";
 	private string _breadcrumbRootText = "Computer";
 	private string _breadcrumbPathText = "Computer";
 	private string _valuesEmptyText = "Select a registry key";
@@ -109,8 +120,6 @@ public sealed class RootViewModel : ObservableObject
 
 	public AsyncRelayCommand<object?> NewExpandableStringValueCommand { get; private set; } = null!;
 
-	public AsyncRelayCommand<object?> ModifyValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> DeleteValueCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> RenameValueCommand { get; private set; } = null!;
@@ -129,6 +138,10 @@ public sealed class RootViewModel : ObservableObject
 
 	public AsyncRelayCommand<object?> DisplayBinaryDataCommand { get; private set; } = null!;
 
+	public AsyncRelayCommand<object?> SaveValueChangesCommand { get; private set; } = null!;
+
+	public RelayCommand<object?> DiscardValueChangesCommand { get; private set; } = null!;
+
 	public AsyncRelayCommand<object?> RefreshCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> SettingsCommand { get; private set; } = null!;
@@ -139,8 +152,18 @@ public sealed class RootViewModel : ObservableObject
 		set
 		{
 			if (!SetProperty(ref _selectedNode, value))
+			{
+				BeginKeyOverviewLoad(value);
 				return;
+			}
 
+			OnPropertyChanged(nameof(CanEditSelectedValue));
+			OnPropertyChanged(nameof(CanDeleteSelectedValue));
+			OnPropertyChanged(nameof(CanSaveValueChanges));
+			OnPropertyChanged(nameof(ValueEditorKeyPath));
+			OnPropertyChanged(nameof(ValueEditorStatus));
+			OnPropertyChanged(nameof(ValueEditorFieldsVisibility));
+			OnPropertyChanged(nameof(ValueEditorUnsupportedVisibility));
 			OnPropertyChanged(nameof(CanEditSelectedNode));
 			OnPropertyChanged(nameof(CanDeleteSelectedNode));
 			OnPropertyChanged(nameof(CanRenameSelectedNode));
@@ -149,6 +172,10 @@ public sealed class RootViewModel : ObservableObject
 			OnPropertyChanged(nameof(CanLoadHive));
 			OnPropertyChanged(nameof(CanUnloadHive));
 			OnPropertyChanged(nameof(CanDisconnectRemote));
+			OnPropertyChanged(nameof(KeyOverviewName));
+			OnPropertyChanged(nameof(KeyOverviewPath));
+			OnPropertyChanged(nameof(KeyOverviewIcon));
+			BeginKeyOverviewLoad(value);
 			NotifyCommandStates();
 		}
 	}
@@ -162,6 +189,22 @@ public sealed class RootViewModel : ObservableObject
 				return;
 
 			OnPropertyChanged(nameof(CanEditSelectedValue));
+			OnPropertyChanged(nameof(CanDeleteSelectedValue));
+			OnPropertyChanged(nameof(ValueEditorName));
+			OnPropertyChanged(nameof(ValueEditorType));
+			OnPropertyChanged(nameof(ValueEditorIcon));
+			OnPropertyChanged(nameof(ValueEditorContentVisibility));
+			OnPropertyChanged(nameof(KeyOverviewVisibility));
+			OnPropertyChanged(nameof(KeyOverviewActionsVisibility));
+			OnPropertyChanged(nameof(ValueActionsVisibility));
+			OnPropertyChanged(nameof(ValueEditorFieldsVisibility));
+			OnPropertyChanged(nameof(ValueEditorUnsupportedVisibility));
+			OnPropertyChanged(nameof(ValueEditorStatus));
+			OnPropertyChanged(nameof(ValueEditorAcceptsReturn));
+			OnPropertyChanged(nameof(IsIntegerValue));
+			OnPropertyChanged(nameof(IntegerBaseVisibility));
+			OnPropertyChanged(nameof(IntegerBaseIndex));
+			LoadValueEditorDraft(value);
 			NotifyCommandStates();
 		}
 	}
@@ -176,7 +219,362 @@ public sealed class RootViewModel : ObservableObject
 
 	public bool CanExportSelectedNode => SelectedNode?.Hive is not null;
 
-	public bool CanEditSelectedValue => SelectedValue is not null && SelectedNode?.Hive is not null;
+	public bool CanEditSelectedValue => IsSupportedValue(SelectedValue) && SelectedNode?.Hive is not null;
+
+	public bool CanDeleteSelectedValue => CanDeleteValue(SelectedValue);
+
+	public bool IsValueDirty
+	{
+		get => _isValueDirty;
+		private set
+		{
+			if (!SetProperty(ref _isValueDirty, value))
+				return;
+
+			OnPropertyChanged(nameof(ValueEditorStatus));
+			OnPropertyChanged(nameof(CanSaveValueChanges));
+			DiscardValueChangesCommand?.NotifyCanExecuteChanged();
+			SaveValueChangesCommand?.NotifyCanExecuteChanged();
+		}
+	}
+
+	public string ValueEditorData
+	{
+		get => _valueEditorData;
+		set
+		{
+			if (!SetProperty(ref _valueEditorData, value))
+				return;
+
+			UpdateValueEditorState();
+		}
+	}
+
+	public string ValueEditorError
+	{
+		get => _valueEditorError;
+		private set
+		{
+			if (!SetProperty(ref _valueEditorError, value))
+				return;
+
+			OnPropertyChanged(nameof(ValueEditorErrorVisibility));
+		}
+	}
+
+	public string ValueEditorStatus
+	{
+		get
+		{
+			if (SelectedValue?.RawValue is null && CanEditSelectedValue)
+				return "This default value has not been created yet. Save to create it.";
+
+			return IsValueDirty ? "Unsaved changes" : _valueEditorStatus;
+		}
+	}
+
+	public string ValueEditorName => SelectedValue?.Name ?? string.Empty;
+
+	public string ValueEditorType => SelectedValue?.Kind switch
+	{
+		RegistryValueKind.String => "REG_SZ (String)",
+		RegistryValueKind.ExpandString => "REG_EXPAND_SZ (Expandable String)",
+		RegistryValueKind.Binary => "REG_BINARY (Binary)",
+		RegistryValueKind.DWord => "REG_DWORD (32-bit integer)",
+		RegistryValueKind.MultiString => "REG_MULTI_SZ (Multi-String)",
+		RegistryValueKind.QWord => "REG_QWORD (64-bit integer)",
+		RegistryValueKind.None => "REG_NONE (Binary data)",
+		_ => SelectedValue?.Type ?? string.Empty,
+	};
+
+	public string ValueEditorKeyPath => SelectedNode?.Hive is not null ? GetRegistryPath(SelectedNode) : string.Empty;
+
+	public BitmapImage? ValueEditorIcon => SelectedValue?.Icon;
+
+	public string ValueEditorDataHeader => SelectedValue?.Kind switch
+	{
+		RegistryValueKind.Binary or RegistryValueKind.None => "Bytes",
+		RegistryValueKind.MultiString => "Strings",
+		_ => "Data",
+	};
+
+	public string ValueEditorDataPlaceholder => SelectedValue?.Kind switch
+	{
+		RegistryValueKind.Binary or RegistryValueKind.None => "00 1A FF",
+		RegistryValueKind.MultiString => "One string per line",
+		RegistryValueKind.DWord => "0",
+		RegistryValueKind.QWord => "0",
+		_ => "Enter value data",
+	};
+
+	public bool ValueEditorAcceptsReturn => SelectedValue?.Kind is not (RegistryValueKind.DWord or RegistryValueKind.QWord);
+
+	public int IntegerBaseIndex
+	{
+		get => _integerBaseIndex;
+		set
+		{
+			if (value is < 0 or > 1 || value == _integerBaseIndex)
+				return;
+
+			if (SelectedValue is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord } selectedValue
+				&& TryParseIntegerValue(ValueEditorData, selectedValue.Kind, _integerBaseIndex == 0, out ulong number))
+			{
+				_valueEditorData = number.ToString(
+					value == 0 ? (selectedValue.Kind == RegistryValueKind.DWord ? "x8" : "x16") : "0",
+					CultureInfo.InvariantCulture);
+				OnPropertyChanged(nameof(ValueEditorData));
+			}
+			else if (SelectedValue is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord })
+			{
+				ValueEditorError = "Enter a valid number before changing the base.";
+				OnPropertyChanged();
+				return;
+			}
+
+			SetProperty(ref _integerBaseIndex, value);
+			OnPropertyChanged(nameof(IsHexadecimal));
+			UpdateValueEditorState();
+		}
+	}
+
+	public bool IsHexadecimal => IntegerBaseIndex == 0;
+
+	public bool IsIntegerValue => SelectedValue?.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord;
+
+	public Visibility IntegerBaseVisibility => IsIntegerValue ? Visibility.Visible : Visibility.Collapsed;
+
+	public bool CanSaveValueChanges => CanEditSelectedValue
+		&& (IsValueDirty || SelectedValue?.RawValue is null);
+
+	public Visibility ValueEditorContentVisibility => SelectedValue is null ? Visibility.Collapsed : Visibility.Visible;
+
+	public Visibility KeyOverviewVisibility => SelectedValue is null ? Visibility.Visible : Visibility.Collapsed;
+
+	public Visibility KeyOverviewActionsVisibility => SelectedValue is null ? Visibility.Visible : Visibility.Collapsed;
+
+	public Visibility ValueActionsVisibility => SelectedValue is null ? Visibility.Collapsed : Visibility.Visible;
+
+	public string KeyOverviewName => SelectedNode?.Name ?? "No key selected";
+
+	public string KeyOverviewPath => SelectedNode is { } node ? GetRegistryPath(node) : string.Empty;
+
+	public BitmapImage? KeyOverviewIcon => SelectedNode?.Icon;
+
+	public string KeyOverviewSubKeyCount => _keyOverviewSubKeyCount;
+
+	public string KeyOverviewValueCount => _keyOverviewValueCount;
+
+	public string KeyOverviewModified => _keyOverviewModified;
+
+	public string KeyOverviewOwner => _keyOverviewOwner;
+
+	private void BeginKeyOverviewLoad(RegistryNodeViewModel? node)
+	{
+		int requestId = ++_keyOverviewRequestId;
+		if (node is null)
+		{
+			_keyOverviewSubKeyCount = "—";
+			_keyOverviewValueCount = "—";
+			_keyOverviewModified = "—";
+			_keyOverviewOwner = "—";
+			NotifyKeyOverview();
+			return;
+		}
+
+		if (node.Hive is null)
+		{
+			_keyOverviewSubKeyCount = "—";
+			_keyOverviewValueCount = "—";
+			_keyOverviewModified = "—";
+			_keyOverviewOwner = "—";
+			NotifyKeyOverview();
+			return;
+		}
+
+		_keyOverviewSubKeyCount = "Loading…";
+		_keyOverviewValueCount = "Loading…";
+		_keyOverviewModified = "Loading…";
+		_keyOverviewOwner = "Loading…";
+		NotifyKeyOverview();
+		_ = LoadKeyOverviewAsync(node, requestId);
+	}
+
+	private async Task LoadKeyOverviewAsync(RegistryNodeViewModel node, int requestId)
+	{
+		try
+		{
+			RegistryKeySummary summary = await Task.Run(() => RegistryFileService.ReadKeySummary(node));
+			if (!IsCurrentKeyOverviewRequest(node, requestId))
+				return;
+
+			_keyOverviewSubKeyCount = summary.SubKeyCount.ToString("N0", CultureInfo.CurrentCulture);
+			_keyOverviewValueCount = summary.ValueCount.ToString("N0", CultureInfo.CurrentCulture);
+			_keyOverviewModified = summary.LastWriteTime.ToString("G", CultureInfo.CurrentCulture);
+			_keyOverviewOwner = summary.Owner;
+		}
+		catch (Exception)
+		{
+			if (!IsCurrentKeyOverviewRequest(node, requestId))
+				return;
+
+			_keyOverviewSubKeyCount = "Unavailable";
+			_keyOverviewValueCount = "Unavailable";
+			_keyOverviewModified = "Unavailable";
+			_keyOverviewOwner = "Unavailable";
+		}
+
+		NotifyKeyOverview();
+	}
+
+	private bool IsCurrentKeyOverviewRequest(RegistryNodeViewModel node, int requestId)
+		=> requestId == _keyOverviewRequestId && ReferenceEquals(SelectedNode, node);
+
+	private void NotifyKeyOverview()
+	{
+		OnPropertyChanged(nameof(KeyOverviewSubKeyCount));
+		OnPropertyChanged(nameof(KeyOverviewValueCount));
+		OnPropertyChanged(nameof(KeyOverviewModified));
+		OnPropertyChanged(nameof(KeyOverviewOwner));
+	}
+
+	public Visibility ValueEditorFieldsVisibility => CanEditSelectedValue ? Visibility.Visible : Visibility.Collapsed;
+
+	public Visibility ValueEditorUnsupportedVisibility => SelectedValue is not null && !CanEditSelectedValue
+		? Visibility.Visible
+		: Visibility.Collapsed;
+
+	public Visibility ValueEditorErrorVisibility => string.IsNullOrEmpty(ValueEditorError) ? Visibility.Collapsed : Visibility.Visible;
+
+	public async Task<bool> TrySelectValueAsync(RegistryValueViewModel? value)
+	{
+		if (ReferenceEquals(SelectedValue, value))
+			return true;
+
+		if (!await ConfirmDiscardValueChangesAsync())
+			return false;
+
+		SelectedValue = value;
+		return true;
+	}
+
+	private void LoadValueEditorDraft(RegistryValueViewModel? value)
+	{
+		_hasAttemptedValueSave = false;
+		ValueEditorError = string.Empty;
+		_integerBaseIndex = 0;
+		OnPropertyChanged(nameof(IntegerBaseIndex));
+		OnPropertyChanged(nameof(IsHexadecimal));
+
+		_valueEditorData = value switch
+		{
+			{ Kind: RegistryValueKind.DWord or RegistryValueKind.QWord } integerValue
+				when integerValue.RawValue is not null
+				=> GetIntegerValue(integerValue).ToString(
+					integerValue.Kind == RegistryValueKind.DWord ? "x8" : "x16",
+					CultureInfo.InvariantCulture),
+			{ Kind: RegistryValueKind.Binary or RegistryValueKind.None, RawValue: byte[] bytes }
+				=> FormatEditableBytes(bytes),
+			{ Kind: RegistryValueKind.MultiString, RawValue: string[] strings }
+				=> string.Join(Environment.NewLine, strings),
+			{ Kind: RegistryValueKind.String or RegistryValueKind.ExpandString, RawValue: string text }
+				=> text,
+			_ => string.Empty,
+		};
+
+		_valueEditorStatus = value is null
+			? "Select a value to inspect and edit its data."
+			: value.RawValue is null && value.Kind == RegistryValueKind.String
+				? "The default value is not currently set."
+				: "All changes saved.";
+		OnPropertyChanged(nameof(ValueEditorData));
+		OnPropertyChanged(nameof(ValueEditorStatus));
+		OnPropertyChanged(nameof(ValueEditorName));
+		OnPropertyChanged(nameof(ValueEditorType));
+		OnPropertyChanged(nameof(ValueEditorKeyPath));
+		OnPropertyChanged(nameof(ValueEditorIcon));
+		OnPropertyChanged(nameof(ValueEditorDataHeader));
+		OnPropertyChanged(nameof(ValueEditorDataPlaceholder));
+		OnPropertyChanged(nameof(ValueEditorAcceptsReturn));
+		OnPropertyChanged(nameof(ValueEditorContentVisibility));
+		OnPropertyChanged(nameof(KeyOverviewVisibility));
+		OnPropertyChanged(nameof(KeyOverviewActionsVisibility));
+		OnPropertyChanged(nameof(ValueActionsVisibility));
+		OnPropertyChanged(nameof(ValueEditorFieldsVisibility));
+		OnPropertyChanged(nameof(ValueEditorUnsupportedVisibility));
+		OnPropertyChanged(nameof(IsIntegerValue));
+		OnPropertyChanged(nameof(IntegerBaseVisibility));
+		OnPropertyChanged(nameof(CanSaveValueChanges));
+		UpdateValueEditorState();
+	}
+
+	private void UpdateValueEditorState()
+	{
+		ValueEditorError = _hasAttemptedValueSave
+			&& SelectedValue is { } value
+			&& !TryCreateEditedValue(value, ValueEditorData, IsHexadecimal, out _, out string error)
+			? error
+			: string.Empty;
+		IsValueDirty = IsValueDraftChanged();
+		OnPropertyChanged(nameof(ValueEditorStatus));
+		OnPropertyChanged(nameof(CanSaveValueChanges));
+		SaveValueChangesCommand?.NotifyCanExecuteChanged();
+	}
+
+	private bool IsValueDraftChanged()
+	{
+		if (SelectedValue is not { } value || !CanEditSelectedValue)
+			return false;
+
+		if (value.RawValue is null)
+			return ValueEditorData.Length > 0;
+
+		return !TryCreateEditedValue(value, ValueEditorData, IsHexadecimal, out object? editedValue, out _)
+			|| !RegistryValuesEqual(value.RawValue, editedValue);
+	}
+
+	private void DiscardValueEditorChanges()
+		=> LoadValueEditorDraft(SelectedValue);
+
+	private async Task<bool> ConfirmDiscardValueChangesAsync()
+	{
+		if (!IsValueDirty)
+			return true;
+
+		string valueName = SelectedValue?.Name ?? "the selected value";
+		if (!await ConfirmAsync("Discard unsaved changes?", $"Discard unsaved changes to '{valueName}'?"))
+			return false;
+
+		SelectedValue = null;
+		return true;
+	}
+
+	private static bool IsSupportedValue(RegistryValueViewModel? value)
+		=> value?.Kind switch
+		{
+			RegistryValueKind.String => value.RawValue is null or string,
+			RegistryValueKind.ExpandString => value.RawValue is string,
+			RegistryValueKind.MultiString => value.RawValue is string[],
+			RegistryValueKind.Binary => value.RawValue is byte[],
+			RegistryValueKind.DWord => value.RawValue is int or uint,
+			RegistryValueKind.QWord => value.RawValue is long or ulong,
+			RegistryValueKind.None => value.RawValue is byte[],
+			_ => false,
+		};
+
+	private static string FormatEditableBytes(byte[] bytes)
+		=> string.Join(" ", bytes.Select(value => value.ToString("x2", CultureInfo.InvariantCulture)));
+
+	private static bool RegistryValuesEqual(object? first, object? second)
+	{
+		if (first is byte[] firstBytes && second is byte[] secondBytes)
+			return firstBytes.AsSpan().SequenceEqual(secondBytes);
+
+		if (first is string[] firstStrings && second is string[] secondStrings)
+			return firstStrings.SequenceEqual(secondStrings, StringComparer.Ordinal);
+
+		return Equals(first, second);
+	}
 
 	public bool CanLoadHive
 		=> SelectedNode is { IsHiveRoot: true, IsRemote: false, Hive: RegistryHive.Users or RegistryHive.LocalMachine };
@@ -278,7 +676,6 @@ public sealed class RootViewModel : ObservableObject
 		NewExpandableStringValueCommand = new(
 			parameter => CreateValueFromCommandAsync(parameter, RegistryValueKind.ExpandString),
 			CanEditNode);
-		ModifyValueCommand = new(ExecuteModifyValueCommandAsync, CanModifyValue);
 		DeleteValueCommand = new(ExecuteDeleteValueCommandAsync, CanDeleteValue);
 		RenameValueCommand = new(ExecuteRenameValueCommandAsync, CanRenameValue);
 		FindCommand = new(ExecuteFindCommandAsync);
@@ -292,6 +689,8 @@ public sealed class RootViewModel : ObservableObject
 			SetAddressBarVisibility(!IsAddressBarVisible);
 		});
 		DisplayBinaryDataCommand = new(ExecuteDisplayBinaryDataCommandAsync, _ => CanEditSelectedValue);
+		SaveValueChangesCommand = new(ExecuteSaveValueChangesCommandAsync, _ => CanSaveValueChanges);
+		DiscardValueChangesCommand = new(_ => DiscardValueEditorChanges(), _ => IsValueDirty);
 		RefreshCommand = new(ExecuteRefreshCommandAsync, _ => SelectedNode is not null);
 		SettingsCommand = new(ExecuteSettingsCommandAsync);
 	}
@@ -324,14 +723,6 @@ public sealed class RootViewModel : ObservableObject
 
 	private bool CanExportNode(object? parameter)
 		=> CanKeyNode(parameter);
-
-	private bool CanModifyValue(object? parameter)
-	{
-		RegistryValueViewModel? value = ResolveValue(parameter);
-		return value is not null
-			&& value.Kind is RegistryValueKind.String or RegistryValueKind.DWord or RegistryValueKind.QWord
-			&& SelectedNode?.Hive is not null;
-	}
 
 	private bool CanDeleteValue(object? parameter)
 	{
@@ -367,7 +758,8 @@ public sealed class RootViewModel : ObservableObject
 	private Task ExecuteImportCommandAsync(object? parameter)
 		=> RunCommandAsync("Import failed", async () =>
 		{
-			if (await PickImportFileAsync() is not { } filePath)
+			if (await PickImportFileAsync() is not { } filePath
+				|| !await ConfirmDiscardValueChangesAsync())
 				return;
 
 			int count = await ImportAsync(filePath);
@@ -394,7 +786,8 @@ public sealed class RootViewModel : ObservableObject
 		{
 			if (SelectedNode is not { } parent
 				|| await PickHiveFileAsync() is not { } filePath
-				|| await RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName)
+				|| await RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName
+				|| !await ConfirmDiscardValueChangesAsync())
 				return;
 
 			await LoadHiveAsync(parent, filePath, keyName);
@@ -404,7 +797,9 @@ public sealed class RootViewModel : ObservableObject
 		=> RunCommandAsync("Unload hive failed", async () =>
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node is null || !await ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
+			if (node is null
+				|| !await ConfirmDiscardValueChangesAsync()
+				|| !await ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
 				return;
 
 			await UnloadHiveAsync(node);
@@ -413,14 +808,16 @@ public sealed class RootViewModel : ObservableObject
 	private Task ExecuteConnectRemoteCommandAsync(object? parameter)
 		=> RunCommandAsync("Connection failed", async () =>
 		{
-			if (await RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName)
+			if (await RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName
+				&& await ConfirmDiscardValueChangesAsync())
 				await ConnectRemoteAsync(computerName);
 		});
 
 	private Task ExecuteDisconnectRemoteCommandAsync(object? parameter)
 		=> RunCommandAsync("Disconnect failed", async () =>
 		{
-			if (!await ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
+			if (!await ConfirmDiscardValueChangesAsync()
+				|| !await ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
 				return;
 
 			await DisconnectRemoteAsync(ResolveNode(parameter));
@@ -469,7 +866,8 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is not null
-				&& await RequestTextAsync("New key", "Key name", "New Key") is { } keyName)
+				&& await RequestTextAsync("New key", "Key name", "New Key") is { } keyName
+				&& await ConfirmDiscardValueChangesAsync())
 				await CreateKeyAsync(node, keyName);
 		});
 
@@ -478,15 +876,10 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is not null
-				&& await RequestTextAsync("New value", "Value name", "New Value") is { } name)
+				&& await RequestTextAsync("New value", "Value name", "New Value") is { } name
+				&& await ConfirmDiscardValueChangesAsync())
 				await CreateValueAsync(node, name, kind);
 		});
-
-	private async Task ExecuteModifyValueCommandAsync(object? parameter)
-	{
-		if (ResolveValue(parameter) is { } value)
-			await ModifyValueAsync(value);
-	}
 
 	private async Task ExecuteDeleteValueCommandAsync(object? parameter)
 	{
@@ -495,6 +888,9 @@ public sealed class RootViewModel : ObservableObject
 
 		await RunCommandAsync("Registry operation failed", async () =>
 		{
+			if (!await ConfirmDiscardValueChangesAsync())
+				return;
+
 			if (await ConfirmAsync("Delete value", $"Delete '{value.Name}'?"))
 				await DeleteValueAsync(value);
 		});
@@ -507,8 +903,37 @@ public sealed class RootViewModel : ObservableObject
 
 		await RunCommandAsync("Registry operation failed", async () =>
 		{
+			if (!await ConfirmDiscardValueChangesAsync())
+				return;
+
 			if (await RequestTextAsync("Rename value", "New value name", value.RegistryName) is { } newName)
 				await RenameValueAsync(value, newName);
+		});
+	}
+
+	private async Task ExecuteSaveValueChangesCommandAsync(object? parameter)
+	{
+		if (SelectedValue is not { } value || !CanSaveValueChanges)
+			return;
+
+		_hasAttemptedValueSave = true;
+		if (!TryCreateEditedValue(value, ValueEditorData, IsHexadecimal, out object? editedValue, out string error))
+		{
+			ValueEditorError = error;
+			return;
+		}
+
+		await RunCommandAsync("Unable to save value", async () =>
+		{
+			if (SelectedNode is not { Hive: not null } node)
+				throw new InvalidOperationException("Select a registry key first.");
+
+			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
+			key.SetValue(value.RegistryName, editedValue!, value.Kind);
+			_hasAttemptedValueSave = false;
+			ValueEditorError = string.Empty;
+			IsValueDirty = false;
+			await RefreshAsync(node);
 		});
 	}
 
@@ -534,6 +959,7 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is not null
+				&& await ConfirmDiscardValueChangesAsync()
 				&& await ConfirmAsync("Delete key", $"Delete '{node.Name}' and all of its subkeys?"))
 				await DeleteKeyAsync(node);
 		});
@@ -543,7 +969,8 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node is null
-				|| await RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName)
+				|| await RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName
+				|| !await ConfirmDiscardValueChangesAsync())
 				return;
 
 			if (await RenameKeyAsync(node, newName) is { } renamedNode)
@@ -553,7 +980,7 @@ public sealed class RootViewModel : ObservableObject
 	private Task ExecutePermissionsCommandAsync(object? parameter)
 		=> RunCommandAsync("Registry operation failed", async () =>
 		{
-			if (ResolveNode(parameter) is { } node)
+			if (ResolveNode(parameter) is { } node && await ConfirmDiscardValueChangesAsync())
 				await EditPermissionsAsync(node);
 		});
 
@@ -569,38 +996,6 @@ public sealed class RootViewModel : ObservableObject
 			if (SelectedValue is { } value)
 				await ShowValueAsync(value);
 		});
-
-	public async Task DisplaySelectedValueAsync()
-	{
-		if (SelectedValue is not { } value)
-			return;
-
-		if (value.Kind == RegistryValueKind.String)
-		{
-			await ModifyValueAsync(value);
-			return;
-		}
-
-		if (value.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord)
-		{
-			await ModifyValueAsync(value);
-			return;
-		}
-
-		await ShowValueAsync(value);
-	}
-
-	public async Task ModifyValueAsync(RegistryValueViewModel value)
-	{
-		if (value.Kind == RegistryValueKind.String)
-		{
-			await EditStringValueAsync(value);
-			return;
-		}
-
-		if (value.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord)
-			await EditIntegerValueAsync(value);
-	}
 
 	private Task ExecuteRefreshCommandAsync(object? parameter)
 		=> RunCommandAsync("Refresh failed", () => RefreshAsync());
@@ -619,7 +1014,7 @@ public sealed class RootViewModel : ObservableObject
 
 	private async Task ExecuteBackCommandAsync(object? parameter)
 	{
-		if (!CanGoBack)
+		if (!CanGoBack || !await ConfirmDiscardValueChangesAsync())
 			return;
 
 		RegistryNodeViewModel target = _backHistory.Pop();
@@ -633,7 +1028,7 @@ public sealed class RootViewModel : ObservableObject
 
 	private async Task ExecuteForwardCommandAsync(object? parameter)
 	{
-		if (!CanGoForward)
+		if (!CanGoForward || !await ConfirmDiscardValueChangesAsync())
 			return;
 
 		RegistryNodeViewModel target = _forwardHistory.Pop();
@@ -688,7 +1083,6 @@ public sealed class RootViewModel : ObservableObject
 		NewQWordValueCommand.NotifyCanExecuteChanged();
 		NewMultiStringValueCommand.NotifyCanExecuteChanged();
 		NewExpandableStringValueCommand.NotifyCanExecuteChanged();
-		ModifyValueCommand.NotifyCanExecuteChanged();
 		DeleteValueCommand.NotifyCanExecuteChanged();
 		RenameValueCommand.NotifyCanExecuteChanged();
 		FindCommand.NotifyCanExecuteChanged();
@@ -697,6 +1091,8 @@ public sealed class RootViewModel : ObservableObject
 		PermissionsCommand.NotifyCanExecuteChanged();
 		CopyKeyCommand.NotifyCanExecuteChanged();
 		DisplayBinaryDataCommand.NotifyCanExecuteChanged();
+		SaveValueChangesCommand.NotifyCanExecuteChanged();
+		DiscardValueChangesCommand.NotifyCanExecuteChanged();
 		RefreshCommand.NotifyCanExecuteChanged();
 	}
 
@@ -801,67 +1197,6 @@ public sealed class RootViewModel : ObservableObject
 		await ShowMessageAsync($"{value.Name} ({value.Type})", data.Length == 0 ? "(empty)" : data);
 	}
 
-	public async Task EditStringValueAsync(RegistryValueViewModel value)
-	{
-		if (value.Kind != RegistryValueKind.String)
-			return;
-
-		await EditRegistryValueAsync(value);
-	}
-
-	public async Task EditIntegerValueAsync(RegistryValueViewModel value)
-	{
-		if (value.Kind is not (RegistryValueKind.DWord or RegistryValueKind.QWord))
-			return;
-
-		await EditRegistryValueAsync(value);
-	}
-
-	private async Task EditRegistryValueAsync(RegistryValueViewModel value)
-	{
-		await RunCommandAsync("Registry operation failed", async () =>
-		{
-			if (SelectedNode is not { Hive: not null } node)
-				throw new InvalidOperationException("Select a registry key first.");
-
-			EditValueContentDialog dialog = new()
-			{
-				XamlRoot = GetXamlRoot(),
-			};
-			if (value.Kind == RegistryValueKind.String)
-				dialog.Configure(value.RegistryName, value.RawValue as string ?? string.Empty);
-			else
-				dialog.ConfigureInteger(value.RegistryName, GetIntegerValue(value));
-
-			if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-				return;
-
-			string newName = dialog.ValueName;
-			object newValue;
-			if (value.Kind == RegistryValueKind.String)
-				newValue = dialog.ValueData;
-			else if (value.Kind == RegistryValueKind.DWord)
-				newValue = unchecked((int)ParseIntegerValue(dialog.ValueData, value.Kind, dialog.IsHexadecimal));
-			else if (value.Kind == RegistryValueKind.QWord)
-				newValue = unchecked((long)ParseIntegerValue(dialog.ValueData, value.Kind, dialog.IsHexadecimal));
-			else
-				throw new InvalidOperationException("This registry value type cannot be edited.");
-
-			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
-			bool nameChanged = !string.Equals(value.RegistryName, newName, StringComparison.OrdinalIgnoreCase);
-			if (nameChanged
-				&& key.GetValueNames().Any(existingName =>
-					string.Equals(existingName, newName, StringComparison.OrdinalIgnoreCase)))
-				throw new InvalidOperationException($"The value '{newName}' already exists.");
-
-			key.SetValue(newName, newValue, value.Kind);
-			if (nameChanged)
-				key.DeleteValue(value.RegistryName, throwOnMissingValue: true);
-
-			await RefreshAsync(node);
-		});
-	}
-
 	private static ulong GetIntegerValue(RegistryValueViewModel value)
 	{
 		if (value.RawValue is null)
@@ -888,23 +1223,76 @@ public sealed class RootViewModel : ObservableObject
 		throw new InvalidOperationException("This registry value is not an integer value.");
 	}
 
-	private static ulong ParseIntegerValue(string text, RegistryValueKind kind, bool isHexadecimal)
+	private static bool TryParseIntegerValue(string text, RegistryValueKind kind, bool isHexadecimal, out ulong value)
 	{
 		string input = text.Trim();
 		if (isHexadecimal && input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
 			input = input[2..];
 
 		bool parsed = isHexadecimal
-			? ulong.TryParse(input, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ulong value)
+			? ulong.TryParse(input, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out value)
 			: ulong.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
-		if (!parsed || (kind == RegistryValueKind.DWord && value > uint.MaxValue))
+		return parsed && (kind != RegistryValueKind.DWord || value <= uint.MaxValue);
+	}
+
+	private static bool TryCreateEditedValue(
+		RegistryValueViewModel value,
+		string text,
+		bool isHexadecimal,
+		out object? editedValue,
+		out string error)
+	{
+		error = string.Empty;
+		editedValue = value.Kind switch
 		{
-			string valueType = kind == RegistryValueKind.DWord ? "DWORD" : "QWORD";
-			string valueBase = isHexadecimal ? "base 16" : "base 10";
-			throw new FormatException($"Enter a valid {valueType} value in {valueBase}.");
+			RegistryValueKind.String or RegistryValueKind.ExpandString => text,
+			RegistryValueKind.MultiString => text.Length == 0
+				? Array.Empty<string>()
+				: text.Split(["\r\n", "\n"], StringSplitOptions.None),
+			RegistryValueKind.Binary or RegistryValueKind.None => ParseByteArray(text, out error),
+			RegistryValueKind.DWord when TryParseIntegerValue(text, value.Kind, isHexadecimal, out ulong dword)
+				=> unchecked((int)dword),
+			RegistryValueKind.QWord when TryParseIntegerValue(text, value.Kind, isHexadecimal, out ulong qword)
+				=> unchecked((long)qword),
+			_ => null,
+		};
+
+		if (editedValue is not null || error.Length > 0)
+			return error.Length == 0;
+
+		if (value.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord)
+		{
+			string valueType = value.Kind == RegistryValueKind.DWord ? "DWORD" : "QWORD";
+			string valueBase = isHexadecimal ? "hexadecimal" : "decimal";
+			error = $"Enter a valid {valueType} value in {valueBase} format.";
+		}
+		else
+		{
+			error = "This registry value type cannot be edited.";
 		}
 
-		return value;
+		return false;
+	}
+
+	private static byte[]? ParseByteArray(string text, out string error)
+	{
+		error = string.Empty;
+		string[] parts = text.Split([' ', '\t', '\r', '\n', ',', ';', '-'], StringSplitOptions.RemoveEmptyEntries);
+		List<byte> bytes = new(parts.Length);
+		foreach (string part in parts)
+		{
+			string token = part.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? part[2..] : part;
+			if (token.Length is < 1 or > 2
+				|| !byte.TryParse(token, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out byte value))
+			{
+				error = $"'{part}' is not a valid byte. Enter each byte as two hexadecimal digits.";
+				return null;
+			}
+
+			bytes.Add(value);
+		}
+
+		return [.. bytes];
 	}
 
 	public void CopyText(string text)
@@ -1005,8 +1393,12 @@ public sealed class RootViewModel : ObservableObject
 		}
 	}
 
-	private async Task SelectNodeAsync(RegistryNodeViewModel? node, bool recordHistory)
+	private async Task SelectNodeAsync(RegistryNodeViewModel? node, bool recordHistory, bool preserveSelectedValue = false)
 	{
+		if (!await ConfirmDiscardValueChangesAsync())
+			return;
+
+		string? selectedValueName = preserveSelectedValue ? SelectedValue?.RegistryName : null;
 		if (recordHistory)
 			RecordNavigation(node);
 
@@ -1051,6 +1443,10 @@ public sealed class RootViewModel : ObservableObject
 					value.Kind,
 					value.RawValue));
 
+			if (selectedValueName is not null)
+				SelectedValue = RegistryValues.FirstOrDefault(value =>
+					string.Equals(value.RegistryName, selectedValueName, StringComparison.OrdinalIgnoreCase));
+
 			SetEmptyValuesMessage(
 				RegistryValues.Count == 0 ? "No values" : string.Empty,
 				isEmpty: RegistryValues.Count == 0);
@@ -1081,7 +1477,7 @@ public sealed class RootViewModel : ObservableObject
 			target.IsExpanded = isExpanded;
 		}
 
-		await SelectNodeAsync(target, recordHistory: false);
+		await SelectNodeAsync(target, recordHistory: false, preserveSelectedValue: true);
 	}
 
 	public async Task<RegistryNodeViewModel?> CreateKeyAsync(RegistryNodeViewModel? parent, string name)
@@ -1155,6 +1551,8 @@ public sealed class RootViewModel : ObservableObject
 		key.SetValue(newName, value.RawValue, value.Kind);
 		key.DeleteValue(value.RegistryName, throwOnMissingValue: true);
 		await RefreshAsync(node);
+		SelectedValue = RegistryValues.FirstOrDefault(candidate =>
+			string.Equals(candidate.RegistryName, newName, StringComparison.OrdinalIgnoreCase));
 	}
 
 	public async Task DeleteKeyAsync(RegistryNodeViewModel? node)
@@ -1271,8 +1669,8 @@ public sealed class RootViewModel : ObservableObject
 			throw new InvalidOperationException("Select a remote computer first.");
 
 		RootNodes.Remove(computerNode);
-		SelectedNode = RootNodes.FirstOrDefault(candidate => !candidate.IsRemote);
-		await SelectNodeAsync(SelectedNode);
+		RegistryNodeViewModel? replacement = RootNodes.FirstOrDefault(candidate => !candidate.IsRemote);
+		await SelectNodeAsync(replacement);
 	}
 
 	public async Task<RegistryNodeViewModel?> FindAsync(

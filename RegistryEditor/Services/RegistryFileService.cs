@@ -4,10 +4,24 @@
 using Microsoft.Win32;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Text;
 using RegistryEditor.ViewModels;
 
 namespace RegistryEditor.Services;
+
+internal sealed record RegistryKeySummary(
+	uint SubKeyCount,
+	uint ValueCount,
+	DateTime LastWriteTime,
+	string Owner);
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct RegistryFileTime
+{
+	internal uint LowDateTime;
+	internal uint HighDateTime;
+}
 
 internal static partial class RegistryNative
 {
@@ -55,6 +69,21 @@ internal static partial class RegistryNative
 
 	[LibraryImport("advapi32.dll", EntryPoint = "RegCloseKey")]
 	internal static partial int RegCloseKey(nint hKey);
+
+	[LibraryImport("advapi32.dll", EntryPoint = "RegQueryInfoKeyW")]
+	internal static partial int RegQueryInfoKey(
+		nint hKey,
+		nint keyClass,
+		nint classLength,
+		nint reserved,
+		out uint subKeyCount,
+		nint maxSubKeyNameLength,
+		nint maxClassLength,
+		out uint valueCount,
+		nint maxValueNameLength,
+		nint maxValueLength,
+		nint securityDescriptorLength,
+		out RegistryFileTime lastWriteTime);
 
 	internal static nint GetPredefinedHiveHandle(RegistryHive hive)
 	{
@@ -217,6 +246,81 @@ internal static class RegistryFileService
 		RegistryKey? key = baseKey.OpenSubKey(node.SubKeyPath, writable);
 		baseKey.Dispose();
 		return key ?? throw new UnauthorizedAccessException($"Unable to open registry key '{node.SubKeyPath}'.");
+	}
+
+	internal static RegistryKeySummary ReadKeySummary(RegistryNodeViewModel node)
+	{
+		using RegistryKey key = OpenKey(node, writable: false);
+		int status = RegistryNative.RegQueryInfoKey(
+			key.Handle.DangerousGetHandle(),
+			keyClass: nint.Zero,
+			classLength: nint.Zero,
+			reserved: nint.Zero,
+			out uint subKeyCount,
+			maxSubKeyNameLength: nint.Zero,
+			maxClassLength: nint.Zero,
+			out uint valueCount,
+			maxValueNameLength: nint.Zero,
+			maxValueLength: nint.Zero,
+			securityDescriptorLength: nint.Zero,
+			out RegistryFileTime lastWriteTime);
+		if (status != 0)
+			throw new Win32Exception(status);
+
+		long fileTime = unchecked((long)(((ulong)lastWriteTime.HighDateTime << 32) | lastWriteTime.LowDateTime));
+		DateTime modified = DateTime.FromFileTimeUtc(fileTime).ToLocalTime();
+		return new RegistryKeySummary(subKeyCount, valueCount, modified, ReadOwner(node));
+	}
+
+	private static string ReadOwner(RegistryNodeViewModel node)
+	{
+		try
+		{
+			using RegistrySecurityKey key = OpenSecurityKey(node);
+			const uint registryObjectType = 4;
+			const uint ownerSecurityInformation = 0x00000001;
+			uint result = RegistryNative.GetSecurityInfo(
+				key.Handle,
+				registryObjectType,
+				ownerSecurityInformation,
+				out nint owner,
+				out _,
+				out _,
+				out _,
+				out nint securityDescriptor);
+			if (result != 0)
+			{
+				if (securityDescriptor != nint.Zero)
+					RegistryNative.LocalFree(securityDescriptor);
+
+				return "Unavailable";
+			}
+
+			try
+			{
+				if (owner == nint.Zero)
+					return "Not set";
+
+				SecurityIdentifier ownerSid = new(owner);
+				try
+				{
+					return ownerSid.Translate(typeof(NTAccount)).Value ?? ownerSid.Value;
+				}
+				catch (SystemException)
+				{
+					return ownerSid.Value;
+				}
+			}
+			finally
+			{
+				if (securityDescriptor != nint.Zero)
+					RegistryNative.LocalFree(securityDescriptor);
+			}
+		}
+		catch (SystemException)
+		{
+			return "Unavailable";
+		}
 	}
 
 	internal static RegistrySecurityKey OpenSecurityKey(RegistryNodeViewModel node)
