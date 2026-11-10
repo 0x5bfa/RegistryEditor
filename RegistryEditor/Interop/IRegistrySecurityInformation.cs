@@ -1,20 +1,11 @@
 // Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
-using Microsoft.Extensions.Logging;
-using RegistryEditor.ViewModels;
-using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
-using System.Security.AccessControl;
-using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Security;
-using Windows.Win32.Security.Authorization;
 using Windows.Win32.Security.Authorization.UI;
-using Windows.Win32.System.Registry;
 
 namespace RegistryEditor.Interop;
 

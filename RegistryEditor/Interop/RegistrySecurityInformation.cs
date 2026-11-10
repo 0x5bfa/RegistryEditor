@@ -1,7 +1,6 @@
 // Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
-using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using RegistryEditor.Services;
 using RegistryEditor.ViewModels;
@@ -21,8 +20,6 @@ namespace RegistryEditor.Interop;
 [GeneratedComClass]
 internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecurityInformation, IDisposable
 {
-	internal static readonly ILogger Logger = AppLogging.CreateLogger<RegistrySecurityInformation>();
-
 	private static readonly SecurityAccessDefinition[] _accessDefinitions =
 	[
 		new("Query value", (uint)REG_SAM_FLAGS.KEY_QUERY_VALUE, 0x00010000 /* SI_ACCESS_SPECIFIC */),
@@ -77,22 +74,7 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 
 		try
 		{
-			if (Logger.IsEnabled(LogLevel.Debug))
-			{
-				Logger.LogDebug(
-					"Opening security handle for registry key hive={Hive} key=\"{KeyName}\"",
-					node.Hive,
-					node.Name);
-			}
-
 			_key = RegistryFileService.OpenSecurityKey(node);
-
-			if (Logger.IsEnabled(LogLevel.Debug))
-			{
-				Logger.LogDebug(
-					"Security handle opened for registry key; canWriteSecurity={CanWriteSecurity}",
-					_key.CanWriteSecurity);
-			}
 
 			var serverName = node.IsRemote && !string.IsNullOrEmpty(node.ComputerName)
 				? node.ComputerName
@@ -101,19 +83,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			_objectName = AllocateString(GetRegistryPath(node));
 			_accessRights = AllocateAccessRights();
 			_inheritTypes = AllocateInheritTypes();
-
-			if (Logger.IsEnabled(LogLevel.Debug))
-			{
-				Logger.LogDebug("Security information buffers initialized");
-			}
 		}
-		catch (Exception exception)
+		catch
 		{
-			if (Logger.IsEnabled(LogLevel.Error))
-			{
-				Logger.LogError(exception, "Failed to initialize registry security information");
-			}
-
 			Dispose();
 			throw;
 		}
@@ -122,7 +94,6 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	public int GetObjectInformation(out SI_OBJECT_INFO objectInfo)
 	{
 		objectInfo = default;
-		Logger.LogDebug("ISecurityInformation.GetObjectInformation called");
 		if (_key is null)
 		{
 			return HRESULT.E_INVALIDARG;
@@ -144,20 +115,11 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			objectInfo.dwFlags |= (SI_OBJECT_INFO_FLAGS)0x00000008 /* SI_READONLY */;
 		}
 
-		Logger.LogDebug("ISecurityInformation.GetObjectInformation returned S_OK");
 		return HRESULT.S_OK;
 	}
 
 	public unsafe int GetSecurity(OBJECT_SECURITY_INFORMATION requestedInformation, out PSECURITY_DESCRIPTOR securityDescriptor, BOOL defaultSecurity)
 	{
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug(
-				"ISecurityInformation.GetSecurity called requestedInformation={RequestedInformation} defaultSecurity={DefaultSecurity}",
-				requestedInformation,
-				defaultSecurity);
-		}
-
 		securityDescriptor = default;
 		if (_key is null)
 		{
@@ -175,7 +137,6 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 		securityDescriptor = descriptor;
 		if (result == WIN32_ERROR.NO_ERROR)
 		{
-			Logger.LogDebug("ISecurityInformation.GetSecurity returned S_OK");
 			return HRESULT.S_OK;
 		}
 
@@ -185,23 +146,11 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			securityDescriptor = default;
 		}
 
-		HRESULT hresult = HRESULT.FromWin32Error(result);
-		Logger.LogWarning(
-			"ISecurityInformation.GetSecurity failed win32Error={Win32Error} hresult={HResult}",
-			result,
-			hresult);
-		return hresult;
+		return HRESULT.FromWin32Error(result);
 	}
 
 	public unsafe int SetSecurity(OBJECT_SECURITY_INFORMATION securityInformation, PSECURITY_DESCRIPTOR securityDescriptor)
 	{
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug(
-				"ISecurityInformation.SetSecurity called securityInformation={SecurityInformation}",
-				securityInformation);
-		}
-
 		if (_key is null || securityDescriptor.IsNull)
 		{
 			return HRESULT.E_INVALIDARG;
@@ -265,79 +214,37 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			group,
 			dacl is null ? null : *dacl,
 			sacl is null ? null : *sacl);
-		HRESULT hresult = HRESULT.FromWin32Error(result);
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug(
-				"ISecurityInformation.SetSecurity returned win32Error={Win32Error} hresult={HResult}",
-				result,
-				hresult);
-		}
-		return hresult;
+		return HRESULT.FromWin32Error(result);
 	}
 
 	public int GetAccessRights(nint objectType, SECURITY_INFO_PAGE_FLAGS flags, out nint access, out uint accessCount, out uint defaultIndex)
 	{
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug("ISecurityInformation.GetAccessRights called flags={Flags}", flags);
-		}
 		access = _accessRights;
 		accessCount = (uint)_accessDefinitions.Length;
 		defaultIndex = 9;
-		int result = _accessRights == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug(
-				"ISecurityInformation.GetAccessRights returned hresult={HResult} accessCount={AccessCount}",
-				result,
-				accessCount);
-		}
-		return result;
+		return _accessRights == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
 	}
 
 	public int MapGeneric(nint objectType, in byte aceFlags, in uint accessMask)
 	{
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug("ISecurityInformation.MapGeneric called accessMask=0x{AccessMask:X8}", accessMask);
-		}
-
 		// MapGeneric updates the caller-provided buffers in place.
 		ref byte writableAceFlags = ref Unsafe.AsRef(in aceFlags);
 		ref uint writableAccessMask = ref Unsafe.AsRef(in accessMask);
 		writableAceFlags &= 0xFE;
 		PInvoke.MapGenericMask(ref writableAccessMask, in _genericMapping);
 
-		Logger.LogDebug("ISecurityInformation.MapGeneric returned accessMask=0x{AccessMask:X8}", writableAccessMask);
 		return HRESULT.S_OK;
 	}
 
 	public int GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount)
 	{
-		Logger.LogDebug("ISecurityInformation.GetInheritTypes called");
 		inheritTypes = _inheritTypes;
 		inheritTypeCount = (uint)_inheritDefinitions.Length;
-		int result = _inheritTypes == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug(
-				"ISecurityInformation.GetInheritTypes returned hresult={HResult} inheritTypeCount={InheritTypeCount}",
-				result,
-				inheritTypeCount);
-		}
-		return result;
+		return _inheritTypes == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
 	}
 
 	public int PropertySheetPageCallback(HWND hwnd, uint message, SI_PAGE_TYPE page)
 	{
-		if (Logger.IsEnabled(LogLevel.Debug))
-		{
-			Logger.LogDebug(
-				"ISecurityInformation.PropertySheetPageCallback called message={Message} page={Page}",
-				message,
-				page);
-		}
 		return HRESULT.S_OK;
 	}
 

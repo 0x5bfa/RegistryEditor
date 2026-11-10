@@ -3,7 +3,6 @@
 
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
-using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
@@ -34,45 +33,29 @@ internal static class RegistryFileService
 	{
 		ArgumentNullException.ThrowIfNull(node);
 
-		using var operation = RegistrySecurityInformation.Logger.Measure(
-			"RegistryFileService.OpenSecurityEditor", $"hive={node.Hive} key=\"{node.Name}\"", LogLevel.Information);
-		try
+		using RegistrySecurityInformation information = new(node);
+		unsafe
 		{
-			using RegistrySecurityInformation information = new(node);
-			operation.Write("Security information initialized", LogLevel.Debug);
+			nint securityInformation = (nint)ComInterfaceMarshaller<IRegistrySecurityInformation>.ConvertToUnmanaged(information);
 
-			unsafe
+			try
 			{
-				nint securityInformation = (nint)ComInterfaceMarshaller<IRegistrySecurityInformation>.ConvertToUnmanaged(information);
-				operation.Write("COM interface marshalled", LogLevel.Debug);
-
-				try
+				bool succeeded = PInvoke.EditSecurity(new HWND(owner), (ISecurityInformation*)securityInformation);
+				if (!succeeded)
 				{
-					operation.Write("Calling EditSecurity", LogLevel.Debug);
-					bool succeeded = PInvoke.EditSecurity(new HWND(owner), (ISecurityInformation*)securityInformation);
-					operation.Write($"EditSecurity returned success={succeeded}", succeeded ? LogLevel.Information : LogLevel.Warning);
-					if (!succeeded)
+					int error = Marshal.GetLastWin32Error();
+					if (error == 0)
 					{
-						int error = Marshal.GetLastWin32Error();
-						if (error == 0)
-						{
-							error = 1;
-						}
-
-						throw new Win32Exception(error);
+						error = 1;
 					}
-				}
-				finally
-				{
-					ComInterfaceMarshaller<IRegistrySecurityInformation>.Free((void*)securityInformation);
-					operation.Write("COM interface released", LogLevel.Debug);
+
+					throw new Win32Exception(error);
 				}
 			}
-		}
-		catch (Exception exception)
-		{
-			operation.Write("FAILED", LogLevel.Error, exception);
-			throw;
+			finally
+			{
+				ComInterfaceMarshaller<IRegistrySecurityInformation>.Free((void*)securityInformation);
+			}
 		}
 	}
 
@@ -246,17 +229,8 @@ internal static class RegistryFileService
 	{
 		using RegistryKey key = OpenKey(node, writable: false);
 		uint classLength = 0;
-		WIN32_ERROR status = PInvoke.RegQueryInfoKey(
-			key.Handle,
-			default,
-			ref classLength,
-			out uint subKeyCount,
-			out _,
-			out _,
-			out uint valueCount,
-			out _,
-			out _,
-			out _,
+		var status = PInvoke.RegQueryInfoKey(
+			key.Handle, default, ref classLength, out uint subKeyCount, out _, out _, out uint valueCount, out _, out _, out _,
 			out System.Runtime.InteropServices.ComTypes.FILETIME lastWriteTime);
 		if (status != WIN32_ERROR.NO_ERROR)
 		{
@@ -376,9 +350,11 @@ internal static class RegistryFileService
 	}
 
 	internal static RegistryKey OpenBaseKey(RegistryHive hive, string? computerName)
-		=> string.IsNullOrEmpty(computerName)
-			? RegistryKey.OpenBaseKey(hive, RegistryView.Default)
-			: RegistryKey.OpenRemoteBaseKey(hive, computerName, RegistryView.Default);
+	{
+		return string.IsNullOrEmpty(computerName)
+				? RegistryKey.OpenBaseKey(hive, RegistryView.Default)
+				: RegistryKey.OpenRemoteBaseKey(hive, computerName, RegistryView.Default);
+	}
 
 	private static void WriteNode(StreamWriter writer, RegistryHive hive, string subKeyPath, string? computerName)
 	{
@@ -401,12 +377,16 @@ internal static class RegistryFileService
 	}
 
 	private static string GetRegistryPath(RegistryHive hive, string subKeyPath)
-		=> string.IsNullOrEmpty(subKeyPath)
-			? GetHiveName(hive)
-			: $"{GetHiveName(hive)}\\{subKeyPath}";
+	{
+		return string.IsNullOrEmpty(subKeyPath)
+				? GetHiveName(hive)
+				: $"{GetHiveName(hive)}\\{subKeyPath}";
+	}
 
 	private static string AppendPath(string parent, string child)
-		=> string.IsNullOrEmpty(parent) ? child : $"{parent}\\{child}";
+	{
+		return string.IsNullOrEmpty(parent) ? child : $"{parent}\\{child}";
+	}
 
 	private static string GetHiveName(RegistryHive hive) => hive switch
 	{
@@ -419,7 +399,9 @@ internal static class RegistryFileService
 	};
 
 	private static string FormatValueName(string name)
-		=> string.IsNullOrEmpty(name) ? "@" : $"\"{EscapeString(name)}\"";
+	{
+		return string.IsNullOrEmpty(name) ? "@" : $"\"{EscapeString(name)}\"";
+	}
 
 	private static string FormatValue(object? value, RegistryValueKind kind)
 	{
@@ -463,7 +445,7 @@ internal static class RegistryFileService
 
 	private static string? ReadLogicalLine(StreamReader reader)
 	{
-		string? line = reader.ReadLine();
+		var line = reader.ReadLine();
 		if (line is null)
 		{
 			return null;
@@ -579,10 +561,9 @@ internal static class RegistryFileService
 			_ => throw new FormatException($"Unsupported hexadecimal registry value '{text}'."),
 		};
 
-		byte[] bytes = text[(colon + 1)..]
+		byte[] bytes = [.. text[(colon + 1)..]
 			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-			.Select(value => byte.Parse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture))
-			.ToArray();
+			.Select(value => byte.Parse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture))];
 
 		return kind switch
 		{
@@ -599,23 +580,31 @@ internal static class RegistryFileService
 	}
 
 	private static string DecodeString(byte[] bytes)
-		=> Encoding.Unicode.GetString(bytes).TrimEnd('\0');
+	{
+		return Encoding.Unicode.GetString(bytes).TrimEnd('\0');
+	}
 
 	private static string[] DecodeMultiString(byte[] bytes)
-		=> DecodeString(bytes)
+	{
+		return DecodeString(bytes)
 			.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+	}
 
 	private static string EscapeString(string value)
-		=> value
+	{
+		return value
 			.Replace("\\", "\\\\", StringComparison.Ordinal)
 			.Replace("\"", "\\\"", StringComparison.Ordinal)
 			.Replace("\r", "\\r", StringComparison.Ordinal)
 			.Replace("\n", "\\n", StringComparison.Ordinal);
+	}
 
 	private static string UnescapeString(string value)
-		=> value
+	{
+		return value
 			.Replace("\\r", "\r", StringComparison.Ordinal)
 			.Replace("\\n", "\n", StringComparison.Ordinal)
 			.Replace("\\\"", "\"", StringComparison.Ordinal)
 			.Replace("\\\\", "\\", StringComparison.Ordinal);
+	}
 }
