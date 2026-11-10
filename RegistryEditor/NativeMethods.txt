@@ -4,9 +4,11 @@ E_INVALIDARG
 E_NOTIMPL
 E_OUTOFMEMORY
 EditSecurity
+EnumFontFamiliesExW
 GENERIC_ACCESS_RIGHTS
 GENERIC_MAPPING
 GetCurrentProcess
+GetDC
 GetSecurityDescriptorControl
 GetSecurityDescriptorDacl
 GetSecurityDescriptorGroup
@@ -21,6 +23,7 @@ HKEY_LOCAL_MACHINE
 HKEY_USERS
 ISecurityInformation
 LocalFree
+LOGFONTW
 LookupPrivilegeValueW
 LUID
 MapGenericMask
@@ -30,6 +33,7 @@ RegOpenKeyExW
 RegQueryInfoKeyW
 RegRenameKey
 RegUnLoadKeyW
+ReleaseDC
 S_OK
 SetSecurityInfo
 SI_ACCESS

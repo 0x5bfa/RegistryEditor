@@ -1,0 +1,33 @@
+<ContentDialog
+	x:Class="RegistryEditor.Views.AboutContentDialog"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	Title="About Registry Editor"
+	CloseButtonText="Close"
+	Style="{StaticResource DefaultContentDialogStyle}">
+
+	<StackPanel MinWidth="380" Spacing="16">
+		<Grid ColumnSpacing="16">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="Auto" />
+				<ColumnDefinition Width="*" />
+			</Grid.ColumnDefinitions>
+			<Viewbox Width="56" Height="56">
+				<Image VerticalAlignment="Center" Source="ms-appx:///Assets/Branding/AppLogo.png" />
+			</Viewbox>
+			<StackPanel
+				Grid.Column="1"
+				VerticalAlignment="Center"
+				Spacing="4">
+				<TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Registry Editor" />
+				<TextBlock x:Name="VersionTextBlock" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+			</StackPanel>
+		</Grid>
+		<TextBlock Text="A fluent registry editor for Windows." TextWrapping="Wrap" />
+		<HyperlinkButton
+			Margin="-12,0"
+			HorizontalAlignment="Left"
+			Content="Leave feedback on GitHub"
+			NavigateUri="https://github.com/0x5bfa/RegistryEditor" />
+	</StackPanel>
+</ContentDialog>

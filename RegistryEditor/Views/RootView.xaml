@@ -244,27 +244,44 @@
 					<ToggleMenuFlyoutItem
 						Command="{x:Bind ViewModel.ToggleAddressBarCommand}"
 						IsChecked="{x:Bind ViewModel.IsAddressBarVisible, Mode=OneWay}"
-						Text="Address bar" />
-					<MenuFlyoutItem Command="{x:Bind ViewModel.DisplayBinaryDataCommand}" Text="Display binary data..." />
-					<MenuFlyoutItem Command="{x:Bind ViewModel.RefreshCommand}" Text="Refresh" />
+						Text="Show address bar" />
+					<MenuFlyoutSubItem Text="Appearance">
+						<RadioMenuFlyoutItem
+							Command="{x:Bind ViewModel.SelectThemeCommand}"
+							CommandParameter="0"
+							GroupName="ApplicationTheme"
+							IsChecked="{x:Bind ViewModel.IsSystemThemeSelected, Mode=OneWay}"
+							Text="System default" />
+						<RadioMenuFlyoutItem
+							Command="{x:Bind ViewModel.SelectThemeCommand}"
+							CommandParameter="1"
+							GroupName="ApplicationTheme"
+							IsChecked="{x:Bind ViewModel.IsLightThemeSelected, Mode=OneWay}"
+							Text="Light" />
+						<RadioMenuFlyoutItem
+							Command="{x:Bind ViewModel.SelectThemeCommand}"
+							CommandParameter="2"
+							GroupName="ApplicationTheme"
+							IsChecked="{x:Bind ViewModel.IsDarkThemeSelected, Mode=OneWay}"
+							Text="Dark" />
+					</MenuFlyoutSubItem>
+					<MenuFlyoutItem Command="{x:Bind ViewModel.CustomizeFontCommand}" Text="Customize font" />
 				</MenuBarItem>
 
 				<!--  Favorites menu is temporarily disabled.  -->
-
-				<!--  The former About menu is now available from the Settings button.  -->
 
 			</MenuBar>
 
 			<AppBarSeparator />
 
 			<AppBarButton
-				AutomationProperties.AutomationId="SettingsButton"
-				AutomationProperties.Name="Settings"
-				Command="{x:Bind ViewModel.SettingsCommand}"
+				AutomationProperties.AutomationId="AboutButton"
+				AutomationProperties.Name="About"
+				Command="{x:Bind ViewModel.AboutCommand}"
 				Style="{StaticResource CompactAppBarButtonStyle}"
-				ToolTipService.ToolTip="Settings">
+				ToolTipService.ToolTip="About">
 				<AppBarButton.Icon>
-					<FontIcon Glyph="&#xE713;" />
+					<FontIcon Glyph="&#xE946;" />
 				</AppBarButton.Icon>
 			</AppBarButton>
 		</StackPanel>
@@ -416,10 +433,12 @@
 										VerticalAlignment="Center"
 										Orientation="Horizontal"
 										Spacing="8">
-										<Image
-											Width="16"
-											Height="16"
-											Source="{x:Bind Icon, Mode=OneTime}" />
+										<Viewbox>
+											<Image
+												Width="16"
+												Height="16"
+												Source="{x:Bind Icon, Mode=OneTime}" />
+										</Viewbox>
 										<TextBlock Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis" />
 									</StackPanel>
 								</DataTemplate>
@@ -448,6 +467,7 @@
 								<DataTemplate x:DataType="viewModels:RegistryValueViewModel">
 									<TextBlock
 										Margin="10,0"
+										FontFamily="{x:Bind DataFontFamily, Mode=OneWay}"
 										Text="{x:Bind Data, Mode=OneTime}"
 										TextTrimming="CharacterEllipsis" />
 								</DataTemplate>
@@ -598,6 +618,7 @@
 													<ColumnDefinition Width="*" />
 												</Grid.ColumnDefinitions>
 												<TextBlock
+													HorizontalAlignment="Right"
 													VerticalAlignment="Center"
 													FontSize="11"
 													Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -634,6 +655,7 @@
 									VerticalContentAlignment="Top"
 									AcceptsReturn="{x:Bind ViewModel.ValueEditorAcceptsReturn, Mode=OneWay}"
 									AutomationProperties.AutomationId="ValueEditorDataTextBox"
+									FontFamily="{x:Bind ViewModel.ValueDataFontFamily, Mode=OneWay}"
 									Header="{x:Bind ViewModel.ValueEditorDataHeader, Mode=OneWay}"
 									PlaceholderText="{x:Bind ViewModel.ValueEditorDataPlaceholder, Mode=OneWay}"
 									Text="{x:Bind ViewModel.ValueEditorData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

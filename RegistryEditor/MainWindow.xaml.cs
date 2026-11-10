@@ -7,6 +7,8 @@ namespace RegistryEditor;
 
 public sealed partial class MainWindow : Window
 {
+	public RootView RootView { get; }
+
 	public MainWindow()
 	{
 		InitializeComponent();
@@ -17,6 +19,10 @@ public sealed partial class MainWindow : Window
 			Windows.ApplicationModel.Package.Current.InstalledLocation.Path,
 			"Assets/Branding/AppLogo.ico"));
 
-		Content = new RootView();
+		RootView = new RootView();
+		Content = RootView;
 	}
+
+	public Task InitializeAsync()
+		=> RootView.ViewModel.LoadSettingsAsync();
 }

@@ -3,6 +3,7 @@
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
 using System.Globalization;
@@ -53,6 +54,9 @@ public sealed class RootViewModel : ObservableObject
 	private RegistryNodeViewModel? _navigationNode;
 	private bool _isAddressBarVisible = true;
 	private int _selectedThemeIndex;
+	private string _valueDataFontFamilyName = "Cascadia Mono";
+	private string _appFontFamilyName = "Segoe UI Variable";
+	private FontFamily _valueDataFontFamily = null!;
 	private static readonly ElementTheme[] ThemeValues =
 	[
 		ElementTheme.Default,
@@ -62,6 +66,8 @@ public sealed class RootViewModel : ObservableObject
 
 	public RootViewModel()
 	{
+		_valueDataFontFamily = (FontFamily)Application.Current.Resources["RegistryValueDataFontFamily"];
+
 		RegistryNodeViewModel computerNode = CreateNode(
 			"Computer",
 			hive: null,
@@ -136,7 +142,9 @@ public sealed class RootViewModel : ObservableObject
 
 	public RelayCommand<object?> CopyKeyCommand { get; private set; } = null!;
 
-	public RelayCommand<object?> ToggleAddressBarCommand { get; private set; } = null!;
+	public AsyncRelayCommand<object?> ToggleAddressBarCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> SelectThemeCommand { get; private set; } = null!;
 
 	public AsyncRelayCommand<object?> DisplayBinaryDataCommand { get; private set; } = null!;
 
@@ -146,7 +154,9 @@ public sealed class RootViewModel : ObservableObject
 
 	public AsyncRelayCommand<object?> RefreshCommand { get; private set; } = null!;
 
-	public AsyncRelayCommand<object?> SettingsCommand { get; private set; } = null!;
+	public AsyncRelayCommand<object?> CustomizeFontCommand { get; private set; } = null!;
+
+	public AsyncRelayCommand<object?> AboutCommand { get; private set; } = null!;
 
 	public RegistryNodeViewModel? SelectedNode
 	{
@@ -640,21 +650,51 @@ public sealed class RootViewModel : ObservableObject
 
 	public Visibility AddressBarVisibility => IsAddressBarVisible ? Visibility.Visible : Visibility.Collapsed;
 
-	public ObservableCollection<string> ThemeOptions { get; } = ["System default", "Light", "Dark"];
+	public bool IsSystemThemeSelected => _selectedThemeIndex == 0;
+
+	public bool IsLightThemeSelected => _selectedThemeIndex == 1;
+
+	public bool IsDarkThemeSelected => _selectedThemeIndex == 2;
+
+	public FontFamily ValueDataFontFamily
+	{
+		get => _valueDataFontFamily;
+		private set => SetProperty(ref _valueDataFontFamily, value);
+	}
 
 	public int SelectedThemeIndex
 	{
 		get => _selectedThemeIndex;
 		set
 		{
-			if (!SetProperty(ref _selectedThemeIndex, value)
-				|| value < 0
-				|| value >= ThemeValues.Length)
+			if (value < 0
+				|| value >= ThemeValues.Length
+				|| !SetProperty(ref _selectedThemeIndex, value))
 				return;
+
+			OnPropertyChanged(nameof(IsSystemThemeSelected));
+			OnPropertyChanged(nameof(IsLightThemeSelected));
+			OnPropertyChanged(nameof(IsDarkThemeSelected));
 
 			if (App.Window.Content is FrameworkElement root)
 				root.RequestedTheme = ThemeValues[value];
 		}
+	}
+
+	public async Task LoadSettingsAsync()
+	{
+		AppSettings settings = await AppSettingsStore.LoadAsync();
+		IsAddressBarVisible = settings.ShowAddressBar;
+		SelectedThemeIndex = settings.ThemeIndex is >= 0 and < 3 ? settings.ThemeIndex : 0;
+
+		string fontFamilyName = string.IsNullOrWhiteSpace(settings.ValueDataFontFamily)
+			? "Cascadia Mono"
+			: settings.ValueDataFontFamily.Trim();
+		string appFontFamilyName = string.IsNullOrWhiteSpace(settings.AppFontFamily)
+			? "Segoe UI Variable"
+			: settings.AppFontFamily.Trim();
+		ApplyValueDataFont(fontFamilyName);
+		ApplyAppFont(appFontFamilyName);
 	}
 
 	public string BreadcrumbRootText
@@ -721,15 +761,14 @@ public sealed class RootViewModel : ObservableObject
 		PermissionsCommand = new(ExecutePermissionsCommandAsync, CanKeyNode);
 		CopyKeyCommand = new(ExecuteCopyKeyCommand, CanKeyNode);
 
-		ToggleAddressBarCommand = new(_ =>
-		{
-			SetAddressBarVisibility(!IsAddressBarVisible);
-		});
+		ToggleAddressBarCommand = new(ExecuteToggleAddressBarCommandAsync);
+		SelectThemeCommand = new(ExecuteSelectThemeCommandAsync);
 		DisplayBinaryDataCommand = new(ExecuteDisplayBinaryDataCommandAsync, _ => CanEditSelectedValue);
 		SaveValueChangesCommand = new(ExecuteSaveValueChangesCommandAsync, _ => CanSaveValueChanges);
 		DiscardValueChangesCommand = new(_ => DiscardValueEditorChanges(), _ => IsValueDirty);
 		RefreshCommand = new(ExecuteRefreshCommandAsync, _ => SelectedNode is not null);
-		SettingsCommand = new(ExecuteSettingsCommandAsync);
+		CustomizeFontCommand = new(ExecuteCustomizeFontCommandAsync);
+		AboutCommand = new(ExecuteAboutCommandAsync);
 	}
 
 	private bool CanKeyNode(object? parameter)
@@ -1073,17 +1112,99 @@ public sealed class RootViewModel : ObservableObject
 	private Task ExecuteRefreshCommandAsync(object? parameter)
 		=> RunCommandAsync("Refresh failed", () => RefreshAsync());
 
-	private Task ExecuteSettingsCommandAsync(object? parameter)
-	{
-		return RunCommandAsync("Settings failed", async () =>
+	private Task ExecuteToggleAddressBarCommandAsync(object? parameter)
+		=> RunCommandAsync("Settings save failed", async () =>
 		{
-			SettingsContentDialog dialog = new(this)
+			SetAddressBarVisibility(!IsAddressBarVisible);
+			await SaveSettingsAsync();
+		});
+
+	private Task ExecuteSelectThemeCommandAsync(object? parameter)
+		=> RunCommandAsync("Settings save failed", async () =>
+		{
+			if (!int.TryParse(Convert.ToString(parameter, CultureInfo.InvariantCulture), NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+				|| index < 0
+				|| index >= ThemeValues.Length)
+				return;
+
+			SelectedThemeIndex = index;
+			await SaveSettingsAsync();
+		});
+
+	private Task SaveSettingsAsync()
+		=> AppSettingsStore.SaveAsync(CreateSettingsSnapshot());
+
+	private AppSettings CreateSettingsSnapshot(
+		string? valueDataFontFamilyName = null,
+		string? appFontFamilyName = null)
+		=> new()
+		{
+			ValueDataFontFamily = valueDataFontFamilyName ?? _valueDataFontFamilyName,
+			AppFontFamily = appFontFamilyName ?? _appFontFamilyName,
+			ThemeIndex = SelectedThemeIndex,
+			ShowAddressBar = IsAddressBarVisible,
+		};
+
+	private void ApplyValueDataFont(string fontFamilyName)
+	{
+		_valueDataFontFamilyName = fontFamilyName;
+		ValueDataFontFamily = CreateValueDataFontFamily(fontFamilyName);
+		Application.Current.Resources["RegistryValueDataFontFamily"] = ValueDataFontFamily;
+
+		foreach (RegistryValueViewModel value in RegistryValues)
+			value.SetDataFont(ValueDataFontFamily);
+	}
+
+	private void ApplyAppFont(string fontFamilyName)
+	{
+		_appFontFamilyName = fontFamilyName;
+		FontFamily appFontFamily = CreateAppFontFamily(fontFamilyName);
+		Application.Current.Resources["RegistryAppFontFamily"] = appFontFamily;
+		Application.Current.Resources["ContentControlThemeFontFamily"] = appFontFamily;
+	}
+
+	private Task ExecuteCustomizeFontCommandAsync(object? parameter)
+		=> RunCommandAsync("Font customization failed", async () =>
+		{
+			CustomizeFontContentDialog dialog = new()
+			{
+				XamlRoot = GetXamlRoot(),
+			};
+			await dialog.LoadAvailableFontFamiliesAsync();
+			dialog.Configure(_valueDataFontFamilyName, _appFontFamilyName);
+
+			if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+				return;
+
+			string valueDataFontFamilyName = dialog.SelectedValueDataFontFamilyName;
+			string appFontFamilyName = dialog.SelectedAppFontFamilyName;
+			await AppSettingsStore.SaveAsync(CreateSettingsSnapshot(valueDataFontFamilyName, appFontFamilyName));
+			ApplyValueDataFont(valueDataFontFamilyName);
+			ApplyAppFont(appFontFamilyName);
+		});
+
+	private Task ExecuteAboutCommandAsync(object? parameter)
+		=> RunCommandAsync("About failed", async () =>
+		{
+			AboutContentDialog dialog = new()
 			{
 				XamlRoot = GetXamlRoot(),
 			};
 			await dialog.ShowAsync();
 		});
-	}
+
+	private static FontFamily CreateValueDataFontFamily(string fontFamilyName)
+		=> CreateFontFamily(fontFamilyName, "Consolas", "Courier New");
+
+	private static FontFamily CreateAppFontFamily(string fontFamilyName)
+		=> CreateFontFamily(fontFamilyName, "Segoe UI Variable", "Segoe UI", "Arial");
+
+	private static FontFamily CreateFontFamily(string fontFamilyName, params string[] fallbackFontFamilyNames)
+		=> new(string.Join(
+			", ",
+			new[] { fontFamilyName }
+				.Concat(fallbackFontFamilyNames)
+				.Distinct(StringComparer.OrdinalIgnoreCase)));
 
 	private async Task ExecuteBackCommandAsync(object? parameter)
 	{
@@ -1190,13 +1311,16 @@ public sealed class RootViewModel : ObservableObject
 		return await dialog.ShowAsync() == ContentDialogResult.Primary;
 	}
 
-	public async Task ShowMessageAsync(string title, string message)
+	public async Task ShowMessageAsync(
+		string title,
+		string message,
+		FontFamily? messageFontFamily = null)
 	{
 		MessageContentDialog dialog = new()
 		{
 			XamlRoot = GetXamlRoot(),
 		};
-		dialog.Configure(title, message);
+		dialog.Configure(title, message, messageFontFamily);
 		await dialog.ShowAsync();
 	}
 
@@ -1267,7 +1391,10 @@ public sealed class RootViewModel : ObservableObject
 			byte[] bytes => string.Join(" ", bytes.Select(item => item.ToString("x2"))),
 			_ => value.Data,
 		};
-		await ShowMessageAsync($"{value.Name} ({value.Type})", data.Length == 0 ? "(empty)" : data);
+		await ShowMessageAsync(
+			$"{value.Name} ({value.Type})",
+			data.Length == 0 ? "(empty)" : data,
+			ValueDataFontFamily);
 	}
 
 	private static ulong GetIntegerValue(RegistryValueViewModel value)
@@ -1577,7 +1704,8 @@ public sealed class RootViewModel : ObservableObject
 					CreateBitmapImage(value.IconUri),
 					value.RegistryName,
 					value.Kind,
-					value.RawValue));
+					value.RawValue,
+					ValueDataFontFamily));
 
 			if (selectedValueName is not null)
 				SelectedValue = RegistryValues.FirstOrDefault(value =>

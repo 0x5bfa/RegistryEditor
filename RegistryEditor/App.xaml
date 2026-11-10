@@ -5,6 +5,10 @@
 
 	<Application.Resources>
 		<ResourceDictionary>
+			<FontFamily x:Key="RegistryAppFontFamily">Segoe UI Variable, Segoe UI, Arial</FontFamily>
+			<FontFamily x:Key="ContentControlThemeFontFamily">Segoe UI Variable, Segoe UI, Arial</FontFamily>
+			<FontFamily x:Key="RegistryValueDataFontFamily">Cascadia Mono, Consolas, Courier New</FontFamily>
+
 			<ResourceDictionary.MergedDictionaries>
 				<XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
 
