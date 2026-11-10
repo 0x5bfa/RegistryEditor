@@ -7,7 +7,7 @@ using System.Threading.Channels;
 
 namespace RegistryEditor.Services;
 
-internal sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
+internal sealed partial class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
 {
 	private readonly Channel<Entry> _entries = Channel.CreateUnbounded<Entry>(new UnboundedChannelOptions
 	{
@@ -40,9 +40,15 @@ internal sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScop
 
 	public string? LogFilePath { get; }
 
-	public ILogger CreateLogger(string categoryName) => new FileLogger(this, categoryName);
+	public ILogger CreateLogger(string categoryName)
+	{
+		return new FileLogger(this, categoryName);
+	}
 
-	public void SetScopeProvider(IExternalScopeProvider scopeProvider) => _scopes = scopeProvider;
+	public void SetScopeProvider(IExternalScopeProvider scopeProvider)
+	{
+		_scopes = scopeProvider;
+	}
 
 	public Task FlushAsync()
 	{
@@ -107,9 +113,15 @@ internal sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScop
 
 	private sealed class FileLogger(FileLoggerProvider provider, string category) : ILogger
 	{
-		public IDisposable? BeginScope<TState>(TState state) where TState : notnull => provider._scopes.Push(state);
+		public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+		{
+			return provider._scopes.Push(state);
+		}
 
-		public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None && Volatile.Read(ref provider._disposed) == 0;
+		public bool IsEnabled(LogLevel logLevel)
+		{
+			return logLevel != LogLevel.None && Volatile.Read(ref provider._disposed) == 0;
+		}
 
 		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
 			Func<TState, Exception?, string> formatter)

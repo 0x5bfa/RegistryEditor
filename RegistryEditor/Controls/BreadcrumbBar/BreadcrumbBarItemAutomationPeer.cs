@@ -6,15 +6,12 @@ using Microsoft.UI.Xaml.Automation.Provider;
 
 namespace RegistryEditor.Controls
 {
-	public partial class BreadcrumbBarItemAutomationPeer : FrameworkElementAutomationPeer, IInvokeProvider
+	/// <summary>
+	/// Initializes a new instance of the BreadcrumbBarItemAutomationPeer class.
+	/// </summary>
+	/// <param name="owner"></param>
+	public partial class BreadcrumbBarItemAutomationPeer(BreadcrumbBarItem owner) : FrameworkElementAutomationPeer(owner), IInvokeProvider
 	{
-		/// <summary>
-		/// Initializes a new instance of the BreadcrumbBarItemAutomationPeer class.
-		/// </summary>
-		/// <param name="owner"></param>
-		public BreadcrumbBarItemAutomationPeer(BreadcrumbBarItem owner) : base(owner)
-		{
-		}
 
 		// IAutomationPeerOverrides
 		protected override string GetLocalizedControlTypeCore()

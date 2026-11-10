@@ -9,7 +9,9 @@ namespace RegistryEditor.Services;
 internal static class LoggerTimingExtensions
 {
 	public static LogMeasurement Measure(this ILogger logger, string name, string details = "", LogLevel level = LogLevel.Debug)
-		=> new(logger, name, details, level);
+	{
+		return new(logger, name, details, level);
+	}
 }
 
 internal sealed class LogMeasurement : IDisposable
@@ -29,15 +31,25 @@ internal sealed class LogMeasurement : IDisposable
 		_name = name;
 		_level = level;
 		_scope = logger.BeginScope("{Operation}#{OperationId}", name, Id);
-		logger.Log(level, "{Operation} BEGIN {Details}", name, details);
+
+		if (_logger.IsEnabled(level))
+		{
+			logger.Log(level, "{Operation} BEGIN {Details}", name, details);
+		}
+
 		_started = Stopwatch.GetTimestamp();
 	}
 
 	public int Id { get; }
 
 	public void Write(string message, LogLevel? level = null, Exception? exception = null)
-		=> _logger.Log(level ?? _level, exception, "[{OperationId}] {Operation} elapsedMs={ElapsedMs:F1} {Message}",
-			Id, _name, Stopwatch.GetElapsedTime(_started).TotalMilliseconds, message);
+	{
+		if (_logger.IsEnabled(level ?? _level))
+		{
+			_logger.Log(level ?? _level, exception, "[{OperationId}] {Operation} elapsedMs={ElapsedMs:F1} {Message}",
+					Id, _name, Stopwatch.GetElapsedTime(_started).TotalMilliseconds, message);
+		}
+	}
 
 	public void Dispose()
 	{

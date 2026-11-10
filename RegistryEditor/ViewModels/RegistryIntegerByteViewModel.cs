@@ -6,35 +6,23 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace RegistryEditor.ViewModels;
 
-public sealed class RegistryIntegerByteViewModel(
-	int highBit,
-	int lowBit,
-	ObservableCollection<RegistryIntegerBitViewModel> bits)
+public sealed class RegistryIntegerByteViewModel(int highBit, int lowBit, ObservableCollection<RegistryIntegerBitViewModel> bits)
 {
 	public string RangeLabel => $"{highBit}–{lowBit}";
 
 	public ObservableCollection<RegistryIntegerBitViewModel> Bits { get; } = bits;
 }
 
-public sealed class RegistryIntegerBitViewModel : ObservableObject
+public sealed partial class RegistryIntegerBitViewModel(int bitPosition, bool isSet, Action toggle) : ObservableObject
 {
-	private bool _isSet;
-
-	public RegistryIntegerBitViewModel(int bitPosition, bool isSet, Action toggle)
-	{
-		BitPosition = bitPosition;
-		_isSet = isSet;
-		ToggleCommand = new RelayCommand(toggle);
-	}
-
-	public int BitPosition { get; }
+	public int BitPosition { get; } = bitPosition;
 
 	public bool IsSet
 	{
-		get => _isSet;
+		get => isSet;
 		internal set
 		{
-			if (!SetProperty(ref _isSet, value))
+			if (!SetProperty(ref isSet, value))
 			{
 				return;
 			}
@@ -48,5 +36,5 @@ public sealed class RegistryIntegerBitViewModel : ObservableObject
 
 	public string AccessibleName => $"Bit {BitPosition}";
 
-	public RelayCommand ToggleCommand { get; }
+	public RelayCommand ToggleCommand { get; } = new RelayCommand(toggle);
 }

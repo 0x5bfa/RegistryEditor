@@ -5,9 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace RegistryEditor.Services;
 
-[JsonSourceGenerationOptions(
-	WriteIndented = true,
-	PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(AppSettings))]
 internal partial class AppSettingsJsonContext : JsonSerializerContext
 {

@@ -172,18 +172,24 @@ public sealed partial class CustomizeFontContentDialog : ContentDialog
 	}
 
 	private string? FindInstalledFontFamily(string fontFamilyName)
-		=> _availableFontFamilies.FirstOrDefault(fontFamily =>
-			string.Equals(fontFamily.Name, fontFamilyName.Trim(), StringComparison.OrdinalIgnoreCase))?.Name;
+	{
+		return _availableFontFamilies.FirstOrDefault(fontFamily =>
+				string.Equals(fontFamily.Name, fontFamilyName.Trim(), StringComparison.OrdinalIgnoreCase))?.Name;
+	}
 
 	private TextBlock GetErrorTextBlock(AutoSuggestBox sender)
-		=> ReferenceEquals(sender, ValueDataFontFamilyAutoSuggestBox)
-			? ValueDataFontErrorTextBlock
-			: AppFontErrorTextBlock;
+	{
+		return ReferenceEquals(sender, ValueDataFontFamilyAutoSuggestBox)
+				? ValueDataFontErrorTextBlock
+				: AppFontErrorTextBlock;
+	}
 
 	private string GetSelectedFontFamilyName(AutoSuggestBox sender)
-		=> ReferenceEquals(sender, ValueDataFontFamilyAutoSuggestBox)
-			? _selectedValueDataFontFamilyName
-			: _selectedAppFontFamilyName;
+	{
+		return ReferenceEquals(sender, ValueDataFontFamilyAutoSuggestBox)
+				? _selectedValueDataFontFamilyName
+				: _selectedAppFontFamilyName;
+	}
 
 	private void SetSelectedFontFamilyName(AutoSuggestBox sender, string fontFamilyName)
 	{

@@ -8,43 +8,25 @@ using Microsoft.Win32;
 
 namespace RegistryEditor.ViewModels;
 
-public sealed class RegistryValueViewModel : ObservableObject
+public sealed partial class RegistryValueViewModel(
+	string name, string type, string data, BitmapImage icon, string registryName, RegistryValueKind kind, object? rawValue, FontFamily dataFontFamily)
+	: ObservableObject
 {
-	private FontFamily _dataFontFamily;
+	private FontFamily _dataFontFamily = dataFontFamily;
 
-	public RegistryValueViewModel(
-		string name,
-		string type,
-		string data,
-		BitmapImage icon,
-		string registryName,
-		RegistryValueKind kind,
-		object? rawValue,
-		FontFamily dataFontFamily)
-	{
-		Name = name;
-		Type = type;
-		Data = data;
-		Icon = icon;
-		RegistryName = registryName;
-		Kind = kind;
-		RawValue = rawValue;
-		_dataFontFamily = dataFontFamily;
-	}
+	public string Name { get; } = name;
 
-	public string Name { get; }
+	public string Type { get; } = type;
 
-	public string Type { get; }
+	public string Data { get; } = data;
 
-	public string Data { get; }
+	public BitmapImage Icon { get; } = icon;
 
-	public BitmapImage Icon { get; }
+	public string RegistryName { get; } = registryName;
 
-	public string RegistryName { get; }
+	public RegistryValueKind Kind { get; } = kind;
 
-	public RegistryValueKind Kind { get; }
-
-	public object? RawValue { get; }
+	public object? RawValue { get; } = rawValue;
 
 	public FontFamily DataFontFamily
 	{
@@ -53,5 +35,7 @@ public sealed class RegistryValueViewModel : ObservableObject
 	}
 
 	public void SetDataFont(FontFamily fontFamily)
-		=> DataFontFamily = fontFamily;
+	{
+		DataFontFamily = fontFamily;
+	}
 }

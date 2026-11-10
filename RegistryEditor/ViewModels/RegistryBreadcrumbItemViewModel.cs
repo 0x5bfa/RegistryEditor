@@ -3,18 +3,11 @@
 
 namespace RegistryEditor.ViewModels;
 
-public sealed class RegistryBreadcrumbItemViewModel
+public sealed class RegistryBreadcrumbItemViewModel(RegistryNodeViewModel node, string text, bool isChevronVisible)
 {
-	public RegistryBreadcrumbItemViewModel(RegistryNodeViewModel node, string text, bool isChevronVisible)
-	{
-		Node = node;
-		Text = text;
-		IsChevronVisible = isChevronVisible;
-	}
+	public RegistryNodeViewModel Node { get; } = node;
 
-	public RegistryNodeViewModel Node { get; }
+	public string Text { get; } = text;
 
-	public string Text { get; }
-
-	public bool IsChevronVisible { get; }
+	public bool IsChevronVisible { get; } = isChevronVisible;
 }

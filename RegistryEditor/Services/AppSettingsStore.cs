@@ -9,11 +9,11 @@ namespace RegistryEditor.Services;
 internal static class AppSettingsStore
 {
 	private const string FileName = "settings.json";
-	private static readonly SemaphoreSlim FileLock = new(1, 1);
+	private static readonly SemaphoreSlim _fileLock = new(1, 1);
 
 	public static async Task<AppSettings> LoadAsync()
 	{
-		await FileLock.WaitAsync();
+		await _fileLock.WaitAsync();
 		try
 		{
 			try
@@ -36,13 +36,13 @@ internal static class AppSettingsStore
 		}
 		finally
 		{
-			FileLock.Release();
+			_fileLock.Release();
 		}
 	}
 
 	public static async Task SaveAsync(AppSettings settings)
 	{
-		await FileLock.WaitAsync();
+		await _fileLock.WaitAsync();
 		try
 		{
 			string filePath = GetFilePath();
@@ -53,10 +53,12 @@ internal static class AppSettingsStore
 		}
 		finally
 		{
-			FileLock.Release();
+			_fileLock.Release();
 		}
 	}
 
 	private static string GetFilePath()
-		=> Path.Combine(ApplicationData.Current.LocalFolder.Path, FileName);
+	{
+		return Path.Combine(ApplicationData.Current.LocalFolder.Path, FileName);
+	}
 }

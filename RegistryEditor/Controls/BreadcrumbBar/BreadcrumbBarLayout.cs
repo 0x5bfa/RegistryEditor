@@ -8,11 +8,11 @@ namespace RegistryEditor.Controls
 	/// <summary>
 	/// Handles layout of <see cref="BreadcrumbBar"/>, collapsing items into an ellipsis button when necessary.
 	/// </summary>
-	public partial class BreadcrumbBarLayout : NonVirtualizingLayout
+	public partial class BreadcrumbBarLayout(BreadcrumbBar breadcrumb) : NonVirtualizingLayout
 	{
 		// Fields
 
-		private readonly WeakReference<BreadcrumbBar>? _ownerRef;
+		private readonly WeakReference<BreadcrumbBar>? _ownerRef = new(breadcrumb);
 
 		private Size _availableSize;
 		private BreadcrumbBarItem? _ellipsisButton = null;
@@ -22,11 +22,6 @@ namespace RegistryEditor.Controls
 		public bool EllipsisIsRendered { get; private set; }
 		public int IndexAfterEllipsis { get; private set; }
 		public int VisibleItemsCount { get; private set; }
-
-		public BreadcrumbBarLayout(BreadcrumbBar breadcrumb)
-		{
-			_ownerRef = new(breadcrumb);
-		}
 
 		protected override Size MeasureOverride(NonVirtualizingLayoutContext context, Size availableSize)
 		{

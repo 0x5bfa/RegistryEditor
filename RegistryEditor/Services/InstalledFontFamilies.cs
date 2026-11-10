@@ -11,32 +11,28 @@ namespace RegistryEditor.Services;
 
 internal static unsafe class InstalledFontFamilies
 {
-	private static readonly Lazy<Task<IReadOnlyList<string>>> FontFamilies = new(() =>
-		Task.Run<IReadOnlyList<string>>(Enumerate));
+	private static readonly Lazy<Task<IReadOnlyList<string>>> _fontFamilies = new(() => Task.Run(Enumerate));
 
 	public static Task<IReadOnlyList<string>> GetAsync()
-		=> FontFamilies.Value;
+	{
+		return _fontFamilies.Value;
+	}
 
 	private static IReadOnlyList<string> Enumerate()
 	{
-		HashSet<string> fontFamilies = new(StringComparer.OrdinalIgnoreCase);
-		HDC deviceContext = PInvoke.GetDC(HWND.Null);
+		var fontFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var deviceContext = PInvoke.GetDC(HWND.Null);
 		if (deviceContext.IsNull)
 		{
 			throw new InvalidOperationException("Unable to get a device context for font enumeration.");
 		}
 
-		GCHandle fontFamiliesHandle = GCHandle.Alloc(fontFamilies);
+		var fontFamiliesHandle = GCHandle.Alloc(fontFamilies);
 		try
 		{
 			LOGFONTW logFont = default;
 			logFont.lfCharSet = FONT_CHARSET.DEFAULT_CHARSET;
-			PInvoke.EnumFontFamiliesEx(
-				deviceContext,
-				in logFont,
-				&EnumFontFamilyCallback,
-				GCHandle.ToIntPtr(fontFamiliesHandle),
-				0);
+			PInvoke.EnumFontFamiliesEx(deviceContext, in logFont, &EnumFontFamilyCallback, GCHandle.ToIntPtr(fontFamiliesHandle), 0);
 		}
 		finally
 		{
@@ -44,10 +40,9 @@ internal static unsafe class InstalledFontFamilies
 			PInvoke.ReleaseDC(HWND.Null, deviceContext);
 		}
 
-		string[] installedFonts = fontFamilies
+		string[] installedFonts = [.. fontFamilies
 			.Where(fontFamily => !fontFamily.StartsWith('@'))
-			.OrderBy(fontFamily => fontFamily, StringComparer.CurrentCultureIgnoreCase)
-			.ToArray();
+			.OrderBy(fontFamily => fontFamily, StringComparer.CurrentCultureIgnoreCase)];
 
 		if (installedFonts.Length == 0)
 		{
@@ -72,14 +67,14 @@ internal static unsafe class InstalledFontFamilies
 				return 1;
 			}
 
-			ReadOnlySpan<char> faceName = logFont->lfFaceName.AsReadOnlySpan();
-			int nullTerminator = faceName.IndexOf('\0');
+			var faceName = logFont->lfFaceName.AsReadOnlySpan();
+			var nullTerminator = faceName.IndexOf('\0');
 			if (nullTerminator >= 0)
 			{
 				faceName = faceName[..nullTerminator];
 			}
 
-			string fontFamily = faceName.ToString();
+			var fontFamily = faceName.ToString();
 			if (!string.IsNullOrWhiteSpace(fontFamily) && !fontFamily.StartsWith('@'))
 			{
 				fontFamilies.Add(fontFamily);

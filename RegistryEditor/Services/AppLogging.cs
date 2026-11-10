@@ -7,7 +7,7 @@ namespace RegistryEditor.Services;
 
 internal static class AppLogging
 {
-	private static readonly ILoggerFactory Factory = LoggerFactory.Create(builder =>
+	private static readonly ILoggerFactory _factory = LoggerFactory.Create(builder =>
 	{
 #if DEBUG
 		builder.SetMinimumLevel(LogLevel.Debug);
@@ -26,14 +26,19 @@ internal static class AppLogging
 		}
 
 		_fileProvider = new FileLoggerProvider(directory);
-		Factory.AddProvider(_fileProvider);
-		Factory.CreateLogger("Application").LogInformation("Session started pid={ProcessId} log={LogFilePath}",
-			Environment.ProcessId, _fileProvider.LogFilePath);
+		_factory.AddProvider(_fileProvider);
+		_factory.CreateLogger("Application").LogInformation("Session started pid={ProcessId} log={LogFilePath}", Environment.ProcessId, _fileProvider.LogFilePath);
 	}
 
-	public static ILogger<T> CreateLogger<T>() => Factory.CreateLogger<T>();
+	public static ILogger<T> CreateLogger<T>()
+	{
+		return _factory.CreateLogger<T>();
+	}
 
-	public static Task FlushAsync() => _fileProvider?.FlushAsync() ?? Task.CompletedTask;
+	public static Task FlushAsync()
+	{
+		return _fileProvider?.FlushAsync() ?? Task.CompletedTask;
+	}
 
 	public static void Shutdown()
 	{
@@ -42,7 +47,7 @@ internal static class AppLogging
 			return;
 		}
 
-		Factory.CreateLogger("Application").LogInformation("Session ended");
-		Factory.Dispose();
+		_factory.CreateLogger("Application").LogInformation("Session ended");
+		_factory.Dispose();
 	}
 }

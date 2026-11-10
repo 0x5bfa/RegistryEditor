@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace RegistryEditor.Services;
 
-internal sealed class UIResponsivenessMonitor : IDisposable
+internal sealed partial class UIResponsivenessMonitor : IDisposable
 {
 	private readonly ILogger<UIResponsivenessMonitor> _logger = AppLogging.CreateLogger<UIResponsivenessMonitor>();
 	private readonly DispatcherQueueTimer _heartbeat;

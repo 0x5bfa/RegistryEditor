@@ -119,7 +119,9 @@ public sealed partial class RootView : UserControl
 	}
 
 	private void RegistryValueTableView_PointerPressed(object sender, PointerRoutedEventArgs args)
-		=> RegistryValueTableView.Focus(FocusState.Pointer);
+	{
+		RegistryValueTableView.Focus(FocusState.Pointer);
+	}
 
 	private async void RegistryValueTableView_Tapped(object sender, TappedRoutedEventArgs args)
 	{

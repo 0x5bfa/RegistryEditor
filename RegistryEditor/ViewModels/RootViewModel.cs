@@ -22,9 +22,9 @@ using WinRT.Interop;
 
 namespace RegistryEditor.ViewModels;
 
-public sealed class RootViewModel : ObservableObject
+public sealed partial class RootViewModel : ObservableObject
 {
-	private static readonly ILogger<RootViewModel> Logger = AppLogging.CreateLogger<RootViewModel>();
+	private static readonly ILogger<RootViewModel> _logger = AppLogging.CreateLogger<RootViewModel>();
 	private const string ComputerImageUri = "ms-appx:///Assets/Images/Computer.png";
 	private const string FolderImageUri = "ms-appx:///Assets/Images/Folder.png";
 	private const string BinaryValueImageUri = "ms-appx:///Assets/Images/BinaryValue.png";
@@ -60,7 +60,7 @@ public sealed class RootViewModel : ObservableObject
 	private string _valueDataFontFamilyName = "Cascadia Mono";
 	private string _appFontFamilyName = "Segoe UI Variable";
 	private FontFamily _valueDataFontFamily = null!;
-	private static readonly ElementTheme[] ThemeValues =
+	private static readonly ElementTheme[] _themeValues =
 	[
 		ElementTheme.Default,
 		ElementTheme.Light,
@@ -88,77 +88,41 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	public ObservableCollection<RegistryNodeViewModel> RootNodes { get; } = [];
-
 	public ObservableCollection<RegistryBreadcrumbItemViewModel> BreadcrumbItems { get; } = [];
-
 	public ObservableCollection<RegistryValueViewModel> RegistryValues { get; } = [];
-
 	public AsyncRelayCommand<object?> ImportCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> ExportCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> LoadHiveCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> UnloadHiveCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> ConnectRemoteCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> DisconnectRemoteCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> PrintCommand { get; private set; } = null!;
-
 	public RelayCommand<object?> ExitCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> BackCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> ForwardCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> ExpandNodeCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NavigateToNodeCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NewKeyCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NewStringValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NewBinaryValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NewDWordValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NewQWordValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NewMultiStringValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> NewExpandableStringValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> DeleteValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> RenameValueCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> FindCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> DeleteKeyCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> RenameKeyCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> PermissionsCommand { get; private set; } = null!;
-
 	public RelayCommand<object?> CopyKeyCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> ToggleAddressBarCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> SelectThemeCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> DisplayBinaryDataCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> SaveValueChangesCommand { get; private set; } = null!;
-
 	public RelayCommand<object?> DiscardValueChangesCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> RefreshCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> CustomizeFontCommand { get; private set; } = null!;
-
 	public AsyncRelayCommand<object?> AboutCommand { get; private set; } = null!;
 
 	public RegistryNodeViewModel? SelectedNode
@@ -364,8 +328,7 @@ public sealed class RootViewModel : ObservableObject
 
 	public Visibility IntegerBitEditorVisibility => IsBinaryIntegerFormat ? Visibility.Visible : Visibility.Collapsed;
 
-	public bool CanSaveValueChanges => CanEditSelectedValue
-		&& (IsValueDirty || SelectedValue?.RawValue is null);
+	public bool CanSaveValueChanges => CanEditSelectedValue && (IsValueDirty || SelectedValue?.RawValue is null);
 
 	public Visibility ValueEditorContentVisibility => SelectedValue is null ? Visibility.Collapsed : Visibility.Visible;
 
@@ -452,7 +415,9 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private bool IsCurrentKeyOverviewRequest(RegistryNodeViewModel node, int requestId)
-		=> requestId == _keyOverviewRequestId && ReferenceEquals(SelectedNode, node);
+	{
+		return requestId == _keyOverviewRequestId && ReferenceEquals(SelectedNode, node);
+	}
 
 	private void NotifyKeyOverview()
 	{
@@ -614,7 +579,9 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private void DiscardValueEditorChanges()
-		=> LoadValueEditorDraft(SelectedValue);
+	{
+		LoadValueEditorDraft(SelectedValue);
+	}
 
 	private async Task<bool> ConfirmDiscardValueChangesAsync()
 	{
@@ -634,7 +601,8 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private static bool IsSupportedValue(RegistryValueViewModel? value)
-		=> value?.Kind switch
+	{
+		return value?.Kind switch
 		{
 			RegistryValueKind.String => value.RawValue is null or string,
 			RegistryValueKind.ExpandString => value.RawValue is string,
@@ -645,9 +613,12 @@ public sealed class RootViewModel : ObservableObject
 			RegistryValueKind.None => value.RawValue is byte[],
 			_ => false,
 		};
+	}
 
 	private static string FormatEditableBytes(byte[] bytes)
-		=> string.Join(" ", bytes.Select(value => value.ToString("x2", CultureInfo.InvariantCulture)));
+	{
+		return string.Join(" ", bytes.Select(value => value.ToString("x2", CultureInfo.InvariantCulture)));
+	}
 
 	private static bool RegistryValuesEqual(object? first, object? second)
 	{
@@ -711,7 +682,7 @@ public sealed class RootViewModel : ObservableObject
 		set
 		{
 			if (value < 0
-				|| value >= ThemeValues.Length
+				|| value >= _themeValues.Length
 				|| !SetProperty(ref _selectedThemeIndex, value))
 			{
 				return;
@@ -723,7 +694,7 @@ public sealed class RootViewModel : ObservableObject
 
 			if (App.Window.Content is FrameworkElement root)
 			{
-				root.RequestedTheme = ThemeValues[value];
+				root.RequestedTheme = _themeValues[value];
 			}
 		}
 	}
@@ -819,23 +790,35 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private bool CanKeyNode(object? parameter)
-		=> ResolveNode(parameter)?.Hive is not null;
+	{
+		return ResolveNode(parameter)?.Hive is not null;
+	}
 
 	private bool CanExpandNode(object? parameter)
-		=> ResolveNode(parameter) is { Hive: not null } node
-			&& (node.IsExpanded || node.HasUnrealizedChildren || node.Children.Count > 0);
+	{
+		return ResolveNode(parameter) is { Hive: not null } node
+				&& (node.IsExpanded || node.HasUnrealizedChildren || node.Children.Count > 0);
+	}
 
 	private static bool CanNavigateToNode(object? parameter)
-		=> parameter is RegistryNodeViewModel;
+	{
+		return parameter is RegistryNodeViewModel;
+	}
 
 	private bool CanEditNode(object? parameter)
-		=> ResolveNode(parameter)?.Hive is not null;
+	{
+		return ResolveNode(parameter)?.Hive is not null;
+	}
 
 	private bool CanDeleteNode(object? parameter)
-		=> ResolveNode(parameter) is { Hive: not null, IsHiveRoot: false };
+	{
+		return ResolveNode(parameter) is { Hive: not null, IsHiveRoot: false };
+	}
 
 	private bool CanRenameNode(object? parameter)
-		=> CanDeleteNode(parameter);
+	{
+		return CanDeleteNode(parameter);
+	}
 
 	private bool CanUnloadNode(object? parameter)
 	{
@@ -845,7 +828,9 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private bool CanExportNode(object? parameter)
-		=> CanKeyNode(parameter);
+	{
+		return CanKeyNode(parameter);
+	}
 
 	private bool CanDeleteValue(object? parameter)
 	{
@@ -859,7 +844,9 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private RegistryNodeViewModel? ResolveNode(object? parameter)
-		=> parameter as RegistryNodeViewModel ?? SelectedNode;
+	{
+		return parameter as RegistryNodeViewModel ?? SelectedNode;
+	}
 
 	private RegistryValueViewModel? ResolveValue(object? parameter)
 	{
@@ -874,7 +861,7 @@ public sealed class RootViewModel : ObservableObject
 		}
 		catch (Exception exception)
 		{
-			Logger.LogError(exception, "Command failed: {ErrorTitle}", errorTitle);
+			_logger.LogError(exception, "Command failed: {ErrorTitle}", errorTitle);
 			await ShowMessageAsync(errorTitle, exception.Message);
 		}
 	}
@@ -908,105 +895,119 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private Task ExecuteImportCommandAsync(object? parameter)
-		=> RunCommandAsync("Import failed", async () =>
-		{
-			if (await PickImportFileAsync() is not { } filePath
-				|| !await ConfirmDiscardValueChangesAsync())
+	{
+		return RunCommandAsync("Import failed", async () =>
 			{
-				return;
-			}
+				if (await PickImportFileAsync() is not { } filePath
+					|| !await ConfirmDiscardValueChangesAsync())
+				{
+					return;
+				}
 
-			int count = await ImportAsync(filePath);
-			await ShowMessageAsync(
-				"Import",
-				$"Imported {count} value(s) from '{Path.GetFileName(filePath)}'.");
-		});
+				int count = await ImportAsync(filePath);
+				await ShowMessageAsync(
+					"Import",
+					$"Imported {count} value(s) from '{Path.GetFileName(filePath)}'.");
+			});
+	}
 
 	private Task ExecuteExportCommandAsync(object? parameter)
-		=> RunCommandAsync("Export failed", async () =>
-		{
-			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node?.Hive is null || await PickExportFileAsync() is not { } filePath)
+	{
+		return RunCommandAsync("Export failed", async () =>
 			{
-				return;
-			}
+				RegistryNodeViewModel? node = ResolveNode(parameter);
+				if (node?.Hive is null || await PickExportFileAsync() is not { } filePath)
+				{
+					return;
+				}
 
-			await ExportAsync(filePath, node);
-			await ShowMessageAsync(
-				"Export",
-				$"Exported '{GetRegistryPath(node)}' to '{Path.GetFileName(filePath)}'.");
-		});
+				await ExportAsync(filePath, node);
+				await ShowMessageAsync(
+					"Export",
+					$"Exported '{GetRegistryPath(node)}' to '{Path.GetFileName(filePath)}'.");
+			});
+	}
 
 	private Task ExecuteLoadHiveCommandAsync(object? parameter)
-		=> RunCommandAsync("Load hive failed", async () =>
-		{
-			if (SelectedNode is not { } parent
-				|| await PickHiveFileAsync() is not { } filePath
-				|| await RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName
-				|| !await ConfirmDiscardValueChangesAsync())
+	{
+		return RunCommandAsync("Load hive failed", async () =>
 			{
-				return;
-			}
+				if (SelectedNode is not { } parent
+					|| await PickHiveFileAsync() is not { } filePath
+					|| await RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName
+					|| !await ConfirmDiscardValueChangesAsync())
+				{
+					return;
+				}
 
-			await LoadHiveAsync(parent, filePath, keyName);
-		});
+				await LoadHiveAsync(parent, filePath, keyName);
+			});
+	}
 
 	private Task ExecuteUnloadHiveCommandAsync(object? parameter)
-		=> RunCommandAsync("Unload hive failed", async () =>
-		{
-			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node is null
-				|| !await ConfirmDiscardValueChangesAsync()
-				|| !await ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
+	{
+		return RunCommandAsync("Unload hive failed", async () =>
 			{
-				return;
-			}
+				RegistryNodeViewModel? node = ResolveNode(parameter);
+				if (node is null
+					|| !await ConfirmDiscardValueChangesAsync()
+					|| !await ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
+				{
+					return;
+				}
 
-			await UnloadHiveAsync(node);
-		});
+				await UnloadHiveAsync(node);
+			});
+	}
 
 	private Task ExecuteConnectRemoteCommandAsync(object? parameter)
-		=> RunCommandAsync("Connection failed", async () =>
-		{
-			if (await RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName
-				&& await ConfirmDiscardValueChangesAsync())
+	{
+		return RunCommandAsync("Connection failed", async () =>
 			{
-				await ConnectRemoteAsync(computerName);
-			}
-		});
+				if (await RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName
+					&& await ConfirmDiscardValueChangesAsync())
+				{
+					await ConnectRemoteAsync(computerName);
+				}
+			});
+	}
 
 	private Task ExecuteDisconnectRemoteCommandAsync(object? parameter)
-		=> RunCommandAsync("Disconnect failed", async () =>
-		{
-			if (!await ConfirmDiscardValueChangesAsync()
-				|| !await ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
+	{
+		return RunCommandAsync("Disconnect failed", async () =>
 			{
-				return;
-			}
+				if (!await ConfirmDiscardValueChangesAsync()
+					|| !await ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
+				{
+					return;
+				}
 
-			await DisconnectRemoteAsync(ResolveNode(parameter));
-		});
+				await DisconnectRemoteAsync(ResolveNode(parameter));
+			});
+	}
 
 	private Task ExecutePrintCommandAsync(object? parameter)
-		=> RunCommandAsync("Print failed", async () =>
-		{
-			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node?.Hive is null)
+	{
+		return RunCommandAsync("Print failed", async () =>
 			{
-				return;
-			}
+				RegistryNodeViewModel? node = ResolveNode(parameter);
+				if (node?.Hive is null)
+				{
+					return;
+				}
 
-			string filePath = Path.Combine(Path.GetTempPath(), $"RegistryEditor-{Guid.NewGuid():N}.reg");
-			try
-			{
-				await ExportAsync(filePath, node);
-				await PrintFileAsync(filePath);
-			}
-			finally
-			{
-				TryDeleteFile(filePath);
-			}
-		});
+				string filePath = Path.Combine(Path.GetTempPath(), $"RegistryEditor-{Guid.NewGuid():N}.reg");
+				try
+				{
+					await ExportAsync(filePath, node);
+					await PrintFileAsync(filePath);
+				}
+				finally
+				{
+					TryDeleteFile(filePath);
+				}
+			});
+	}
 
 	private async Task ExecuteExpandNodeCommandAsync(object? parameter)
 	{
@@ -1027,33 +1028,39 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private Task ExecuteNavigateToNodeCommandAsync(object? parameter)
-		=> parameter is RegistryNodeViewModel node
-			? SelectNodeAsync(node)
-			: Task.CompletedTask;
+	{
+		return parameter is RegistryNodeViewModel node
+				? SelectNodeAsync(node)
+				: Task.CompletedTask;
+	}
 
 	private Task ExecuteNewKeyCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async () =>
-		{
-			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node is not null
-				&& await RequestTextAsync("New key", "Key name", "New Key") is { } keyName
-				&& await ConfirmDiscardValueChangesAsync())
+	{
+		return RunCommandAsync("Registry operation failed", async () =>
 			{
-				await CreateKeyAsync(node, keyName);
-			}
-		});
+				RegistryNodeViewModel? node = ResolveNode(parameter);
+				if (node is not null
+					&& await RequestTextAsync("New key", "Key name", "New Key") is { } keyName
+					&& await ConfirmDiscardValueChangesAsync())
+				{
+					await CreateKeyAsync(node, keyName);
+				}
+			});
+	}
 
 	private Task CreateValueFromCommandAsync(object? parameter, RegistryValueKind kind)
-		=> RunCommandAsync("Registry operation failed", async () =>
-		{
-			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node is not null
-				&& await RequestTextAsync("New value", "Value name", "New Value") is { } name
-				&& await ConfirmDiscardValueChangesAsync())
+	{
+		return RunCommandAsync("Registry operation failed", async () =>
 			{
-				await CreateValueAsync(node, name, kind);
-			}
-		});
+				RegistryNodeViewModel? node = ResolveNode(parameter);
+				if (node is not null
+					&& await RequestTextAsync("New value", "Value name", "New Value") is { } name
+					&& await ConfirmDiscardValueChangesAsync())
+				{
+					await CreateValueAsync(node, name, kind);
+				}
+			});
+	}
 
 	private async Task ExecuteDeleteValueCommandAsync(object? parameter)
 	{
@@ -1136,61 +1143,69 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private Task ExecuteFindCommandAsync(object? parameter)
-		=> RunCommandAsync("Find failed", async () =>
-		{
-			if (await RequestTextAsync("Find", "Search for a key, value, or data", "") is not { } query)
+	{
+		return RunCommandAsync("Find failed", async () =>
 			{
-				return;
-			}
+				if (await RequestTextAsync("Find", "Search for a key, value, or data", "") is not { } query)
+				{
+					return;
+				}
 
-			RegistryNodeViewModel? result = await FindAsync(query, parameter as RegistryNodeViewModel);
-			if (result is null)
-			{
-				await ShowMessageAsync("Find", $"No match was found for '{query}'.");
-				return;
-			}
+				RegistryNodeViewModel? result = await FindAsync(query, parameter as RegistryNodeViewModel);
+				if (result is null)
+				{
+					await ShowMessageAsync("Find", $"No match was found for '{query}'.");
+					return;
+				}
 
-			result.IsExpanded = true;
-			await SelectNodeAsync(result);
-		});
+				result.IsExpanded = true;
+				await SelectNodeAsync(result);
+			});
+	}
 
 	private Task ExecuteDeleteKeyCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async () =>
-		{
-			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node is not null
-				&& await ConfirmDiscardValueChangesAsync()
-				&& await ConfirmAsync("Delete key", $"Delete '{node.Name}' and all of its subkeys?"))
+	{
+		return RunCommandAsync("Registry operation failed", async () =>
 			{
-				await DeleteKeyAsync(node);
-			}
-		});
+				RegistryNodeViewModel? node = ResolveNode(parameter);
+				if (node is not null
+					&& await ConfirmDiscardValueChangesAsync()
+					&& await ConfirmAsync("Delete key", $"Delete '{node.Name}' and all of its subkeys?"))
+				{
+					await DeleteKeyAsync(node);
+				}
+			});
+	}
 
 	private Task ExecuteRenameKeyCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async () =>
-		{
-			RegistryNodeViewModel? node = ResolveNode(parameter);
-			if (node is null
-				|| await RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName
-				|| !await ConfirmDiscardValueChangesAsync())
+	{
+		return RunCommandAsync("Registry operation failed", async () =>
 			{
-				return;
-			}
+				RegistryNodeViewModel? node = ResolveNode(parameter);
+				if (node is null
+					|| await RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName
+					|| !await ConfirmDiscardValueChangesAsync())
+				{
+					return;
+				}
 
-			if (await RenameKeyAsync(node, newName) is { } renamedNode)
-			{
-				await SelectNodeAsync(renamedNode);
-			}
-		});
+				if (await RenameKeyAsync(node, newName) is { } renamedNode)
+				{
+					await SelectNodeAsync(renamedNode);
+				}
+			});
+	}
 
 	private Task ExecutePermissionsCommandAsync(object? parameter)
-		=> RunCommandAsync("Registry operation failed", async () =>
-		{
-			if (ResolveNode(parameter) is { } node && await ConfirmDiscardValueChangesAsync())
+	{
+		return RunCommandAsync("Registry operation failed", async () =>
 			{
-				await EditPermissionsAsync(node);
-			}
-		});
+				if (ResolveNode(parameter) is { } node && await ConfirmDiscardValueChangesAsync())
+				{
+					await EditPermissionsAsync(node);
+				}
+			});
+	}
 
 	private void ExecuteCopyKeyCommand(object? parameter)
 	{
@@ -1201,51 +1216,63 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private Task ExecuteDisplayBinaryDataCommandAsync(object? parameter)
-		=> RunCommandAsync("Unable to display the value", async () =>
-		{
-			if (SelectedValue is { } value)
+	{
+		return RunCommandAsync("Unable to display the value", async () =>
 			{
-				await ShowValueAsync(value);
-			}
-		});
+				if (SelectedValue is { } value)
+				{
+					await ShowValueAsync(value);
+				}
+			});
+	}
 
 	private Task ExecuteRefreshCommandAsync(object? parameter)
-		=> RunCommandAsync("Refresh failed", () => RefreshAsync());
+	{
+		return RunCommandAsync("Refresh failed", () => RefreshAsync());
+	}
 
 	private Task ExecuteToggleAddressBarCommandAsync(object? parameter)
-		=> RunCommandAsync("Settings save failed", async () =>
-		{
-			SetAddressBarVisibility(!IsAddressBarVisible);
-			await SaveSettingsAsync();
-		});
+	{
+		return RunCommandAsync("Settings save failed", async () =>
+			{
+				SetAddressBarVisibility(!IsAddressBarVisible);
+				await SaveSettingsAsync();
+			});
+	}
 
 	private Task ExecuteSelectThemeCommandAsync(object? parameter)
-		=> RunCommandAsync("Settings save failed", async () =>
-		{
-			if (!int.TryParse(Convert.ToString(parameter, CultureInfo.InvariantCulture), NumberStyles.None, CultureInfo.InvariantCulture, out int index)
-				|| index < 0
-				|| index >= ThemeValues.Length)
+	{
+		return RunCommandAsync("Settings save failed", async () =>
 			{
-				return;
-			}
+				if (!int.TryParse(Convert.ToString(parameter, CultureInfo.InvariantCulture), NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+					|| index < 0
+					|| index >= _themeValues.Length)
+				{
+					return;
+				}
 
-			SelectedThemeIndex = index;
-			await SaveSettingsAsync();
-		});
+				SelectedThemeIndex = index;
+				await SaveSettingsAsync();
+			});
+	}
 
 	private Task SaveSettingsAsync()
-		=> AppSettingsStore.SaveAsync(CreateSettingsSnapshot());
+	{
+		return AppSettingsStore.SaveAsync(CreateSettingsSnapshot());
+	}
 
 	private AppSettings CreateSettingsSnapshot(
 		string? valueDataFontFamilyName = null,
 		string? appFontFamilyName = null)
-		=> new()
+	{
+		return new()
 		{
 			ValueDataFontFamily = valueDataFontFamilyName ?? _valueDataFontFamilyName,
 			AppFontFamily = appFontFamilyName ?? _appFontFamilyName,
 			ThemeIndex = SelectedThemeIndex,
 			ShowAddressBar = IsAddressBarVisible,
 		};
+	}
 
 	private void ApplyValueDataFont(string fontFamilyName)
 	{
@@ -1268,49 +1295,59 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private Task ExecuteCustomizeFontCommandAsync(object? parameter)
-		=> RunCommandAsync("Font customization failed", async () =>
-		{
-			CustomizeFontContentDialog dialog = new()
+	{
+		return RunCommandAsync("Font customization failed", async () =>
 			{
-				XamlRoot = GetXamlRoot(),
-			};
-			await dialog.LoadAvailableFontFamiliesAsync();
-			dialog.Configure(_valueDataFontFamilyName, _appFontFamilyName);
+				CustomizeFontContentDialog dialog = new()
+				{
+					XamlRoot = GetXamlRoot(),
+				};
+				await dialog.LoadAvailableFontFamiliesAsync();
+				dialog.Configure(_valueDataFontFamilyName, _appFontFamilyName);
 
-			if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-			{
-				return;
-			}
+				if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+				{
+					return;
+				}
 
-			string valueDataFontFamilyName = dialog.SelectedValueDataFontFamilyName;
-			string appFontFamilyName = dialog.SelectedAppFontFamilyName;
-			await AppSettingsStore.SaveAsync(CreateSettingsSnapshot(valueDataFontFamilyName, appFontFamilyName));
-			ApplyValueDataFont(valueDataFontFamilyName);
-			ApplyAppFont(appFontFamilyName);
-		});
+				string valueDataFontFamilyName = dialog.SelectedValueDataFontFamilyName;
+				string appFontFamilyName = dialog.SelectedAppFontFamilyName;
+				await AppSettingsStore.SaveAsync(CreateSettingsSnapshot(valueDataFontFamilyName, appFontFamilyName));
+				ApplyValueDataFont(valueDataFontFamilyName);
+				ApplyAppFont(appFontFamilyName);
+			});
+	}
 
 	private Task ExecuteAboutCommandAsync(object? parameter)
-		=> RunCommandAsync("About failed", async () =>
-		{
-			AboutContentDialog dialog = new()
+	{
+		return RunCommandAsync("About failed", async () =>
 			{
-				XamlRoot = GetXamlRoot(),
-			};
-			await dialog.ShowAsync();
-		});
+				AboutContentDialog dialog = new()
+				{
+					XamlRoot = GetXamlRoot(),
+				};
+				await dialog.ShowAsync();
+			});
+	}
 
 	private static FontFamily CreateValueDataFontFamily(string fontFamilyName)
-		=> CreateFontFamily(fontFamilyName, "Consolas", "Courier New");
+	{
+		return CreateFontFamily(fontFamilyName, "Consolas", "Courier New");
+	}
 
 	private static FontFamily CreateAppFontFamily(string fontFamilyName)
-		=> CreateFontFamily(fontFamilyName, "Segoe UI Variable", "Segoe UI", "Arial");
+	{
+		return CreateFontFamily(fontFamilyName, "Segoe UI Variable", "Segoe UI", "Arial");
+	}
 
 	private static FontFamily CreateFontFamily(string fontFamilyName, params string[] fallbackFontFamilyNames)
-		=> new(string.Join(
-			", ",
-			new[] { fontFamilyName }
-				.Concat(fallbackFontFamilyNames)
-				.Distinct(StringComparer.OrdinalIgnoreCase)));
+	{
+		return new(string.Join(
+				", ",
+				new[] { fontFamilyName }
+					.Concat(fallbackFontFamilyNames)
+					.Distinct(StringComparer.OrdinalIgnoreCase)));
+	}
 
 	private async Task ExecuteBackCommandAsync(object? parameter)
 	{
@@ -1478,7 +1515,7 @@ public sealed class RootViewModel : ObservableObject
 
 	public async Task EditPermissionsAsync(RegistryNodeViewModel node)
 	{
-		using var operation = Logger.Measure(
+		using var operation = _logger.Measure(
 			"EditPermissions",
 			$"key=\"{GetRegistryPath(node)}\"",
 			LogLevel.Information);
@@ -1567,12 +1604,14 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private static int GetIntegerBitWidth(RegistryValueKind kind)
-		=> kind switch
+	{
+		return kind switch
 		{
 			RegistryValueKind.DWord => 32,
 			RegistryValueKind.QWord => 64,
 			_ => throw new InvalidOperationException("This registry value is not an integer value."),
 		};
+	}
 
 	private static string FormatIntegerValue(ulong value, RegistryValueKind kind, int numberBaseIndex)
 	{
@@ -1727,10 +1766,14 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	public void Close()
-		=> App.Window.Close();
+	{
+		App.Window.Close();
+	}
 
 	public void SetAddressBarVisibility(bool isVisible)
-		=> IsAddressBarVisible = isVisible;
+	{
+		IsAddressBarVisible = isVisible;
+	}
 
 	private static XamlRoot GetXamlRoot()
 	{
@@ -1760,7 +1803,7 @@ public sealed class RootViewModel : ObservableObject
 	private async Task LoadChildrenCoreAsync(RegistryNodeViewModel node)
 	{
 		node.IsChildrenLoading = true;
-		using var operation = Logger.Measure("LoadChildren", $"key=\"{GetRegistryPath(node)}\" expanded={node.IsExpanded}");
+		using var operation = _logger.Measure("LoadChildren", $"key=\"{GetRegistryPath(node)}\" expanded={node.IsExpanded}");
 
 		try
 		{
@@ -2237,7 +2280,9 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	public Task ExportAsync(string filePath, RegistryNodeViewModel node)
-		=> RunRegistryOperationAsync(() => RegistryFileService.Export(filePath, node));
+	{
+		return RunRegistryOperationAsync(() => RegistryFileService.Export(filePath, node));
+	}
 
 	public async Task LoadHiveAsync(RegistryNodeViewModel? parent, string filePath, string keyName)
 	{
@@ -2488,7 +2533,9 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private static bool HasBreadcrumbChildren(RegistryNodeViewModel node)
-		=> node.HasUnrealizedChildren || node.Children.Count > 0;
+	{
+		return node.HasUnrealizedChildren || node.Children.Count > 0;
+	}
 
 	private void SetEmptyValuesMessage(string text, bool isEmpty)
 	{
@@ -2549,11 +2596,13 @@ public sealed class RootViewModel : ObservableObject
 		bool hasUnrealizedChildren,
 		string? computerName = null,
 		RegistryNodeViewModel? parent = null)
-		=> new(name, hive, subKeyPath, iconUri, hasUnrealizedChildren, computerName, parent);
+	{
+		return new(name, hive, subKeyPath, iconUri, hasUnrealizedChildren, computerName, parent);
+	}
 
 	private static IReadOnlyList<RegistrySubKeyData>? ReadSubkeys(RegistryNodeViewModel node, int loadId)
 	{
-		using var operation = Logger.Measure("ReadSubkeys", $"loadId={loadId}");
+		using var operation = _logger.Measure("ReadSubkeys", $"loadId={loadId}");
 		try
 		{
 			using RegistryKey baseKey = RegistryFileService.OpenBaseKey(node);
@@ -2564,14 +2613,14 @@ public sealed class RootViewModel : ObservableObject
 			operation.Write("KeyOpened");
 
 			string[] names;
-			using (Logger.Measure("ReadSubkeys.GetSubKeyNames", $"readId={operation.Id}"))
+			using (_logger.Measure("ReadSubkeys.GetSubKeyNames", $"readId={operation.Id}"))
 			{
 				names = key.GetSubKeyNames();
 			}
 
 			operation.Write($"NamesEnumerated count={names.Length}");
 			string[] sortedNames;
-			using (Logger.Measure("ReadSubkeys.Sort", $"readId={operation.Id}"))
+			using (_logger.Measure("ReadSubkeys.Sort", $"readId={operation.Id}"))
 			{
 				sortedNames = names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
 			}
@@ -2698,44 +2747,54 @@ public sealed class RootViewModel : ObservableObject
 	}
 
 	private static RegistryValueData CreateUnreadableValue(string valueName)
-		=> new(
-			string.IsNullOrEmpty(valueName) ? "(Default)" : valueName,
-			"REG_UNKNOWN",
-			"(Unable to read)",
-			UnknownValueImageUri,
-			valueName,
-			RegistryValueKind.Unknown,
-			null);
+	{
+		return new(
+				string.IsNullOrEmpty(valueName) ? "(Default)" : valueName,
+				"REG_UNKNOWN",
+				"(Unable to read)",
+				UnknownValueImageUri,
+				valueName,
+				RegistryValueKind.Unknown,
+				null);
+	}
 
 	private static RegistryValueData CreateUnsetDefaultValue()
-		=> new(
-			"(Default)",
-			"REG_SZ",
-			NoValueText,
-			StringValueImageUri,
-			string.Empty,
-			RegistryValueKind.String,
-			null);
-
-	private static string GetValueTypeName(RegistryValueKind kind) => kind switch
 	{
-		RegistryValueKind.None => "REG_NONE",
-		RegistryValueKind.String => "REG_SZ",
-		RegistryValueKind.ExpandString => "REG_EXPAND_SZ",
-		RegistryValueKind.Binary => "REG_BINARY",
-		RegistryValueKind.DWord => "REG_DWORD",
-		RegistryValueKind.MultiString => "REG_MULTI_SZ",
-		RegistryValueKind.QWord => "REG_QWORD",
-		RegistryValueKind.Unknown => "REG_UNKNOWN",
-		_ => $"REG_{kind.ToString().ToUpperInvariant()}",
-	};
+		return new(
+				"(Default)",
+				"REG_SZ",
+				NoValueText,
+				StringValueImageUri,
+				string.Empty,
+				RegistryValueKind.String,
+				null);
+	}
 
-	private static string GetValueImageUri(RegistryValueKind kind) => kind switch
+	private static string GetValueTypeName(RegistryValueKind kind)
 	{
-		RegistryValueKind.String or RegistryValueKind.ExpandString or RegistryValueKind.MultiString => StringValueImageUri,
-		RegistryValueKind.Binary or RegistryValueKind.DWord or RegistryValueKind.QWord => BinaryValueImageUri,
-		_ => UnknownValueImageUri,
-	};
+		return kind switch
+		{
+			RegistryValueKind.None => "REG_NONE",
+			RegistryValueKind.String => "REG_SZ",
+			RegistryValueKind.ExpandString => "REG_EXPAND_SZ",
+			RegistryValueKind.Binary => "REG_BINARY",
+			RegistryValueKind.DWord => "REG_DWORD",
+			RegistryValueKind.MultiString => "REG_MULTI_SZ",
+			RegistryValueKind.QWord => "REG_QWORD",
+			RegistryValueKind.Unknown => "REG_UNKNOWN",
+			_ => $"REG_{kind.ToString().ToUpperInvariant()}",
+		};
+	}
+
+	private static string GetValueImageUri(RegistryValueKind kind)
+	{
+		return kind switch
+		{
+			RegistryValueKind.String or RegistryValueKind.ExpandString or RegistryValueKind.MultiString => StringValueImageUri,
+			RegistryValueKind.Binary or RegistryValueKind.DWord or RegistryValueKind.QWord => BinaryValueImageUri,
+			_ => UnknownValueImageUri,
+		};
+	}
 
 	private static string FormatValue(RegistryValueKind kind, object? value)
 	{
@@ -2785,15 +2844,18 @@ public sealed class RootViewModel : ObservableObject
 		return $"0x{number:x16} ({number})";
 	}
 
-	private static string GetHiveName(RegistryHive hive) => hive switch
+	private static string GetHiveName(RegistryHive hive)
 	{
-		RegistryHive.ClassesRoot => "HKEY_CLASSES_ROOT",
-		RegistryHive.CurrentUser => "HKEY_CURRENT_USER",
-		RegistryHive.LocalMachine => "HKEY_LOCAL_MACHINE",
-		RegistryHive.Users => "HKEY_USERS",
-		RegistryHive.CurrentConfig => "HKEY_CURRENT_CONFIG",
-		_ => hive.ToString(),
-	};
+		return hive switch
+		{
+			RegistryHive.ClassesRoot => "HKEY_CLASSES_ROOT",
+			RegistryHive.CurrentUser => "HKEY_CURRENT_USER",
+			RegistryHive.LocalMachine => "HKEY_LOCAL_MACHINE",
+			RegistryHive.Users => "HKEY_USERS",
+			RegistryHive.CurrentConfig => "HKEY_CURRENT_CONFIG",
+			_ => hive.ToString(),
+		};
+	}
 
 	public string GetRegistryPath(RegistryNodeViewModel node)
 	{
@@ -2912,7 +2974,10 @@ public sealed class RootViewModel : ObservableObject
 		}
 	}
 
-	private static BitmapImage CreateBitmapImage(string uri) => new(new Uri(uri));
+	private static BitmapImage CreateBitmapImage(string uri)
+	{
+		return new(new Uri(uri));
+	}
 
 	private sealed record RegistrySubKeyData(string Name, string Path, bool HasChildren);
 

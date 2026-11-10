@@ -8,47 +8,28 @@ using RegistryEditor.Collections;
 
 namespace RegistryEditor.ViewModels;
 
-public sealed class RegistryNodeViewModel : ObservableObject
+public sealed partial class RegistryNodeViewModel(
+	string name, RegistryHive? hive, string subKeyPath, string iconUri, bool hasUnrealizedChildren, string? computerName = null, RegistryNodeViewModel? parent = null) : ObservableObject
 {
-	private readonly string _collapsedIconUri;
-	private readonly string? _expandedIconUri;
-	private BitmapImage _icon;
-	private bool _hasUnrealizedChildren;
+	private readonly string _collapsedIconUri = iconUri;
+	private readonly string? _expandedIconUri = hive is null ? null : "ms-appx:///Assets/Images/FolderOpened.png";
+	private BitmapImage _icon = new(new Uri(iconUri));
+	private bool _hasUnrealizedChildren = hasUnrealizedChildren;
 	private bool _isChildrenLoading;
 	private bool _isExpanded;
 
-	public RegistryNodeViewModel(
-		string name,
-		RegistryHive? hive,
-		string subKeyPath,
-		string iconUri,
-		bool hasUnrealizedChildren,
-		string? computerName = null,
-		RegistryNodeViewModel? parent = null)
-	{
-		Name = name;
-		Hive = hive;
-		SubKeyPath = subKeyPath;
-		ComputerName = computerName;
-		Parent = parent;
-		_collapsedIconUri = iconUri;
-		_expandedIconUri = hive is null ? null : "ms-appx:///Assets/Images/FolderOpened.png";
-		_icon = new(new Uri(iconUri));
-		_hasUnrealizedChildren = hasUnrealizedChildren;
-	}
+	public string Name { get; } = name;
 
-	public string Name { get; }
+	public RegistryHive? Hive { get; } = hive;
 
-	public RegistryHive? Hive { get; }
-
-	public string SubKeyPath { get; }
+	public string SubKeyPath { get; } = subKeyPath;
 
 	/// <summary>
 	/// The remote computer that owns this node. <see langword="null"/> means the local computer.
 	/// </summary>
-	public string? ComputerName { get; }
+	public string? ComputerName { get; } = computerName;
 
-	public RegistryNodeViewModel? Parent { get; }
+	public RegistryNodeViewModel? Parent { get; } = parent;
 
 	public bool IsComputerNode => Hive is null;
 

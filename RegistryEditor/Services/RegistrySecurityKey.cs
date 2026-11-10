@@ -5,7 +5,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace RegistryEditor.Services;
 
-internal sealed class RegistrySecurityKey : IDisposable
+internal sealed partial class RegistrySecurityKey : IDisposable
 {
 	internal RegistrySecurityKey(SafeRegistryHandle handle, bool canWriteSecurity)
 	{
@@ -17,5 +17,8 @@ internal sealed class RegistrySecurityKey : IDisposable
 
 	internal bool CanWriteSecurity { get; }
 
-	public void Dispose() => Handle.Dispose();
+	public void Dispose()
+	{
+		Handle.Dispose();
+	}
 }

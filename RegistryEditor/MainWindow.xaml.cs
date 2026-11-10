@@ -24,5 +24,7 @@ public sealed partial class MainWindow : Window
 	}
 
 	public Task InitializeAsync()
-		=> RootView.ViewModel.LoadSettingsAsync();
+	{
+		return RootView.ViewModel.LoadSettingsAsync();
+	}
 }

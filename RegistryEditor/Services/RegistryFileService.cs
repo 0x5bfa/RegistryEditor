@@ -388,15 +388,18 @@ internal static class RegistryFileService
 		return string.IsNullOrEmpty(parent) ? child : $"{parent}\\{child}";
 	}
 
-	private static string GetHiveName(RegistryHive hive) => hive switch
+	private static string GetHiveName(RegistryHive hive)
 	{
-		RegistryHive.ClassesRoot => "HKEY_CLASSES_ROOT",
-		RegistryHive.CurrentUser => "HKEY_CURRENT_USER",
-		RegistryHive.LocalMachine => "HKEY_LOCAL_MACHINE",
-		RegistryHive.Users => "HKEY_USERS",
-		RegistryHive.CurrentConfig => "HKEY_CURRENT_CONFIG",
-		_ => throw new ArgumentOutOfRangeException(nameof(hive)),
-	};
+		return hive switch
+		{
+			RegistryHive.ClassesRoot => "HKEY_CLASSES_ROOT",
+			RegistryHive.CurrentUser => "HKEY_CURRENT_USER",
+			RegistryHive.LocalMachine => "HKEY_LOCAL_MACHINE",
+			RegistryHive.Users => "HKEY_USERS",
+			RegistryHive.CurrentConfig => "HKEY_CURRENT_CONFIG",
+			_ => throw new ArgumentOutOfRangeException(nameof(hive)),
+		};
+	}
 
 	private static string FormatValueName(string name)
 	{
