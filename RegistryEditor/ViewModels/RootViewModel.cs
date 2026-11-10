@@ -1478,13 +1478,20 @@ public sealed class RootViewModel : ObservableObject
 
 	public async Task EditPermissionsAsync(RegistryNodeViewModel node)
 	{
+		using var operation = Logger.Measure(
+			"EditPermissions",
+			$"key=\"{GetRegistryPath(node)}\"",
+			LogLevel.Information);
 		try
 		{
-			RegistrySecurityEditor.Show(WindowNative.GetWindowHandle(App.Window), node);
+			operation.Write("Opening permissions editor", LogLevel.Debug);
+			RegistryFileService.OpenSecurityEditor(WindowNative.GetWindowHandle(App.Window), node);
+			operation.Write("Permissions editor closed", LogLevel.Debug);
 			await RefreshAsync(node);
 		}
 		catch (Exception exception)
 		{
+			operation.Write("Permissions editor failed", LogLevel.Error, exception);
 			await ShowMessageAsync("Unable to edit access permissions", exception.Message);
 		}
 	}

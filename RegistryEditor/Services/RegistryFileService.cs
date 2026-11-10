@@ -3,15 +3,19 @@
 
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
+using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Security.Principal;
 using System.Text;
+using RegistryEditor.Interop;
 using RegistryEditor.ViewModels;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Security;
 using Windows.Win32.Security.Authorization;
+using Windows.Win32.Security.Authorization.UI;
 using Windows.Win32.System.Registry;
 
 namespace RegistryEditor.Services;
@@ -25,6 +29,52 @@ internal sealed record RegistryKeySummary(
 internal static class RegistryFileService
 {
 	private const string RegeditHeader = "Windows Registry Editor Version 5.00";
+
+	internal static void OpenSecurityEditor(nint owner, RegistryNodeViewModel node)
+	{
+		ArgumentNullException.ThrowIfNull(node);
+
+		using var operation = RegistrySecurityInformation.Logger.Measure(
+			"RegistryFileService.OpenSecurityEditor", $"hive={node.Hive} key=\"{node.Name}\"", LogLevel.Information);
+		try
+		{
+			using RegistrySecurityInformation information = new(node);
+			operation.Write("Security information initialized", LogLevel.Debug);
+
+			unsafe
+			{
+				nint securityInformation = (nint)ComInterfaceMarshaller<IRegistrySecurityInformation>.ConvertToUnmanaged(information);
+				operation.Write("COM interface marshalled", LogLevel.Debug);
+
+				try
+				{
+					operation.Write("Calling EditSecurity", LogLevel.Debug);
+					bool succeeded = PInvoke.EditSecurity(new HWND(owner), (ISecurityInformation*)securityInformation);
+					operation.Write($"EditSecurity returned success={succeeded}", succeeded ? LogLevel.Information : LogLevel.Warning);
+					if (!succeeded)
+					{
+						int error = Marshal.GetLastWin32Error();
+						if (error == 0)
+						{
+							error = 1;
+						}
+
+						throw new Win32Exception(error);
+					}
+				}
+				finally
+				{
+					ComInterfaceMarshaller<IRegistrySecurityInformation>.Free((void*)securityInformation);
+					operation.Write("COM interface released", LogLevel.Debug);
+				}
+			}
+		}
+		catch (Exception exception)
+		{
+			operation.Write("FAILED", LogLevel.Error, exception);
+			throw;
+		}
+	}
 
 	internal static void EnablePrivilege(string privilegeName)
 	{

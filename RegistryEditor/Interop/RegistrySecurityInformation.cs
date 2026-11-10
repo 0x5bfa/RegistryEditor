@@ -1,10 +1,11 @@
 // Copyright (c) 0x5BFA. All rights reserved.
 // Licensed under the MIT license.
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
+using RegistryEditor.Services;
 using RegistryEditor.ViewModels;
-using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Security.AccessControl;
@@ -15,83 +16,14 @@ using Windows.Win32.Security.Authorization;
 using Windows.Win32.Security.Authorization.UI;
 using Windows.Win32.System.Registry;
 
-namespace RegistryEditor.Services;
-
-[GeneratedComInterface]
-[Guid("965FC360-16FF-11D0-91CB-00AA00BBB723")]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal partial interface IRegistrySecurityInformation
-{
-	[PreserveSig]
-	HRESULT GetObjectInformation(ref SI_OBJECT_INFO objectInfo);
-
-	[PreserveSig]
-	HRESULT GetSecurity(OBJECT_SECURITY_INFORMATION requestedInformation, out nint securityDescriptor, int defaultSecurity);
-
-	[PreserveSig]
-	HRESULT SetSecurity(OBJECT_SECURITY_INFORMATION securityInformation, nint securityDescriptor);
-
-	[PreserveSig]
-	HRESULT GetAccessRights(nint objectType, uint flags, out nint access, out uint accessCount, out uint defaultIndex);
-
-	[PreserveSig]
-	HRESULT MapGeneric(nint objectType, ref byte aceFlags, ref uint accessMask);
-
-	[PreserveSig]
-	HRESULT GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount);
-
-	[PreserveSig]
-	HRESULT PropertySheetPageCallback(nint hwnd, uint message, uint page);
-}
-
-internal sealed class RegistrySecurityKey : IDisposable
-{
-	internal RegistrySecurityKey(SafeRegistryHandle handle, bool canWriteSecurity)
-	{
-		Handle = handle;
-		CanWriteSecurity = canWriteSecurity;
-	}
-
-	internal SafeRegistryHandle Handle { get; }
-
-	internal bool CanWriteSecurity { get; }
-
-	public void Dispose() => Handle.Dispose();
-}
-
-internal static class RegistrySecurityEditor
-{
-	internal static void Show(nint owner, RegistryNodeViewModel node)
-	{
-		using RegistrySecurityInformation information = new(node);
-		unsafe
-		{
-			void* securityInformation = ComInterfaceMarshaller<IRegistrySecurityInformation>.ConvertToUnmanaged(information);
-			try
-			{
-				if (!PInvoke.EditSecurity(new HWND(owner), (ISecurityInformation*)securityInformation))
-				{
-					int error = Marshal.GetLastWin32Error();
-					if (error == 0)
-					{
-						error = 1;
-					}
-
-					throw new Win32Exception(error);
-				}
-			}
-			finally
-			{
-				ComInterfaceMarshaller<IRegistrySecurityInformation>.Free(securityInformation);
-			}
-		}
-	}
-}
+namespace RegistryEditor.Interop;
 
 [GeneratedComClass]
 internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecurityInformation, IDisposable
 {
-	private static readonly SecurityAccessDefinition[] AccessDefinitions =
+	internal static readonly ILogger Logger = AppLogging.CreateLogger<RegistrySecurityInformation>();
+
+	private static readonly SecurityAccessDefinition[] _accessDefinitions =
 	[
 		new("Query value", (uint)REG_SAM_FLAGS.KEY_QUERY_VALUE, 0x00010000 /* SI_ACCESS_SPECIFIC */),
 		new("Set value", (uint)REG_SAM_FLAGS.KEY_SET_VALUE, 0x00010000 /* SI_ACCESS_SPECIFIC */),
@@ -107,20 +39,21 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 		new("Full control", (uint)GENERIC_ACCESS_RIGHTS.GENERIC_ALL, 0x00020000 /* SI_ACCESS_GENERAL */ | 0x00040000 /* SI_ACCESS_CONTAINER */),
 	];
 
-	private static readonly SecurityInheritDefinition[] InheritDefinitions =
+	private static readonly SecurityInheritDefinition[] _inheritDefinitions =
 	[
 		new("This key and subkeys", ACE_FLAGS.SUB_CONTAINERS_AND_OBJECTS_INHERIT),
 		new("Subkeys only", ACE_FLAGS.SUB_CONTAINERS_ONLY_INHERIT),
 		new("This key only", ACE_FLAGS.NO_INHERITANCE),
 	];
 
-	private static readonly GENERIC_MAPPING GenericMapping = new()
+	private static readonly GENERIC_MAPPING _genericMapping = new()
 	{
 		GenericRead = 0x00020019,
 		GenericWrite = 0x00020006,
 		GenericExecute = 0x00020019,
 		GenericAll = 0x000F003F,
 	};
+
 	private const OBJECT_SECURITY_INFORMATION SecurityInformationMask =
 		OBJECT_SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION
 		| OBJECT_SECURITY_INFORMATION.GROUP_SECURITY_INFORMATION
@@ -144,24 +77,52 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 
 		try
 		{
+			if (Logger.IsEnabled(LogLevel.Debug))
+			{
+				Logger.LogDebug(
+					"Opening security handle for registry key hive={Hive} key=\"{KeyName}\"",
+					node.Hive,
+					node.Name);
+			}
+
 			_key = RegistryFileService.OpenSecurityKey(node);
-			string serverName = node.IsRemote && !string.IsNullOrEmpty(node.ComputerName)
+
+			if (Logger.IsEnabled(LogLevel.Debug))
+			{
+				Logger.LogDebug(
+					"Security handle opened for registry key; canWriteSecurity={CanWriteSecurity}",
+					_key.CanWriteSecurity);
+			}
+
+			var serverName = node.IsRemote && !string.IsNullOrEmpty(node.ComputerName)
 				? node.ComputerName
 				: Environment.MachineName;
 			_serverName = AllocateString(serverName);
 			_objectName = AllocateString(GetRegistryPath(node));
 			_accessRights = AllocateAccessRights();
 			_inheritTypes = AllocateInheritTypes();
+
+			if (Logger.IsEnabled(LogLevel.Debug))
+			{
+				Logger.LogDebug("Security information buffers initialized");
+			}
 		}
-		catch
+		catch (Exception exception)
 		{
+			if (Logger.IsEnabled(LogLevel.Error))
+			{
+				Logger.LogError(exception, "Failed to initialize registry security information");
+			}
+
 			Dispose();
 			throw;
 		}
 	}
 
-	public HRESULT GetObjectInformation(ref SI_OBJECT_INFO objectInfo)
+	public int GetObjectInformation(out SI_OBJECT_INFO objectInfo)
 	{
+		objectInfo = default;
+		Logger.LogDebug("ISecurityInformation.GetObjectInformation called");
 		if (_key is null)
 		{
 			return HRESULT.E_INVALIDARG;
@@ -183,49 +144,65 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			objectInfo.dwFlags |= (SI_OBJECT_INFO_FLAGS)0x00000008 /* SI_READONLY */;
 		}
 
+		Logger.LogDebug("ISecurityInformation.GetObjectInformation returned S_OK");
 		return HRESULT.S_OK;
 	}
 
-	public unsafe HRESULT GetSecurity(OBJECT_SECURITY_INFORMATION requestedInformation, out nint securityDescriptor, int defaultSecurity)
+	public unsafe int GetSecurity(OBJECT_SECURITY_INFORMATION requestedInformation, out PSECURITY_DESCRIPTOR securityDescriptor, BOOL defaultSecurity)
 	{
-		securityDescriptor = nint.Zero;
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug(
+				"ISecurityInformation.GetSecurity called requestedInformation={RequestedInformation} defaultSecurity={DefaultSecurity}",
+				requestedInformation,
+				defaultSecurity);
+		}
+
+		securityDescriptor = default;
 		if (_key is null)
 		{
 			return HRESULT.E_INVALIDARG;
 		}
 
-		if (defaultSecurity != 0)
+		if (defaultSecurity)
 		{
 			return HRESULT.E_NOTIMPL;
 		}
 
-		WIN32_ERROR result = PInvoke.GetSecurityInfo(
-			_key.Handle,
-			SE_OBJECT_TYPE.SE_REGISTRY_KEY,
-			requestedInformation,
-			out _,
-			out _,
-			out _,
-			out _,
-			out PSECURITY_DESCRIPTOR descriptor);
-		securityDescriptor = (nint)descriptor.Value;
+		var result = PInvoke.GetSecurityInfo(
+			_key.Handle, SE_OBJECT_TYPE.SE_REGISTRY_KEY, requestedInformation,
+			out _, out _, out _, out _, out PSECURITY_DESCRIPTOR descriptor);
+		securityDescriptor = descriptor;
 		if (result == WIN32_ERROR.NO_ERROR)
 		{
+			Logger.LogDebug("ISecurityInformation.GetSecurity returned S_OK");
 			return HRESULT.S_OK;
 		}
 
 		if (descriptor.Value is not null)
 		{
 			PInvoke.LocalFree((HLOCAL)(IntPtr)descriptor);
-			securityDescriptor = nint.Zero;
+			securityDescriptor = default;
 		}
 
-		return HRESULT.FromWin32Error(result);
+		HRESULT hresult = HRESULT.FromWin32Error(result);
+		Logger.LogWarning(
+			"ISecurityInformation.GetSecurity failed win32Error={Win32Error} hresult={HResult}",
+			result,
+			hresult);
+		return hresult;
 	}
 
-	public unsafe HRESULT SetSecurity(OBJECT_SECURITY_INFORMATION securityInformation, nint securityDescriptor)
+	public unsafe int SetSecurity(OBJECT_SECURITY_INFORMATION securityInformation, PSECURITY_DESCRIPTOR securityDescriptor)
 	{
-		if (_key is null || securityDescriptor == nint.Zero)
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug(
+				"ISecurityInformation.SetSecurity called securityInformation={SecurityInformation}",
+				securityInformation);
+		}
+
+		if (_key is null || securityDescriptor.IsNull)
 		{
 			return HRESULT.E_INVALIDARG;
 		}
@@ -235,7 +212,7 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			return HRESULT.E_ACCESSDENIED;
 		}
 
-		PSECURITY_DESCRIPTOR descriptor = (PSECURITY_DESCRIPTOR)securityDescriptor;
+		PSECURITY_DESCRIPTOR descriptor = securityDescriptor;
 		if (!PInvoke.GetSecurityDescriptorControl(descriptor, out ushort controlValue, out _))
 		{
 			return LastErrorAsHResult();
@@ -288,32 +265,81 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			group,
 			dacl is null ? null : *dacl,
 			sacl is null ? null : *sacl);
-		return HRESULT.FromWin32Error(result);
+		HRESULT hresult = HRESULT.FromWin32Error(result);
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug(
+				"ISecurityInformation.SetSecurity returned win32Error={Win32Error} hresult={HResult}",
+				result,
+				hresult);
+		}
+		return hresult;
 	}
 
-	public HRESULT GetAccessRights(nint objectType, uint flags, out nint access, out uint accessCount, out uint defaultIndex)
+	public int GetAccessRights(nint objectType, SECURITY_INFO_PAGE_FLAGS flags, out nint access, out uint accessCount, out uint defaultIndex)
 	{
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug("ISecurityInformation.GetAccessRights called flags={Flags}", flags);
+		}
 		access = _accessRights;
-		accessCount = (uint)AccessDefinitions.Length;
+		accessCount = (uint)_accessDefinitions.Length;
 		defaultIndex = 9;
-		return _accessRights == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
+		int result = _accessRights == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug(
+				"ISecurityInformation.GetAccessRights returned hresult={HResult} accessCount={AccessCount}",
+				result,
+				accessCount);
+		}
+		return result;
 	}
 
-	public HRESULT MapGeneric(nint objectType, ref byte aceFlags, ref uint accessMask)
+	public int MapGeneric(nint objectType, in byte aceFlags, in uint accessMask)
 	{
-		aceFlags &= 0xFE;
-		PInvoke.MapGenericMask(ref accessMask, in GenericMapping);
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug("ISecurityInformation.MapGeneric called accessMask=0x{AccessMask:X8}", accessMask);
+		}
+
+		// MapGeneric updates the caller-provided buffers in place.
+		ref byte writableAceFlags = ref Unsafe.AsRef(in aceFlags);
+		ref uint writableAccessMask = ref Unsafe.AsRef(in accessMask);
+		writableAceFlags &= 0xFE;
+		PInvoke.MapGenericMask(ref writableAccessMask, in _genericMapping);
+
+		Logger.LogDebug("ISecurityInformation.MapGeneric returned accessMask=0x{AccessMask:X8}", writableAccessMask);
 		return HRESULT.S_OK;
 	}
 
-	public HRESULT GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount)
+	public int GetInheritTypes(out nint inheritTypes, out uint inheritTypeCount)
 	{
+		Logger.LogDebug("ISecurityInformation.GetInheritTypes called");
 		inheritTypes = _inheritTypes;
-		inheritTypeCount = (uint)InheritDefinitions.Length;
-		return _inheritTypes == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
+		inheritTypeCount = (uint)_inheritDefinitions.Length;
+		int result = _inheritTypes == nint.Zero ? HRESULT.E_OUTOFMEMORY : HRESULT.S_OK;
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug(
+				"ISecurityInformation.GetInheritTypes returned hresult={HResult} inheritTypeCount={InheritTypeCount}",
+				result,
+				inheritTypeCount);
+		}
+		return result;
 	}
 
-	public HRESULT PropertySheetPageCallback(nint hwnd, uint message, uint page) => HRESULT.S_OK;
+	public int PropertySheetPageCallback(HWND hwnd, uint message, SI_PAGE_TYPE page)
+	{
+		if (Logger.IsEnabled(LogLevel.Debug))
+		{
+			Logger.LogDebug(
+				"ISecurityInformation.PropertySheetPageCallback called message={Message} page={Page}",
+				message,
+				page);
+		}
+		return HRESULT.S_OK;
+	}
 
 	public void Dispose()
 	{
@@ -357,7 +383,7 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 
 	private unsafe nint AllocateAccessRights()
 	{
-		SI_ACCESS* buffer = (SI_ACCESS*)NativeMemory.Alloc((nuint)AccessDefinitions.Length, (nuint)sizeof(SI_ACCESS));
+		SI_ACCESS* buffer = (SI_ACCESS*)NativeMemory.Alloc((nuint)_accessDefinitions.Length, (nuint)sizeof(SI_ACCESS));
 		if (buffer is null)
 		{
 			throw new OutOfMemoryException();
@@ -365,9 +391,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 
 		try
 		{
-			for (int index = 0; index < AccessDefinitions.Length; index++)
+			for (int index = 0; index < _accessDefinitions.Length; index++)
 			{
-				SecurityAccessDefinition definition = AccessDefinitions[index];
+				SecurityAccessDefinition definition = _accessDefinitions[index];
 				buffer[index] = new SI_ACCESS
 				{
 					pguid = null,
@@ -388,7 +414,7 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 
 	private unsafe nint AllocateInheritTypes()
 	{
-		SI_INHERIT_TYPE* buffer = (SI_INHERIT_TYPE*)NativeMemory.Alloc((nuint)InheritDefinitions.Length, (nuint)sizeof(SI_INHERIT_TYPE));
+		SI_INHERIT_TYPE* buffer = (SI_INHERIT_TYPE*)NativeMemory.Alloc((nuint)_inheritDefinitions.Length, (nuint)sizeof(SI_INHERIT_TYPE));
 		if (buffer is null)
 		{
 			throw new OutOfMemoryException();
@@ -396,9 +422,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 
 		try
 		{
-			for (int index = 0; index < InheritDefinitions.Length; index++)
+			for (int index = 0; index < _inheritDefinitions.Length; index++)
 			{
-				SecurityInheritDefinition definition = InheritDefinitions[index];
+				SecurityInheritDefinition definition = _inheritDefinitions[index];
 				buffer[index] = new SI_INHERIT_TYPE
 				{
 					pguid = null,
@@ -416,7 +442,7 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 		}
 	}
 
-	private static HRESULT LastErrorAsHResult()
+	private static int LastErrorAsHResult()
 	{
 		int error = Marshal.GetLastWin32Error();
 		if (error == 0)
