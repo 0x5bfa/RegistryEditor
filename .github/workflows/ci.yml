@@ -1,7 +1,7 @@
 # Copyright (c) 0x5BFA. All rights reserved.
 # Licensed under the MIT license.
 
-name: RegistryEditor CI
+name: CI
 
 on:
   push:
@@ -17,7 +17,7 @@ on:
       - 'docs/**'
       - '*.md'
 
-run-name: ${{ github.event_name == 'pull_request' && 'RegistryEditor PR Validation' || 'RegistryEditor CI Validation' }}
+run-name: ${{ github.event_name == 'pull_request' && 'CI PR Validation' || 'CI Validation' }}
 
 permissions:
   contents: read
@@ -39,7 +39,6 @@ jobs:
     env:
       CONFIGURATION: ${{ matrix.configuration }}
       PLATFORM: ${{ matrix.platform }}
-      APP_OUTPUT_DIR: '${{ github.workspace }}\RegistryEditor\bin'
 
     steps:
     - name: Checkout the repository
@@ -59,11 +58,3 @@ jobs:
           -Platform $env:PLATFORM `
           -Configuration $env:CONFIGURATION `
           -PackageManifestPath $env:APP_MANIFEST_PATH
-
-    - name: Upload build output
-      uses: actions/upload-artifact@v4
-      with:
-        name: 'Build output (${{ env.CONFIGURATION }}, ${{ env.PLATFORM }})'
-        path: ${{ env.APP_OUTPUT_DIR }}
-        if-no-files-found: error
-        retention-days: 7
