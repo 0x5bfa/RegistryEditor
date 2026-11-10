@@ -42,7 +42,10 @@ internal sealed class LogMeasurement : IDisposable
 	public void Dispose()
 	{
 		if (Interlocked.Exchange(ref _disposed, 1) != 0)
+		{
 			return;
+		}
+
 		Write("END");
 		_scope?.Dispose();
 	}

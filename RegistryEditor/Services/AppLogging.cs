@@ -21,7 +21,10 @@ internal static class AppLogging
 	public static void Initialize(string directory)
 	{
 		if (_fileProvider is not null)
+		{
 			return;
+		}
+
 		_fileProvider = new FileLoggerProvider(directory);
 		Factory.AddProvider(_fileProvider);
 		Factory.CreateLogger("Application").LogInformation("Session started pid={ProcessId} log={LogFilePath}",
@@ -35,7 +38,10 @@ internal static class AppLogging
 	public static void Shutdown()
 	{
 		if (Interlocked.Exchange(ref _stopped, 1) != 0)
+		{
 			return;
+		}
+
 		Factory.CreateLogger("Application").LogInformation("Session ended");
 		Factory.Dispose();
 	}

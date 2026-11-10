@@ -31,12 +31,16 @@ internal static class RegistryFileService
 		using SafeFileHandle processHandle = PInvoke.GetCurrentProcess_SafeHandle();
 		const TOKEN_ACCESS_MASK desiredAccess = TOKEN_ACCESS_MASK.TOKEN_ADJUST_PRIVILEGES | TOKEN_ACCESS_MASK.TOKEN_QUERY;
 		if (!PInvoke.OpenProcessToken(processHandle, desiredAccess, out SafeFileHandle tokenHandle))
+		{
 			throw new Win32Exception(Marshal.GetLastWin32Error());
+		}
 
 		using (tokenHandle)
 		{
 			if (!PInvoke.LookupPrivilegeValue(null, privilegeName, out LUID luid))
+			{
 				throw new Win32Exception(Marshal.GetLastWin32Error());
+			}
 
 			unsafe
 			{
@@ -49,11 +53,15 @@ internal static class RegistryFileService
 				};
 
 				if (!PInvoke.AdjustTokenPrivileges(tokenHandle, false, privileges, default, out _))
+				{
 					throw new Win32Exception(Marshal.GetLastWin32Error());
+				}
 
 				int error = Marshal.GetLastWin32Error();
 				if (error != 0)
+				{
 					throw new Win32Exception(error);
+				}
 			}
 		}
 	}
@@ -85,7 +93,9 @@ internal static class RegistryFileService
 				RegistryHive.Users,
 				RegistryHive.CurrentConfig,
 			})
+			{
 				WriteNode(writer, rootHive, string.Empty, node.ComputerName);
+			}
 		}
 	}
 
@@ -106,11 +116,15 @@ internal static class RegistryFileService
 		{
 			string trimmed = line.Trim();
 			if (trimmed.Length == 0 || trimmed[0] is ';' or '#')
+			{
 				continue;
+			}
 
 			if (trimmed.StartsWith("Windows Registry Editor Version", StringComparison.OrdinalIgnoreCase)
 				|| trimmed.StartsWith("REGEDIT", StringComparison.OrdinalIgnoreCase))
+			{
 				continue;
+			}
 
 			if (trimmed.StartsWith("[-", StringComparison.Ordinal) && trimmed.EndsWith(']'))
 			{
@@ -127,11 +141,15 @@ internal static class RegistryFileService
 			}
 
 			if (currentKeyPath is null)
+			{
 				continue;
+			}
 
 			int separator = trimmed.IndexOf('=');
 			if (separator <= 0)
+			{
 				continue;
+			}
 
 			string valueName = ParseValueName(trimmed[..separator]);
 			string valueText = trimmed[(separator + 1)..].Trim();
@@ -154,7 +172,9 @@ internal static class RegistryFileService
 	internal static RegistryKey OpenKey(RegistryNodeViewModel node, bool writable)
 	{
 		if (node.Hive is not RegistryHive hive)
+		{
 			throw new InvalidOperationException("The selected item is not a registry key.");
+		}
 
 		return OpenKey(hive, node.SubKeyPath, node.ComputerName, writable);
 	}
@@ -163,7 +183,9 @@ internal static class RegistryFileService
 	{
 		RegistryKey baseKey = OpenBaseKey(hive, computerName);
 		if (string.IsNullOrEmpty(subKeyPath))
+		{
 			return baseKey;
+		}
 
 		RegistryKey? key = baseKey.OpenSubKey(subKeyPath, writable);
 		baseKey.Dispose();
@@ -187,7 +209,9 @@ internal static class RegistryFileService
 			out _,
 			out System.Runtime.InteropServices.ComTypes.FILETIME lastWriteTime);
 		if (status != WIN32_ERROR.NO_ERROR)
+		{
 			throw new Win32Exception((int)status);
+		}
 
 		long fileTime = unchecked((long)(((ulong)(uint)lastWriteTime.dwHighDateTime << 32) | (uint)lastWriteTime.dwLowDateTime));
 		DateTime modified = DateTime.FromFileTimeUtc(fileTime).ToLocalTime();
@@ -211,7 +235,9 @@ internal static class RegistryFileService
 			if (result != WIN32_ERROR.NO_ERROR)
 			{
 				if (securityDescriptor.Value is not null)
+				{
 					PInvoke.LocalFree((HLOCAL)(IntPtr)securityDescriptor.Value);
+				}
 
 				return "Unavailable";
 			}
@@ -219,7 +245,9 @@ internal static class RegistryFileService
 			try
 			{
 				if (owner.Value is null)
+				{
 					return "Not set";
+				}
 
 				SecurityIdentifier ownerSid = new((nint)owner.Value);
 				try
@@ -234,7 +262,9 @@ internal static class RegistryFileService
 			finally
 			{
 				if (securityDescriptor.Value is not null)
+				{
 					PInvoke.LocalFree((HLOCAL)(IntPtr)securityDescriptor.Value);
+				}
 			}
 		}
 		catch (SystemException)
@@ -246,7 +276,9 @@ internal static class RegistryFileService
 	internal static RegistrySecurityKey OpenSecurityKey(RegistryNodeViewModel node)
 	{
 		if (node.Hive is not RegistryHive hive)
+		{
 			throw new InvalidOperationException("The selected item is not a registry key.");
+		}
 
 		using RegistryKey baseKey = OpenBaseKey(hive, node.ComputerName);
 		string? subKeyName = string.IsNullOrEmpty(node.SubKeyPath) ? null : node.SubKeyPath;
@@ -263,7 +295,9 @@ internal static class RegistryFileService
 			securityEditorAccess,
 			out SafeRegistryHandle keyHandle);
 		if (status == WIN32_ERROR.NO_ERROR)
+		{
 			return new RegistrySecurityKey(keyHandle, canWriteSecurity: true);
+		}
 
 		keyHandle.Dispose();
 		status = PInvoke.RegOpenKeyEx(
@@ -284,7 +318,9 @@ internal static class RegistryFileService
 	internal static RegistryKey OpenBaseKey(RegistryNodeViewModel node)
 	{
 		if (node.Hive is not RegistryHive hive)
+		{
 			throw new InvalidOperationException("The selected item is not a registry hive.");
+		}
 
 		return OpenBaseKey(hive, node.ComputerName);
 	}
@@ -309,7 +345,9 @@ internal static class RegistryFileService
 
 		writer.WriteLine();
 		foreach (string childName in key.GetSubKeyNames().OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+		{
 			WriteNode(writer, hive, AppendPath(subKeyPath, childName), computerName);
+		}
 	}
 
 	private static string GetRegistryPath(RegistryHive hive, string subKeyPath)
@@ -336,7 +374,9 @@ internal static class RegistryFileService
 	private static string FormatValue(object? value, RegistryValueKind kind)
 	{
 		if (value is null)
+		{
 			return "\"\"";
+		}
 
 		return kind switch
 		{
@@ -357,7 +397,9 @@ internal static class RegistryFileService
 	private static byte[] GetBytes(object value, RegistryValueKind kind)
 	{
 		if (value is byte[] bytes)
+		{
 			return bytes;
+		}
 
 		return kind switch
 		{
@@ -373,7 +415,9 @@ internal static class RegistryFileService
 	{
 		string? line = reader.ReadLine();
 		if (line is null)
+		{
 			return null;
+		}
 
 		StringBuilder result = new(line);
 		while (result.Length > 0 && result[^1] == '\\')
@@ -381,7 +425,9 @@ internal static class RegistryFileService
 			result.Length--;
 			string? continuation = reader.ReadLine();
 			if (continuation is null)
+			{
 				break;
+			}
 
 			result.Append(continuation.TrimStart());
 		}
@@ -393,7 +439,9 @@ internal static class RegistryFileService
 	{
 		(RegistryHive hive, string subKeyPath) = ParseRegistryPath(path);
 		if (string.IsNullOrEmpty(subKeyPath))
+		{
 			throw new InvalidOperationException("A registry hive cannot be deleted.");
+		}
 
 		int separator = subKeyPath.LastIndexOf('\\');
 		string parentPath = separator < 0 ? string.Empty : subKeyPath[..separator];
@@ -410,7 +458,9 @@ internal static class RegistryFileService
 		(RegistryHive hive, string subKeyPath) = ParseRegistryPath(path);
 		RegistryKey baseKey = OpenBaseKey(hive, computerName: null);
 		if (string.IsNullOrEmpty(subKeyPath))
+		{
 			return baseKey;
+		}
 
 		RegistryKey? key = writable
 			? baseKey.CreateSubKey(subKeyPath, writable: true)
@@ -444,14 +494,20 @@ internal static class RegistryFileService
 	private static (RegistryValueKind Kind, object Value, RegistryValueOptions Options) ParseValue(string text)
 	{
 		if (text.Length >= 2 && text[0] == '"' && text[^1] == '"')
+		{
 			return (RegistryValueKind.String, UnescapeString(text[1..^1]), RegistryValueOptions.None);
+		}
 
 		if (text.StartsWith("dword:", StringComparison.OrdinalIgnoreCase)
 			&& uint.TryParse(text[6..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint dword))
+		{
 			return (RegistryValueKind.DWord, unchecked((int)dword), RegistryValueOptions.None);
+		}
 
 		if (text.StartsWith("hex", StringComparison.OrdinalIgnoreCase))
+		{
 			return ParseHexValue(text);
+		}
 
 		throw new FormatException($"Unsupported registry value '{text}'.");
 	}
@@ -460,7 +516,9 @@ internal static class RegistryFileService
 	{
 		int colon = text.IndexOf(':');
 		if (colon < 0)
+		{
 			throw new FormatException($"Malformed hexadecimal registry value '{text}'.");
+		}
 
 		string prefix = text[..colon].ToLowerInvariant();
 		RegistryValueKind kind = prefix switch

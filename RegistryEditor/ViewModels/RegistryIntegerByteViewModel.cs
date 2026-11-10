@@ -35,7 +35,9 @@ public sealed class RegistryIntegerBitViewModel : ObservableObject
 		internal set
 		{
 			if (!SetProperty(ref _isSet, value))
+			{
 				return;
+			}
 
 			OnPropertyChanged(nameof(DisplayValue));
 			OnPropertyChanged(nameof(AccessibleName));

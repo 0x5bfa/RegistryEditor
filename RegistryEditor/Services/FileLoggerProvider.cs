@@ -53,7 +53,10 @@ internal sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScop
 	public void Dispose()
 	{
 		if (Interlocked.Exchange(ref _disposed, 1) != 0)
+		{
 			return;
+		}
+
 		_entries.Writer.TryComplete();
 		try
 		{
@@ -112,13 +115,19 @@ internal sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScop
 			Func<TState, Exception?, string> formatter)
 		{
 			if (!IsEnabled(logLevel))
+			{
 				return;
+			}
+
 			List<string> scopes = [];
 			provider._scopes.ForEachScope((scope, items) => items.Add(scope?.ToString() ?? ""), scopes);
 			string scopeText = scopes.Count == 0 ? "" : $" [{string.Join(" => ", scopes)}]";
 			string line = $"{DateTimeOffset.Now:O} [{logLevel}] [T{Environment.CurrentManagedThreadId}] [{category}] [E{eventId.Id}]{scopeText} {formatter(state, exception)}";
 			if (exception is not null)
+			{
 				line += $"{Environment.NewLine}{exception}";
+			}
+
 			provider._entries.Writer.TryWrite(new Entry(line));
 		}
 	}

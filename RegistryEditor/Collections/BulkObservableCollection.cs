@@ -25,11 +25,15 @@ public sealed class BulkObservableCollection<T> : ObservableCollection<T>
 		long started = Stopwatch.GetTimestamp();
 		T[] newItems = items.ToArray();
 		if (newItems.Length == 0)
+		{
 			return;
+		}
 
 		int startingIndex = Count;
 		foreach (T item in newItems)
+		{
 			Items.Add(item);
+		}
 
 		OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
 		OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
@@ -37,8 +41,10 @@ public sealed class BulkObservableCollection<T> : ObservableCollection<T>
 		OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, newItems, startingIndex));
 		double notifyMilliseconds = Stopwatch.GetElapsedTime(notifying).TotalMilliseconds;
 		if (notifyMilliseconds >= 100 || newItems.Length >= 256)
+		{
 			Logger.Log(notifyMilliseconds >= 100 ? LogLevel.Warning : LogLevel.Debug,
 				"AddRange.NotifyAdd itemType={ItemType} count={Count} startIndex={StartingIndex} notifyMs={NotifyMs:F1} totalMs={TotalMs:F1}",
 				typeof(T).Name, newItems.Length, startingIndex, notifyMilliseconds, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+		}
 	}
 }

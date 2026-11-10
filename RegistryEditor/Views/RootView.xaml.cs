@@ -33,7 +33,9 @@ public sealed partial class RootView : UserControl
 	{
 		if (sender.ContainerFromNode(args.Node) is { } container
 			&& sender.ItemFromContainer(container) is RegistryNodeViewModel node)
+		{
 			await ViewModel.LoadChildrenAsync(node);
+		}
 	}
 
 	private async void RegistryTreeView_SelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
@@ -44,13 +46,17 @@ public sealed partial class RootView : UserControl
 
 		await ViewModel.SelectNodeAsync(selectedNode);
 		if (!ReferenceEquals(ViewModel.SelectedNode, selectedNode))
+		{
 			RegistryTreeView.SelectedItem = ViewModel.SelectedNode;
+		}
 	}
 
 	private async void NavigationOmnibar_QuerySubmitted(Omnibar sender, OmnibarQuerySubmittedEventArgs args)
 	{
 		if (ReferenceEquals(args.Mode, PathOmnibarMode))
+		{
 			await ViewModel.NavigateToPathAsync(args.Text);
+		}
 	}
 
 	private async void PathBreadcrumbBar_ItemClicked(RegistryBreadcrumbBar sender, RegistryBreadcrumbBarItemClickedEventArgs args)
@@ -107,7 +113,9 @@ public sealed partial class RootView : UserControl
 	{
 		RegistryValueViewModel? selectedValue = args.AddedItems.OfType<RegistryValueViewModel>().FirstOrDefault();
 		if (selectedValue is not null && !await ViewModel.TrySelectValueAsync(selectedValue))
+		{
 			RegistryValueTableView.SelectedItem = ViewModel.SelectedValue;
+		}
 	}
 
 	private void RegistryValueTableView_PointerPressed(object sender, PointerRoutedEventArgs args)
@@ -116,7 +124,9 @@ public sealed partial class RootView : UserControl
 	private async void RegistryValueTableView_Tapped(object sender, TappedRoutedEventArgs args)
 	{
 		if (IsTableContentElement(args.OriginalSource as DependencyObject))
+		{
 			return;
+		}
 
 		if (!await ViewModel.TrySelectValueAsync(null))
 		{
@@ -135,10 +145,14 @@ public sealed partial class RootView : UserControl
 				or TableViewHeaderRow
 				or TableViewColumnHeader
 				or TableViewGroupHeaderRow)
+			{
 				return true;
+			}
 
 			if (ReferenceEquals(element, RegistryValueTableView))
+			{
 				return false;
+			}
 
 			element = VisualTreeHelper.GetParent(element);
 		}
@@ -150,7 +164,9 @@ public sealed partial class RootView : UserControl
 	{
 		if (args.Item is not RegistryValueViewModel value
 			|| args.Flyout is not MenuFlyout flyout)
+		{
 			return;
+		}
 
 		if (!await ViewModel.TrySelectValueAsync(value))
 		{
@@ -178,7 +194,9 @@ public sealed partial class RootView : UserControl
 	private void RegistryValueTableView_EditInPaneClicked(object sender, RoutedEventArgs args)
 	{
 		if (!ViewModel.CanEditSelectedValue)
+		{
 			return;
+		}
 
 		ValueEditorDataTextBox.Focus(FocusState.Programmatic);
 		ValueEditorDataTextBox.SelectAll();
@@ -189,7 +207,9 @@ public sealed partial class RootView : UserControl
 		if (sender is not TreeViewItem treeViewItem
 			|| treeViewItem.DataContext is not RegistryNodeViewModel node
 			|| treeViewItem.ContextFlyout is not MenuFlyout flyout)
+		{
 			return;
+		}
 
 		ConfigureContextMenu(flyout, node);
 	}
@@ -197,7 +217,9 @@ public sealed partial class RootView : UserControl
 	private void RegistryTreeContextFlyout_Opening(object sender, object args)
 	{
 		if (sender is not MenuFlyout { Target: TreeViewItem { DataContext: RegistryNodeViewModel node } } flyout)
+		{
 			return;
+		}
 
 		ConfigureContextMenu(flyout, node);
 	}
@@ -227,7 +249,9 @@ public sealed partial class RootView : UserControl
 			item.CommandParameter = node;
 
 			if (item.Tag as string == "Expand")
+			{
 				item.Text = node.ExpandMenuText;
+			}
 
 			item.IsEnabled = item.Command?.CanExecute(node) ?? false;
 		}
@@ -244,7 +268,9 @@ public sealed partial class RootView : UserControl
 			else if (item is MenuFlyoutSubItem subItem)
 			{
 				foreach (MenuFlyoutItem child in EnumerateMenuItems(subItem.Items))
+				{
 					yield return child;
+				}
 			}
 		}
 	}

@@ -199,7 +199,9 @@ public sealed class RootViewModel : ObservableObject
 		set
 		{
 			if (!SetProperty(ref _selectedValue, value))
+			{
 				return;
+			}
 
 			OnPropertyChanged(nameof(CanEditSelectedValue));
 			OnPropertyChanged(nameof(ValueEditorName));
@@ -241,7 +243,9 @@ public sealed class RootViewModel : ObservableObject
 		private set
 		{
 			if (!SetProperty(ref _isValueDirty, value))
+			{
 				return;
+			}
 
 			OnPropertyChanged(nameof(CanSaveValueChanges));
 			DiscardValueChangesCommand?.NotifyCanExecuteChanged();
@@ -255,7 +259,9 @@ public sealed class RootViewModel : ObservableObject
 		set
 		{
 			if (!SetProperty(ref _valueEditorData, value))
+			{
 				return;
+			}
 
 			UpdateValueEditorState();
 		}
@@ -267,7 +273,9 @@ public sealed class RootViewModel : ObservableObject
 		private set
 		{
 			if (!SetProperty(ref _valueEditorError, value))
+			{
 				return;
+			}
 
 			OnPropertyChanged(nameof(ValueEditorErrorVisibility));
 		}
@@ -317,7 +325,9 @@ public sealed class RootViewModel : ObservableObject
 		set
 		{
 			if (value is < 0 or > 2 || value == _integerBaseIndex)
+			{
 				return;
+			}
 
 			RegistryValueViewModel? selectedValue = SelectedValue;
 			ulong number = 0;
@@ -416,7 +426,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryKeySummary summary = await RunRegistryOperationAsync(() => RegistryFileService.ReadKeySummary(node));
 			if (!IsCurrentKeyOverviewRequest(node, requestId))
+			{
 				return;
+			}
 
 			_keyOverviewSubKeyCount = summary.SubKeyCount.ToString("N0", CultureInfo.CurrentCulture);
 			_keyOverviewValueCount = summary.ValueCount.ToString("N0", CultureInfo.CurrentCulture);
@@ -426,7 +438,9 @@ public sealed class RootViewModel : ObservableObject
 		catch (Exception)
 		{
 			if (!IsCurrentKeyOverviewRequest(node, requestId))
+			{
 				return;
+			}
 
 			_keyOverviewSubKeyCount = "Unavailable";
 			_keyOverviewValueCount = "Unavailable";
@@ -459,10 +473,14 @@ public sealed class RootViewModel : ObservableObject
 	public async Task<bool> TrySelectValueAsync(RegistryValueViewModel? value)
 	{
 		if (ReferenceEquals(SelectedValue, value))
+		{
 			return true;
+		}
 
 		if (!await ConfirmDiscardValueChangesAsync())
+		{
 			return false;
+		}
 
 		SelectedValue = value;
 		return true;
@@ -494,9 +512,13 @@ public sealed class RootViewModel : ObservableObject
 		};
 
 		if (value is { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord })
+		{
 			UpdateIntegerBitBytes(GetIntegerValue(value), value.Kind);
+		}
 		else
+		{
 			IntegerBitBytes.Clear();
+		}
 
 		OnPropertyChanged(nameof(ValueEditorData));
 		OnPropertyChanged(nameof(ValueEditorName));
@@ -533,10 +555,14 @@ public sealed class RootViewModel : ObservableObject
 	private bool IsValueDraftChanged()
 	{
 		if (SelectedValue is not { } value || !CanEditSelectedValue)
+		{
 			return false;
+		}
 
 		if (value.RawValue is null)
+		{
 			return ValueEditorData.Length > 0;
+		}
 
 		return !TryCreateEditedValue(value, ValueEditorData, IntegerBaseIndex, out object? editedValue, out _)
 			|| !RegistryValuesEqual(value.RawValue, editedValue);
@@ -547,7 +573,9 @@ public sealed class RootViewModel : ObservableObject
 		if (SelectedValue is not { Kind: RegistryValueKind.DWord or RegistryValueKind.QWord } value
 			|| IntegerBaseIndex != 2
 			|| !TryParseIntegerValue(ValueEditorData, value.Kind, IntegerBaseIndex, out ulong number))
+		{
 			return;
+		}
 
 		number ^= 1UL << bitPosition;
 		_valueEditorData = FormatIntegerValue(number, value.Kind, IntegerBaseIndex);
@@ -580,7 +608,9 @@ public sealed class RootViewModel : ObservableObject
 		}
 
 		foreach (RegistryIntegerBitViewModel bit in IntegerBitBytes.SelectMany(byteGroup => byteGroup.Bits))
+		{
 			bit.IsSet = (value & (1UL << bit.BitPosition)) != 0;
+		}
 	}
 
 	private void DiscardValueEditorChanges()
@@ -589,11 +619,15 @@ public sealed class RootViewModel : ObservableObject
 	private async Task<bool> ConfirmDiscardValueChangesAsync()
 	{
 		if (!IsValueDirty)
+		{
 			return true;
+		}
 
 		string valueName = SelectedValue?.Name ?? "the selected value";
 		if (!await ConfirmAsync("Discard unsaved changes?", $"Discard unsaved changes to '{valueName}'?"))
+		{
 			return false;
+		}
 
 		SelectedValue = null;
 		return true;
@@ -618,10 +652,14 @@ public sealed class RootViewModel : ObservableObject
 	private static bool RegistryValuesEqual(object? first, object? second)
 	{
 		if (first is byte[] firstBytes && second is byte[] secondBytes)
+		{
 			return firstBytes.AsSpan().SequenceEqual(secondBytes);
+		}
 
 		if (first is string[] firstStrings && second is string[] secondStrings)
+		{
 			return firstStrings.SequenceEqual(secondStrings, StringComparer.Ordinal);
+		}
 
 		return Equals(first, second);
 	}
@@ -645,7 +683,9 @@ public sealed class RootViewModel : ObservableObject
 		private set
 		{
 			if (!SetProperty(ref _isAddressBarVisible, value))
+			{
 				return;
+			}
 
 			OnPropertyChanged(nameof(AddressBarVisibility));
 		}
@@ -673,14 +713,18 @@ public sealed class RootViewModel : ObservableObject
 			if (value < 0
 				|| value >= ThemeValues.Length
 				|| !SetProperty(ref _selectedThemeIndex, value))
+			{
 				return;
+			}
 
 			OnPropertyChanged(nameof(IsSystemThemeSelected));
 			OnPropertyChanged(nameof(IsLightThemeSelected));
 			OnPropertyChanged(nameof(IsDarkThemeSelected));
 
 			if (App.Window.Content is FrameworkElement root)
+			{
 				root.RequestedTheme = ThemeValues[value];
+			}
 		}
 	}
 
@@ -868,7 +912,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			if (await PickImportFileAsync() is not { } filePath
 				|| !await ConfirmDiscardValueChangesAsync())
+			{
 				return;
+			}
 
 			int count = await ImportAsync(filePath);
 			await ShowMessageAsync(
@@ -881,7 +927,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node?.Hive is null || await PickExportFileAsync() is not { } filePath)
+			{
 				return;
+			}
 
 			await ExportAsync(filePath, node);
 			await ShowMessageAsync(
@@ -896,7 +944,9 @@ public sealed class RootViewModel : ObservableObject
 				|| await PickHiveFileAsync() is not { } filePath
 				|| await RequestTextAsync("Load hive", "Key name", "LoadedHive") is not { } keyName
 				|| !await ConfirmDiscardValueChangesAsync())
+			{
 				return;
+			}
 
 			await LoadHiveAsync(parent, filePath, keyName);
 		});
@@ -908,7 +958,9 @@ public sealed class RootViewModel : ObservableObject
 			if (node is null
 				|| !await ConfirmDiscardValueChangesAsync()
 				|| !await ConfirmAsync("Unload hive", $"Unload '{node.Name}'?"))
+			{
 				return;
+			}
 
 			await UnloadHiveAsync(node);
 		});
@@ -918,7 +970,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			if (await RequestTextAsync("Connect to network registry", "Computer name", "") is { } computerName
 				&& await ConfirmDiscardValueChangesAsync())
+			{
 				await ConnectRemoteAsync(computerName);
+			}
 		});
 
 	private Task ExecuteDisconnectRemoteCommandAsync(object? parameter)
@@ -926,7 +980,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			if (!await ConfirmDiscardValueChangesAsync()
 				|| !await ConfirmAsync("Disconnect", "Disconnect from the selected remote computer?"))
+			{
 				return;
+			}
 
 			await DisconnectRemoteAsync(ResolveNode(parameter));
 		});
@@ -936,7 +992,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryNodeViewModel? node = ResolveNode(parameter);
 			if (node?.Hive is null)
+			{
 				return;
+			}
 
 			string filePath = Path.Combine(Path.GetTempPath(), $"RegistryEditor-{Guid.NewGuid():N}.reg");
 			try
@@ -954,13 +1012,17 @@ public sealed class RootViewModel : ObservableObject
 	{
 		RegistryNodeViewModel? node = ResolveNode(parameter);
 		if (node is null)
+		{
 			return;
+		}
 
 		await RunCommandAsync("Registry operation failed", async () =>
 		{
 			node.IsExpanded = !node.IsExpanded;
 			if (node.IsExpanded)
+			{
 				await LoadChildrenAsync(node);
+			}
 		});
 	}
 
@@ -976,7 +1038,9 @@ public sealed class RootViewModel : ObservableObject
 			if (node is not null
 				&& await RequestTextAsync("New key", "Key name", "New Key") is { } keyName
 				&& await ConfirmDiscardValueChangesAsync())
+			{
 				await CreateKeyAsync(node, keyName);
+			}
 		});
 
 	private Task CreateValueFromCommandAsync(object? parameter, RegistryValueKind kind)
@@ -986,43 +1050,59 @@ public sealed class RootViewModel : ObservableObject
 			if (node is not null
 				&& await RequestTextAsync("New value", "Value name", "New Value") is { } name
 				&& await ConfirmDiscardValueChangesAsync())
+			{
 				await CreateValueAsync(node, name, kind);
+			}
 		});
 
 	private async Task ExecuteDeleteValueCommandAsync(object? parameter)
 	{
 		if (ResolveValue(parameter) is not { } value || !CanDeleteValue(value))
+		{
 			return;
+		}
 
 		await RunCommandAsync("Registry operation failed", async () =>
 		{
 			if (!await ConfirmDiscardValueChangesAsync())
+			{
 				return;
+			}
 
 			if (await ConfirmAsync("Delete value", $"Delete '{value.Name}'?"))
+			{
 				await DeleteValueAsync(value);
+			}
 		});
 	}
 
 	private async Task ExecuteRenameValueCommandAsync(object? parameter)
 	{
 		if (ResolveValue(parameter) is not { } value || !CanRenameValue(value))
+		{
 			return;
+		}
 
 		await RunCommandAsync("Registry operation failed", async () =>
 		{
 			if (!await ConfirmDiscardValueChangesAsync())
+			{
 				return;
+			}
 
 			if (await RequestTextAsync("Rename value", "New value name", value.RegistryName) is { } newName)
+			{
 				await RenameValueAsync(value, newName);
+			}
 		});
 	}
 
 	private async Task ExecuteSaveValueChangesCommandAsync(object? parameter)
 	{
 		if (SelectedValue is not { } value || !CanSaveValueChanges)
+		{
 			return;
+		}
 
 		_hasAttemptedValueSave = true;
 		if (!TryCreateEditedValue(value, ValueEditorData, IntegerBaseIndex, out object? editedValue, out string error))
@@ -1034,7 +1114,9 @@ public sealed class RootViewModel : ObservableObject
 		await RunCommandAsync("Unable to save value", async () =>
 		{
 			if (SelectedNode is not { Hive: not null } node)
+			{
 				throw new InvalidOperationException("Select a registry key first.");
+			}
 
 			string registryName = value.RegistryName;
 			RegistryValueKind kind = value.Kind;
@@ -1057,7 +1139,9 @@ public sealed class RootViewModel : ObservableObject
 		=> RunCommandAsync("Find failed", async () =>
 		{
 			if (await RequestTextAsync("Find", "Search for a key, value, or data", "") is not { } query)
+			{
 				return;
+			}
 
 			RegistryNodeViewModel? result = await FindAsync(query, parameter as RegistryNodeViewModel);
 			if (result is null)
@@ -1077,7 +1161,9 @@ public sealed class RootViewModel : ObservableObject
 			if (node is not null
 				&& await ConfirmDiscardValueChangesAsync()
 				&& await ConfirmAsync("Delete key", $"Delete '{node.Name}' and all of its subkeys?"))
+			{
 				await DeleteKeyAsync(node);
+			}
 		});
 
 	private Task ExecuteRenameKeyCommandAsync(object? parameter)
@@ -1087,30 +1173,40 @@ public sealed class RootViewModel : ObservableObject
 			if (node is null
 				|| await RequestTextAsync("Rename key", "New key name", node.Name) is not { } newName
 				|| !await ConfirmDiscardValueChangesAsync())
+			{
 				return;
+			}
 
 			if (await RenameKeyAsync(node, newName) is { } renamedNode)
+			{
 				await SelectNodeAsync(renamedNode);
+			}
 		});
 
 	private Task ExecutePermissionsCommandAsync(object? parameter)
 		=> RunCommandAsync("Registry operation failed", async () =>
 		{
 			if (ResolveNode(parameter) is { } node && await ConfirmDiscardValueChangesAsync())
+			{
 				await EditPermissionsAsync(node);
+			}
 		});
 
 	private void ExecuteCopyKeyCommand(object? parameter)
 	{
 		if (ResolveNode(parameter) is { Hive: not null } node)
+		{
 			CopyText(GetRegistryPath(node));
+		}
 	}
 
 	private Task ExecuteDisplayBinaryDataCommandAsync(object? parameter)
 		=> RunCommandAsync("Unable to display the value", async () =>
 		{
 			if (SelectedValue is { } value)
+			{
 				await ShowValueAsync(value);
+			}
 		});
 
 	private Task ExecuteRefreshCommandAsync(object? parameter)
@@ -1129,7 +1225,9 @@ public sealed class RootViewModel : ObservableObject
 			if (!int.TryParse(Convert.ToString(parameter, CultureInfo.InvariantCulture), NumberStyles.None, CultureInfo.InvariantCulture, out int index)
 				|| index < 0
 				|| index >= ThemeValues.Length)
+			{
 				return;
+			}
 
 			SelectedThemeIndex = index;
 			await SaveSettingsAsync();
@@ -1156,7 +1254,9 @@ public sealed class RootViewModel : ObservableObject
 		Application.Current.Resources["RegistryValueDataFontFamily"] = ValueDataFontFamily;
 
 		foreach (RegistryValueViewModel value in RegistryValues)
+		{
 			value.SetDataFont(ValueDataFontFamily);
+		}
 	}
 
 	private void ApplyAppFont(string fontFamilyName)
@@ -1178,7 +1278,9 @@ public sealed class RootViewModel : ObservableObject
 			dialog.Configure(_valueDataFontFamilyName, _appFontFamilyName);
 
 			if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+			{
 				return;
+			}
 
 			string valueDataFontFamilyName = dialog.SelectedValueDataFontFamilyName;
 			string appFontFamilyName = dialog.SelectedAppFontFamilyName;
@@ -1213,11 +1315,15 @@ public sealed class RootViewModel : ObservableObject
 	private async Task ExecuteBackCommandAsync(object? parameter)
 	{
 		if (!CanGoBack || !await ConfirmDiscardValueChangesAsync())
+		{
 			return;
+		}
 
 		RegistryNodeViewModel target = _backHistory.Pop();
 		if (_navigationNode is not null)
+		{
 			_forwardHistory.Push(_navigationNode);
+		}
 
 		_navigationNode = target;
 		NotifyNavigationState();
@@ -1227,11 +1333,15 @@ public sealed class RootViewModel : ObservableObject
 	private async Task ExecuteForwardCommandAsync(object? parameter)
 	{
 		if (!CanGoForward || !await ConfirmDiscardValueChangesAsync())
+		{
 			return;
+		}
 
 		RegistryNodeViewModel target = _forwardHistory.Pop();
 		if (_navigationNode is not null)
+		{
 			_backHistory.Push(_navigationNode);
+		}
 
 		_navigationNode = target;
 		NotifyNavigationState();
@@ -1241,10 +1351,14 @@ public sealed class RootViewModel : ObservableObject
 	private void RecordNavigation(RegistryNodeViewModel? node)
 	{
 		if (node is null || ReferenceEquals(_navigationNode, node))
+		{
 			return;
+		}
 
 		if (_navigationNode is not null)
+		{
 			_backHistory.Push(_navigationNode);
+		}
 
 		_navigationNode = node;
 		_forwardHistory.Clear();
@@ -1262,7 +1376,9 @@ public sealed class RootViewModel : ObservableObject
 	private void NotifyCommandStates()
 	{
 		if (ImportCommand is null)
+		{
 			return;
+		}
 
 		ImportCommand.NotifyCanExecuteChanged();
 		ExportCommand.NotifyCanExecuteChanged();
@@ -1383,7 +1499,9 @@ public sealed class RootViewModel : ObservableObject
 		});
 
 		if (process is null)
+		{
 			throw new InvalidOperationException("The system print helper could not be started.");
+		}
 
 		await process.WaitForExitAsync();
 	}
@@ -1404,23 +1522,37 @@ public sealed class RootViewModel : ObservableObject
 	private static ulong GetIntegerValue(RegistryValueViewModel value)
 	{
 		if (value.RawValue is null)
+		{
 			return 0;
+		}
 
 		if (value.Kind == RegistryValueKind.DWord)
 		{
 			if (value.RawValue is int signedValue)
+			{
 				return unchecked((uint)signedValue);
+			}
+
 			if (value.RawValue is uint unsignedValue)
+			{
 				return unsignedValue;
+			}
+
 			return Convert.ToUInt32(value.RawValue, CultureInfo.InvariantCulture);
 		}
 
 		if (value.Kind == RegistryValueKind.QWord)
 		{
 			if (value.RawValue is long signedValue)
+			{
 				return unchecked((ulong)signedValue);
+			}
+
 			if (value.RawValue is ulong unsignedValue)
+			{
 				return unsignedValue;
+			}
+
 			return Convert.ToUInt64(value.RawValue, CultureInfo.InvariantCulture);
 		}
 
@@ -1438,10 +1570,14 @@ public sealed class RootViewModel : ObservableObject
 	private static string FormatIntegerValue(ulong value, RegistryValueKind kind, int numberBaseIndex)
 	{
 		if (numberBaseIndex == 0)
+		{
 			return value.ToString(kind == RegistryValueKind.DWord ? "x8" : "x16", CultureInfo.InvariantCulture);
+		}
 
 		if (numberBaseIndex == 1)
+		{
 			return value.ToString(CultureInfo.InvariantCulture);
+		}
 
 		int bitWidth = GetIntegerBitWidth(kind);
 		char[] bits = new char[bitWidth + (bitWidth / 8) - 1];
@@ -1450,7 +1586,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			bits[outputIndex++] = (value & (1UL << bitPosition)) == 0 ? '0' : '1';
 			if (bitPosition > 0 && bitPosition % 8 == 0)
+			{
 				bits[outputIndex++] = ' ';
+			}
 		}
 
 		return new string(bits);
@@ -1464,7 +1602,10 @@ public sealed class RootViewModel : ObservableObject
 		{
 			case 0:
 				if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+				{
 					input = input[2..];
+				}
+
 				parsed = ulong.TryParse(input, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out value);
 				break;
 			case 1:
@@ -1487,12 +1628,16 @@ public sealed class RootViewModel : ObservableObject
 		string input = text.Replace(" ", string.Empty, StringComparison.Ordinal);
 		int bitWidth = GetIntegerBitWidth(kind);
 		if (input.Length is < 1 || input.Length > bitWidth)
+		{
 			return false;
+		}
 
 		foreach (char bit in input)
 		{
 			if (bit is not ('0' or '1'))
+			{
 				return false;
+			}
 
 			value = (value << 1) | (uint)(bit - '0');
 		}
@@ -1523,7 +1668,9 @@ public sealed class RootViewModel : ObservableObject
 		};
 
 		if (editedValue is not null || error.Length > 0)
+		{
 			return error.Length == 0;
+		}
 
 		if (value.Kind is RegistryValueKind.DWord or RegistryValueKind.QWord)
 		{
@@ -1581,7 +1728,9 @@ public sealed class RootViewModel : ObservableObject
 	private static XamlRoot GetXamlRoot()
 	{
 		if (App.Window is { Content: FrameworkElement content } && content.XamlRoot is { } xamlRoot)
+		{
 			return xamlRoot;
+		}
 
 		throw new InvalidOperationException("The registry editor window is not ready.");
 	}
@@ -1589,10 +1738,14 @@ public sealed class RootViewModel : ObservableObject
 	public Task LoadChildrenAsync(RegistryNodeViewModel node)
 	{
 		if (node.ChildrenLoadingTask is { IsCompleted: false } pending)
+		{
 			return pending;
+		}
 
 		if (node.Hive is null || !node.HasUnrealizedChildren || node.AreChildrenLoaded)
+		{
 			return Task.CompletedTask;
+		}
 
 		return node.ChildrenLoadingTask = LoadChildrenCoreAsync(node);
 	}
@@ -1607,7 +1760,9 @@ public sealed class RootViewModel : ObservableObject
 			IReadOnlyList<RegistrySubKeyData>? children = await RunRegistryOperationAsync(() => ReadSubkeys(node, operation.Id));
 			operation.Write($"RegistryReadReturned count={children?.Count.ToString() ?? "null"}");
 			if (children is null)
+			{
 				return;
+			}
 
 			const int maxBatchSize = 32;
 			const double targetBatchMilliseconds = 8;
@@ -1617,7 +1772,9 @@ public sealed class RootViewModel : ObservableObject
 			for (int index = 0; index < children.Count;)
 			{
 				if (!await YieldToUiAsync())
+				{
 					return;
+				}
 
 				long batchStarted = Stopwatch.GetTimestamp();
 				int count = Math.Min(batchSize, children.Count - index);
@@ -1640,7 +1797,9 @@ public sealed class RootViewModel : ObservableObject
 				double batchMilliseconds = Stopwatch.GetElapsedTime(batchStarted).TotalMilliseconds;
 				maxBatchMilliseconds = Math.Max(maxBatchMilliseconds, batchMilliseconds);
 				if (batchMilliseconds > targetBatchMilliseconds)
+				{
 					batchSize = Math.Max(1, batchSize / 2);
+				}
 
 				if (index >= nextProgress || index == children.Count)
 				{
@@ -1657,7 +1816,9 @@ public sealed class RootViewModel : ObservableObject
 			bool queued = App.Window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low,
 				() => operation.Write($"LowPriorityCallback queueDelayMs={Stopwatch.GetElapsedTime(queuedAt).TotalMilliseconds:F1}"));
 			if (!queued)
+			{
 				operation.Write("LowPriorityCallback not queued: dispatcher shutting down");
+			}
 		}
 		catch (UnauthorizedAccessException exception)
 		{
@@ -1682,7 +1843,10 @@ public sealed class RootViewModel : ObservableObject
 		// A low-priority callback lets pending input and layout run before the next batch.
 		TaskCompletionSource<bool> completion = new();
 		if (!App.Window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => completion.SetResult(true)))
+		{
 			completion.SetResult(false);
+		}
+
 		return completion.Task;
 	}
 
@@ -1695,7 +1859,9 @@ public sealed class RootViewModel : ObservableObject
 				: null;
 
 		if (node is null)
+		{
 			return [];
+		}
 
 		await LoadChildrenAsync(node);
 		return node.Children.ToArray();
@@ -1710,7 +1876,9 @@ public sealed class RootViewModel : ObservableObject
 	{
 		List<RegistryNodeViewModel> ancestors = [];
 		for (RegistryNodeViewModel? current = node?.Parent; current is not null; current = current.Parent)
+		{
 			ancestors.Add(current);
+		}
 
 		ancestors.Reverse();
 		foreach (RegistryNodeViewModel ancestor in ancestors)
@@ -1723,14 +1891,20 @@ public sealed class RootViewModel : ObservableObject
 	private async Task SelectNodeAsync(RegistryNodeViewModel? node, bool recordHistory, bool preserveSelectedValue = false)
 	{
 		if (!await ConfirmDiscardValueChangesAsync())
+		{
 			return;
+		}
 
 		string? selectedValueName = preserveSelectedValue ? SelectedValue?.RegistryName : null;
 		if (recordHistory)
+		{
 			RecordNavigation(node);
+		}
 
 		if (node is not null)
+		{
 			await EnsureAncestorsExpandedAsync(node);
+		}
 
 		SelectedNode = node;
 		UpdateBreadcrumb(node);
@@ -1757,9 +1931,12 @@ public sealed class RootViewModel : ObservableObject
 				cancellation.Token);
 
 			if (!ReferenceEquals(_valueLoadingCancellation, cancellation))
+			{
 				return;
+			}
 
 			foreach (RegistryValueData value in values)
+			{
 				RegistryValues.Add(new RegistryValueViewModel(
 					value.Name,
 					value.Type,
@@ -1769,10 +1946,13 @@ public sealed class RootViewModel : ObservableObject
 					value.Kind,
 					value.RawValue,
 					ValueDataFontFamily));
+			}
 
 			if (selectedValueName is not null)
+			{
 				SelectedValue = RegistryValues.FirstOrDefault(value =>
 					string.Equals(value.RegistryName, selectedValueName, StringComparison.OrdinalIgnoreCase));
+			}
 
 			SetEmptyValuesMessage(
 				RegistryValues.Count == 0 ? "No values" : string.Empty,
@@ -1791,14 +1971,18 @@ public sealed class RootViewModel : ObservableObject
 	{
 		RegistryNodeViewModel? target = node ?? SelectedNode;
 		if (target is null)
+		{
 			return;
+		}
 
 		bool wasSelected = ReferenceEquals(SelectedNode, target);
 
 		if (target.Hive is not null)
 		{
 			if (target.ChildrenLoadingTask is { IsCompleted: false } pending)
+			{
 				await pending;
+			}
 
 			bool isExpanded = target.IsExpanded;
 			target.Children.Clear();
@@ -1809,23 +1993,31 @@ public sealed class RootViewModel : ObservableObject
 		}
 
 		if (wasSelected && ReferenceEquals(SelectedNode, target))
+		{
 			await SelectNodeAsync(target, recordHistory: false, preserveSelectedValue: true);
+		}
 	}
 
 	private async Task RefreshNodeChildrenAsync(RegistryNodeViewModel node)
 	{
 		if (node.Hive is null)
+		{
 			return;
+		}
 
 		if (node.ChildrenLoadingTask is { IsCompleted: false } pending)
+		{
 			await pending;
+		}
 
 		bool isExpanded = node.IsExpanded;
 		node.Children.Clear();
 		node.AreChildrenLoaded = false;
 		node.HasUnrealizedChildren = true;
 		if (isExpanded)
+		{
 			await LoadChildrenAsync(node);
+		}
 	}
 
 	private static bool IsWithinSubtree(RegistryNodeViewModel? node, RegistryNodeViewModel root)
@@ -1833,7 +2025,9 @@ public sealed class RootViewModel : ObservableObject
 		for (RegistryNodeViewModel? current = node; current is not null; current = current.Parent)
 		{
 			if (ReferenceEquals(current, root))
+			{
 				return true;
+			}
 		}
 
 		return false;
@@ -1842,7 +2036,9 @@ public sealed class RootViewModel : ObservableObject
 	public async Task<RegistryNodeViewModel?> CreateKeyAsync(RegistryNodeViewModel? parent, string name)
 	{
 		if (parent?.Hive is null)
+		{
 			throw new InvalidOperationException("Select a registry key first.");
+		}
 
 		ValidateKeyName(name);
 		await RunRegistryOperationAsync(() =>
@@ -1866,10 +2062,14 @@ public sealed class RootViewModel : ObservableObject
 	public async Task CreateValueAsync(RegistryNodeViewModel? node, string name, RegistryValueKind kind)
 	{
 		if (node?.Hive is null)
+		{
 			throw new InvalidOperationException("Select a registry key first.");
+		}
 
 		if (string.IsNullOrWhiteSpace(name))
+		{
 			throw new ArgumentException("A value name must not be empty.", nameof(name));
+		}
 
 		object value = kind switch
 		{
@@ -1883,21 +2083,29 @@ public sealed class RootViewModel : ObservableObject
 		{
 			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
 			if (key.GetValueNames().Any(valueName => string.Equals(valueName, name, StringComparison.OrdinalIgnoreCase)))
+			{
 				throw new InvalidOperationException($"The value '{name}' already exists.");
+			}
 
 			key.SetValue(name, value, kind);
 		});
 		if (ReferenceEquals(SelectedNode, node))
+		{
 			await SelectNodeAsync(node);
+		}
 	}
 
 	public async Task DeleteValueAsync(RegistryValueViewModel? value)
 	{
 		if (value?.RawValue is null)
+		{
 			throw new InvalidOperationException("The selected value cannot be deleted.");
+		}
 
 		if (SelectedNode is not { Hive: not null } node)
+		{
 			throw new InvalidOperationException("Select a registry key first.");
+		}
 
 		string registryName = value.RegistryName;
 		await RunRegistryOperationAsync(() =>
@@ -1906,19 +2114,27 @@ public sealed class RootViewModel : ObservableObject
 			key.DeleteValue(registryName, throwOnMissingValue: true);
 		});
 		if (ReferenceEquals(SelectedNode, node))
+		{
 			await RefreshAsync(node);
+		}
 	}
 
 	public async Task RenameValueAsync(RegistryValueViewModel? value, string newName)
 	{
 		if (value?.RawValue is null)
+		{
 			throw new InvalidOperationException("The selected value cannot be renamed.");
+		}
 
 		if (SelectedNode is not { Hive: not null } node)
+		{
 			throw new InvalidOperationException("Select a registry key first.");
+		}
 
 		if (string.Equals(value.RegistryName, newName, StringComparison.OrdinalIgnoreCase))
+		{
 			return;
+		}
 
 		string oldName = value.RegistryName;
 		RegistryValueKind kind = value.Kind;
@@ -1928,7 +2144,9 @@ public sealed class RootViewModel : ObservableObject
 			using RegistryKey key = RegistryFileService.OpenKey(node, writable: true);
 			if (key.GetValueNames().Any(existingName =>
 				string.Equals(existingName, newName, StringComparison.OrdinalIgnoreCase)))
+			{
 				throw new InvalidOperationException($"The value '{newName}' already exists.");
+			}
 
 			key.SetValue(newName, rawValue, kind);
 			key.DeleteValue(oldName, throwOnMissingValue: true);
@@ -1944,7 +2162,9 @@ public sealed class RootViewModel : ObservableObject
 	public async Task DeleteKeyAsync(RegistryNodeViewModel? node)
 	{
 		if (node?.Hive is null || node.IsHiveRoot || node.Parent?.Hive is null)
+		{
 			throw new InvalidOperationException("The selected item cannot be deleted.");
+		}
 
 		RegistryNodeViewModel parent = node.Parent;
 		string keyName = node.Name;
@@ -1973,7 +2193,9 @@ public sealed class RootViewModel : ObservableObject
 	public async Task<RegistryNodeViewModel?> RenameKeyAsync(RegistryNodeViewModel? node, string newName)
 	{
 		if (node?.Hive is null || node.IsHiveRoot || node.Parent?.Hive is null)
+		{
 			throw new InvalidOperationException("The selected item cannot be renamed.");
+		}
 
 		ValidateKeyName(newName);
 		RegistryNodeViewModel parent = node.Parent;
@@ -1985,12 +2207,16 @@ public sealed class RootViewModel : ObservableObject
 			return PInvoke.RegRenameKey(key.Handle, oldName, newName);
 		});
 		if (status != WIN32_ERROR.NO_ERROR)
+		{
 			throw new Win32Exception((int)status);
+		}
 
 		bool selectionStillAffected = ReferenceEquals(SelectedNode, parent) || IsWithinSubtree(SelectedNode, node);
 		await RefreshNodeChildrenAsync(parent);
 		if (!selectionWasAffected || !selectionStillAffected)
+		{
 			return null;
+		}
 
 		parent.IsExpanded = true;
 		return parent.Children.FirstOrDefault(child => string.Equals(child.Name, newName, StringComparison.OrdinalIgnoreCase));
@@ -2009,7 +2235,9 @@ public sealed class RootViewModel : ObservableObject
 	public async Task LoadHiveAsync(RegistryNodeViewModel? parent, string filePath, string keyName)
 	{
 		if (parent is not { IsHiveRoot: true, IsRemote: false, Hive: RegistryHive.Users or RegistryHive.LocalMachine })
+		{
 			throw new InvalidOperationException("Select HKEY_USERS or HKEY_LOCAL_MACHINE first.");
+		}
 
 		ValidateKeyName(keyName);
 		await RunRegistryOperationAsync(() =>
@@ -2019,7 +2247,9 @@ public sealed class RootViewModel : ObservableObject
 			using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
 			WIN32_ERROR status = PInvoke.RegLoadKey(hiveKey.Handle, keyName, filePath);
 			if (status != WIN32_ERROR.NO_ERROR)
+			{
 				throw new Win32Exception((int)status);
+			}
 		});
 
 		_loadedHivePaths.Add($"{GetRegistryPath(parent)}\\{keyName}");
@@ -2031,7 +2261,9 @@ public sealed class RootViewModel : ObservableObject
 		if (node is not { IsHiveRoot: false, IsRemote: false }
 			|| node.Parent is not { Hive: RegistryHive.Users or RegistryHive.LocalMachine }
 			|| !_loadedHivePaths.Contains(GetRegistryPath(node)))
+		{
 			throw new InvalidOperationException("Select a loaded hive first.");
+		}
 
 		RegistryNodeViewModel parent = node.Parent;
 		string keyName = node.Name;
@@ -2041,7 +2273,9 @@ public sealed class RootViewModel : ObservableObject
 			using RegistryKey hiveKey = RegistryFileService.OpenBaseKey(parent);
 			WIN32_ERROR status = PInvoke.RegUnLoadKey(hiveKey.Handle, keyName);
 			if (status != WIN32_ERROR.NO_ERROR)
+			{
 				throw new Win32Exception((int)status);
+			}
 		});
 
 		_loadedHivePaths.Remove(GetRegistryPath(node));
@@ -2065,10 +2299,14 @@ public sealed class RootViewModel : ObservableObject
 	{
 		string normalizedName = NormalizeComputerName(computerName);
 		if (string.Equals(normalizedName, Environment.MachineName, StringComparison.OrdinalIgnoreCase))
+		{
 			throw new InvalidOperationException("The local computer is already connected.");
+		}
 
 		if (RootNodes.Any(node => string.Equals(node.ComputerName, normalizedName, StringComparison.OrdinalIgnoreCase)))
+		{
 			throw new InvalidOperationException("That computer is already connected.");
+		}
 
 		await RunRegistryOperationAsync(() =>
 		{
@@ -2093,7 +2331,9 @@ public sealed class RootViewModel : ObservableObject
 	{
 		RegistryNodeViewModel? computerNode = GetComputerNode(node);
 		if (computerNode?.IsRemote is not true)
+		{
 			throw new InvalidOperationException("Select a remote computer first.");
+		}
 
 		RootNodes.Remove(computerNode);
 		RegistryNodeViewModel? replacement = RootNodes.FirstOrDefault(candidate => !candidate.IsRemote);
@@ -2106,7 +2346,9 @@ public sealed class RootViewModel : ObservableObject
 		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(query))
+		{
 			return null;
+		}
 
 		IEnumerable<RegistryNodeViewModel> searchRoots = startNode is null
 			? RootNodes.ToArray()
@@ -2115,7 +2357,9 @@ public sealed class RootViewModel : ObservableObject
 		{
 			RegistryNodeViewModel? result = await FindInNodeAsync(root, query.Trim(), cancellationToken);
 			if (result is not null)
+			{
 				return result;
+			}
 		}
 
 		return null;
@@ -2129,7 +2373,9 @@ public sealed class RootViewModel : ObservableObject
 			.Split('\\', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 		if (RootNodes.FirstOrDefault() is not { } localComputerNode)
+		{
 			return;
+		}
 
 		RegistryNodeViewModel computerNode = localComputerNode;
 		int segmentIndex = 0;
@@ -2155,14 +2401,18 @@ public sealed class RootViewModel : ObservableObject
 		}
 
 		if (computerNode.Children.FirstOrDefault(node => string.Equals(node.Name, segments[segmentIndex], StringComparison.OrdinalIgnoreCase)) is not { } currentNode)
+		{
 			return;
+		}
 
 		for (int index = segmentIndex + 1; index < segments.Length; index++)
 		{
 			await LoadChildrenAsync(currentNode);
 			currentNode = currentNode.Children.FirstOrDefault(node => string.Equals(node.Name, segments[index], StringComparison.OrdinalIgnoreCase));
 			if (currentNode is null)
+			{
 				return;
+			}
 		}
 
 		await SelectNodeAsync(currentNode);
@@ -2171,10 +2421,14 @@ public sealed class RootViewModel : ObservableObject
 	public Task NavigateToBreadcrumbAsync(int index, bool isRootItem)
 	{
 		if (isRootItem)
+		{
 			return NavigateToPathAsync(GetComputerNode(SelectedNode)?.Name ?? "Computer");
+		}
 
 		if (index < 0 || index >= BreadcrumbItems.Count)
+		{
 			return Task.CompletedTask;
+		}
 
 		string computerName = GetComputerNode(SelectedNode)?.Name ?? "Computer";
 		string path = computerName + "\\" + string.Join("\\", BreadcrumbItems.Take(index + 1).Select(item => item.Text));
@@ -2199,11 +2453,16 @@ public sealed class RootViewModel : ObservableObject
 
 		List<RegistryNodeViewModel> pathNodes = [];
 		for (RegistryNodeViewModel? current = node; current?.Hive is not null; current = current.Parent)
+		{
 			pathNodes.Add(current);
+		}
+
 		pathNodes.Reverse();
 
 		if (pathNodes.Count == 0 || pathNodes[0].Hive is not RegistryHive rootHive)
+		{
 			return;
+		}
 
 		BreadcrumbItems.Add(new RegistryBreadcrumbItemViewModel(
 			pathNodes[0],
@@ -2228,7 +2487,9 @@ public sealed class RootViewModel : ObservableObject
 	{
 		ValuesEmptyText = text;
 		if (_isValuesEmpty == isEmpty)
+		{
 			return;
+		}
 
 		_isValuesEmpty = isEmpty;
 		OnPropertyChanged(nameof(ValuesEmptyVisibility));
@@ -2238,7 +2499,9 @@ public sealed class RootViewModel : ObservableObject
 	{
 		_activeLoads++;
 		if (_activeLoads != 1)
+		{
 			return;
+		}
 
 		_isLoading = true;
 		OnPropertyChanged(nameof(LoadingVisibility));
@@ -2247,11 +2510,15 @@ public sealed class RootViewModel : ObservableObject
 	private void EndLoad()
 	{
 		if (_activeLoads == 0)
+		{
 			return;
+		}
 
 		_activeLoads--;
 		if (_activeLoads != 0)
+		{
 			return;
+		}
 
 		_isLoading = false;
 		OnPropertyChanged(nameof(LoadingVisibility));
@@ -2260,7 +2527,9 @@ public sealed class RootViewModel : ObservableObject
 	private void ClearValueCancellation(CancellationTokenSource cancellation)
 	{
 		if (ReferenceEquals(_valueLoadingCancellation, cancellation))
+		{
 			_valueLoadingCancellation = null;
+		}
 
 		cancellation.Dispose();
 	}
@@ -2289,11 +2558,16 @@ public sealed class RootViewModel : ObservableObject
 
 			string[] names;
 			using (Logger.Measure("ReadSubkeys.GetSubKeyNames", $"readId={operation.Id}"))
+			{
 				names = key.GetSubKeyNames();
+			}
+
 			operation.Write($"NamesEnumerated count={names.Length}");
 			string[] sortedNames;
 			using (Logger.Measure("ReadSubkeys.Sort", $"readId={operation.Id}"))
+			{
 				sortedNames = names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
+			}
 
 			operation.Write("ProbeChildCounts BEGIN");
 			List<RegistrySubKeyData> children = [];
@@ -2318,7 +2592,9 @@ public sealed class RootViewModel : ObservableObject
 
 				children.Add(new RegistrySubKeyData(subKeyName, path, hasChildren));
 				if (children.Count % 1024 == 0)
+				{
 					operation.Write($"ProbeChildCounts progress={children.Count}/{names.Length}");
+				}
 			}
 
 			operation.Write($"ProbeChildCounts END count={children.Count}");
@@ -2357,7 +2633,9 @@ public sealed class RootViewModel : ObservableObject
 
 			string[] valueNames = key.GetValueNames();
 			if (!valueNames.Any(string.IsNullOrEmpty))
+			{
 				values.Add(CreateUnsetDefaultValue());
+			}
 
 			foreach (string valueName in valueNames.OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
 			{
@@ -2455,7 +2733,9 @@ public sealed class RootViewModel : ObservableObject
 	private static string FormatValue(RegistryValueKind kind, object? value)
 	{
 		if (value is null)
+		{
 			return NoValueText;
+		}
 
 		return kind switch
 		{
@@ -2511,7 +2791,9 @@ public sealed class RootViewModel : ObservableObject
 	public string GetRegistryPath(RegistryNodeViewModel node)
 	{
 		if (node.Hive is not RegistryHive hive)
+		{
 			return node.Name;
+		}
 
 		string path = string.IsNullOrEmpty(node.SubKeyPath)
 			? GetHiveName(hive)
@@ -2525,7 +2807,9 @@ public sealed class RootViewModel : ObservableObject
 		try
 		{
 			if (File.Exists(path))
+			{
 				File.Delete(path);
+			}
 		}
 		catch (IOException)
 		{
@@ -2552,7 +2836,9 @@ public sealed class RootViewModel : ObservableObject
 		cancellationToken.ThrowIfCancellationRequested();
 
 		if (node.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+		{
 			return node;
+		}
 
 		if (node.Hive is null)
 		{
@@ -2560,7 +2846,9 @@ public sealed class RootViewModel : ObservableObject
 			{
 				RegistryNodeViewModel? result = await FindInNodeAsync(child, query, cancellationToken);
 				if (result is not null)
+				{
 					return result;
+				}
 			}
 
 			return null;
@@ -2571,14 +2859,18 @@ public sealed class RootViewModel : ObservableObject
 			cancellationToken);
 		if (values.Any(value => value.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
 			|| value.Data.Contains(query, StringComparison.OrdinalIgnoreCase)))
+		{
 			return node;
+		}
 
 		await LoadChildrenAsync(node);
 		foreach (RegistryNodeViewModel child in node.Children.ToArray())
 		{
 			RegistryNodeViewModel? result = await FindInNodeAsync(child, query, cancellationToken);
 			if (result is not null)
+			{
 				return result;
+			}
 		}
 
 		return null;
@@ -2587,7 +2879,9 @@ public sealed class RootViewModel : ObservableObject
 	private static RegistryNodeViewModel? GetComputerNode(RegistryNodeViewModel? node)
 	{
 		while (node?.Parent is not null)
+		{
 			node = node.Parent;
+		}
 
 		return node;
 	}
@@ -2596,7 +2890,9 @@ public sealed class RootViewModel : ObservableObject
 	{
 		string normalized = computerName.Trim().TrimStart('\\');
 		if (normalized.Length == 0 || normalized.Contains('\\'))
+		{
 			throw new ArgumentException("Enter a computer name.", nameof(computerName));
+		}
 
 		return normalized;
 	}
@@ -2604,7 +2900,9 @@ public sealed class RootViewModel : ObservableObject
 	private static void ValidateKeyName(string name)
 	{
 		if (string.IsNullOrWhiteSpace(name) || name.Contains('\\'))
+		{
 			throw new ArgumentException("A key name must not be empty or contain a backslash.", nameof(name));
+		}
 	}
 
 	private static BitmapImage CreateBitmapImage(string uri) => new(new Uri(uri));

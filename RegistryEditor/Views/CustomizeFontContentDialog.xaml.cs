@@ -57,7 +57,9 @@ public sealed partial class CustomizeFontContentDialog : ContentDialog
 	private void FontFamilyAutoSuggestBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
 	{
 		if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
+		{
 			return;
+		}
 
 		IReadOnlyList<FontFamilySuggestion> suggestions = GetMatchingFontFamilies(sender.Text);
 		sender.ItemsSource = suggestions;
@@ -80,7 +82,9 @@ public sealed partial class CustomizeFontContentDialog : ContentDialog
 		AutoSuggestBoxSuggestionChosenEventArgs args)
 	{
 		if (args.SelectedItem is not FontFamilySuggestion suggestion)
+		{
 			return;
+		}
 
 		SelectFontFamily(sender, suggestion.Name);
 	}
@@ -138,7 +142,9 @@ public sealed partial class CustomizeFontContentDialog : ContentDialog
 	private IReadOnlyList<FontFamilySuggestion> GetMatchingFontFamilies(string text)
 	{
 		if (string.IsNullOrWhiteSpace(text))
+		{
 			return _availableFontFamilies;
+		}
 
 		return _availableFontFamilies
 			.Where(fontFamily => fontFamily.Name.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -149,13 +155,17 @@ public sealed partial class CustomizeFontContentDialog : ContentDialog
 	{
 		string? availableFontFamily = FindInstalledFontFamily(fontFamilyName);
 		if (availableFontFamily is not null)
+		{
 			return availableFontFamily;
+		}
 
 		foreach (string fallbackName in fallbackNames)
 		{
 			availableFontFamily = FindInstalledFontFamily(fallbackName);
 			if (availableFontFamily is not null)
+			{
 				return availableFontFamily;
+			}
 		}
 
 		return _availableFontFamilies.FirstOrDefault()?.Name ?? fontFamilyName;
@@ -178,8 +188,12 @@ public sealed partial class CustomizeFontContentDialog : ContentDialog
 	private void SetSelectedFontFamilyName(AutoSuggestBox sender, string fontFamilyName)
 	{
 		if (ReferenceEquals(sender, ValueDataFontFamilyAutoSuggestBox))
+		{
 			_selectedValueDataFontFamilyName = fontFamilyName;
+		}
 		else
+		{
 			_selectedAppFontFamilyName = fontFamilyName;
+		}
 	}
 }

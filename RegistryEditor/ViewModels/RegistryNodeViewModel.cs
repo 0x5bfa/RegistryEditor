@@ -64,7 +64,9 @@ public sealed class RegistryNodeViewModel : ObservableObject
 		private set
 		{
 			if (ReferenceEquals(_icon, value))
+			{
 				return;
+			}
 
 			_icon = value;
 			OnPropertyChanged();
@@ -93,11 +95,15 @@ public sealed class RegistryNodeViewModel : ObservableObject
 		set
 		{
 			if (!SetProperty(ref _isExpanded, value))
+			{
 				return;
+			}
 
 			OnPropertyChanged(nameof(ExpandMenuText));
 			if (_expandedIconUri is not null)
+			{
 				Icon = new(new Uri(value ? _expandedIconUri : _collapsedIconUri));
+			}
 		}
 	}
 

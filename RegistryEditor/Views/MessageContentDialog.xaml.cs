@@ -20,6 +20,8 @@ public sealed partial class MessageContentDialog : ContentDialog
 		Title = title;
 		MessageTextBlock.Text = message;
 		if (messageFontFamily is not null)
+		{
 			MessageTextBlock.FontFamily = messageFontFamily;
+		}
 	}
 }

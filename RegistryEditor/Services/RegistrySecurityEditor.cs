@@ -73,7 +73,9 @@ internal static class RegistrySecurityEditor
 				{
 					int error = Marshal.GetLastWin32Error();
 					if (error == 0)
+					{
 						error = 1;
+					}
 
 					throw new Win32Exception(error);
 				}
@@ -161,7 +163,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	public HRESULT GetObjectInformation(ref SI_OBJECT_INFO objectInfo)
 	{
 		if (_key is null)
+		{
 			return HRESULT.E_INVALIDARG;
+		}
 
 		objectInfo = new SI_OBJECT_INFO
 		{
@@ -175,7 +179,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			guidObjectType = Guid.Empty,
 		};
 		if (!_key.CanWriteSecurity)
+		{
 			objectInfo.dwFlags |= (SI_OBJECT_INFO_FLAGS)0x00000008 /* SI_READONLY */;
+		}
 
 		return HRESULT.S_OK;
 	}
@@ -184,9 +190,14 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	{
 		securityDescriptor = nint.Zero;
 		if (_key is null)
+		{
 			return HRESULT.E_INVALIDARG;
+		}
+
 		if (defaultSecurity != 0)
+		{
 			return HRESULT.E_NOTIMPL;
+		}
 
 		WIN32_ERROR result = PInvoke.GetSecurityInfo(
 			_key.Handle,
@@ -199,7 +210,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 			out PSECURITY_DESCRIPTOR descriptor);
 		securityDescriptor = (nint)descriptor.Value;
 		if (result == WIN32_ERROR.NO_ERROR)
+		{
 			return HRESULT.S_OK;
+		}
 
 		if (descriptor.Value is not null)
 		{
@@ -213,21 +226,40 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	public unsafe HRESULT SetSecurity(OBJECT_SECURITY_INFORMATION securityInformation, nint securityDescriptor)
 	{
 		if (_key is null || securityDescriptor == nint.Zero)
+		{
 			return HRESULT.E_INVALIDARG;
+		}
+
 		if (!_key.CanWriteSecurity)
+		{
 			return HRESULT.E_ACCESSDENIED;
+		}
 
 		PSECURITY_DESCRIPTOR descriptor = (PSECURITY_DESCRIPTOR)securityDescriptor;
 		if (!PInvoke.GetSecurityDescriptorControl(descriptor, out ushort controlValue, out _))
+		{
 			return LastErrorAsHResult();
+		}
+
 		if (!PInvoke.GetSecurityDescriptorOwner(descriptor, out PSID owner, out _))
+		{
 			return LastErrorAsHResult();
+		}
+
 		if (!PInvoke.GetSecurityDescriptorGroup(descriptor, out PSID group, out _))
+		{
 			return LastErrorAsHResult();
+		}
+
 		if (!PInvoke.GetSecurityDescriptorDacl(descriptor, out _, out ACL* dacl, out _))
+		{
 			return LastErrorAsHResult();
+		}
+
 		if (!PInvoke.GetSecurityDescriptorSacl(descriptor, out _, out ACL* sacl, out _))
+		{
 			return LastErrorAsHResult();
+		}
 
 		ControlFlags control = (ControlFlags)controlValue;
 		OBJECT_SECURITY_INFORMATION effectiveInformation = securityInformation & SecurityInformationMask;
@@ -297,7 +329,10 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 		}
 
 		foreach (nint allocatedString in _allocatedStrings)
+		{
 			NativeMemory.Free((void*)allocatedString);
+		}
+
 		_allocatedStrings.Clear();
 
 		_key?.Dispose();
@@ -309,7 +344,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	{
 		char* buffer = (char*)NativeMemory.Alloc((nuint)(value.Length + 1), (nuint)sizeof(char));
 		if (buffer is null)
+		{
 			throw new OutOfMemoryException();
+		}
 
 		value.AsSpan().CopyTo(new Span<char>(buffer, value.Length));
 		buffer[value.Length] = '\0';
@@ -322,7 +359,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	{
 		SI_ACCESS* buffer = (SI_ACCESS*)NativeMemory.Alloc((nuint)AccessDefinitions.Length, (nuint)sizeof(SI_ACCESS));
 		if (buffer is null)
+		{
 			throw new OutOfMemoryException();
+		}
 
 		try
 		{
@@ -351,7 +390,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	{
 		SI_INHERIT_TYPE* buffer = (SI_INHERIT_TYPE*)NativeMemory.Alloc((nuint)InheritDefinitions.Length, (nuint)sizeof(SI_INHERIT_TYPE));
 		if (buffer is null)
+		{
 			throw new OutOfMemoryException();
+		}
 
 		try
 		{
@@ -379,7 +420,9 @@ internal sealed unsafe partial class RegistrySecurityInformation : IRegistrySecu
 	{
 		int error = Marshal.GetLastWin32Error();
 		if (error == 0)
+		{
 			error = 1;
+		}
 
 		return HRESULT.FromWin32Error((WIN32_ERROR)error);
 	}
