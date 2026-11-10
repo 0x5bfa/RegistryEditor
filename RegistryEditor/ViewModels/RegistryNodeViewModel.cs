@@ -4,6 +4,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
+using RegistryEditor.Collections;
 
 namespace RegistryEditor.ViewModels;
 
@@ -55,7 +56,7 @@ public sealed class RegistryNodeViewModel : ObservableObject
 
 	public bool IsRemote => !string.IsNullOrEmpty(ComputerName);
 
-	public ObservableCollection<RegistryNodeViewModel> Children { get; } = [];
+	public BulkObservableCollection<RegistryNodeViewModel> Children { get; } = [];
 
 	public BitmapImage Icon
 	{
@@ -83,6 +84,8 @@ public sealed class RegistryNodeViewModel : ObservableObject
 	}
 
 	public bool AreChildrenLoaded { get; internal set; }
+
+	internal Task? ChildrenLoadingTask { get; set; }
 
 	public bool IsExpanded
 	{

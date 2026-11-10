@@ -72,14 +72,18 @@ function Save-StartupDiagnostics
 
     if ($null -ne $InstalledPackage)
     {
-        $appLogPath = Join-Path `
+        $appLogDirectory = Join-Path `
             $env:LOCALAPPDATA `
-            "Packages\$($InstalledPackage.PackageFamilyName)\LocalState\RegistryEditor.Logs\Log.log"
+            "Packages\$($InstalledPackage.PackageFamilyName)\LocalState\logs"
 
-        if (Test-Path -LiteralPath $appLogPath -PathType Leaf)
+        $appLog = Get-ChildItem -LiteralPath $appLogDirectory -Filter 'app-*.log' -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+        if ($null -ne $appLog)
         {
             Copy-Item `
-                -LiteralPath $appLogPath `
+                -LiteralPath $appLog.FullName `
                 -Destination (Join-Path $diagnosticsDirectory "RegistryEditor.Log.log") `
                 -Force
         }

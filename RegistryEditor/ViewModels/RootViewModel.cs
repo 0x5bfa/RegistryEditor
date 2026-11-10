@@ -3,6 +3,8 @@
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
@@ -22,6 +24,7 @@ namespace RegistryEditor.ViewModels;
 
 public sealed class RootViewModel : ObservableObject
 {
+	private static readonly ILogger<RootViewModel> Logger = AppLogging.CreateLogger<RootViewModel>();
 	private const string ComputerImageUri = "ms-appx:///Assets/Images/Computer.png";
 	private const string FolderImageUri = "ms-appx:///Assets/Images/Folder.png";
 	private const string BinaryValueImageUri = "ms-appx:///Assets/Images/BinaryValue.png";
@@ -827,6 +830,7 @@ public sealed class RootViewModel : ObservableObject
 		}
 		catch (Exception exception)
 		{
+			Logger.LogError(exception, "Command failed: {ErrorTitle}", errorTitle);
 			await ShowMessageAsync(errorTitle, exception.Message);
 		}
 	}
@@ -1582,45 +1586,104 @@ public sealed class RootViewModel : ObservableObject
 		throw new InvalidOperationException("The registry editor window is not ready.");
 	}
 
-	public async Task LoadChildrenAsync(RegistryNodeViewModel node)
+	public Task LoadChildrenAsync(RegistryNodeViewModel node)
 	{
-		if (node.Hive is null || !node.HasUnrealizedChildren || node.AreChildrenLoaded || node.IsChildrenLoading)
-			return;
+		if (node.ChildrenLoadingTask is { IsCompleted: false } pending)
+			return pending;
 
+		if (node.Hive is null || !node.HasUnrealizedChildren || node.AreChildrenLoaded)
+			return Task.CompletedTask;
+
+		return node.ChildrenLoadingTask = LoadChildrenCoreAsync(node);
+	}
+
+	private async Task LoadChildrenCoreAsync(RegistryNodeViewModel node)
+	{
 		node.IsChildrenLoading = true;
+		using var operation = Logger.Measure("LoadChildren", $"key=\"{GetRegistryPath(node)}\" expanded={node.IsExpanded}");
 
 		try
 		{
-			IReadOnlyList<RegistrySubKeyData>? children = await RunRegistryOperationAsync(() => ReadSubkeys(node));
+			IReadOnlyList<RegistrySubKeyData>? children = await RunRegistryOperationAsync(() => ReadSubkeys(node, operation.Id));
+			operation.Write($"RegistryReadReturned count={children?.Count.ToString() ?? "null"}");
 			if (children is null)
 				return;
 
-			foreach (RegistrySubKeyData child in children)
-				node.Children.Add(CreateNode(
-					child.Name,
-					node.Hive,
-					child.Path,
-					FolderImageUri,
-					child.HasChildren,
-					computerName: node.ComputerName,
-					parent: node));
+			const int maxBatchSize = 32;
+			const double targetBatchMilliseconds = 8;
+			int batchSize = maxBatchSize;
+			int nextProgress = 512;
+			double maxBatchMilliseconds = 0;
+			for (int index = 0; index < children.Count;)
+			{
+				if (!await YieldToUiAsync())
+					return;
+
+				long batchStarted = Stopwatch.GetTimestamp();
+				int count = Math.Min(batchSize, children.Count - index);
+				RegistryNodeViewModel[] batch = new RegistryNodeViewModel[count];
+				for (int offset = 0; offset < count; offset++)
+				{
+					RegistrySubKeyData child = children[index + offset];
+					batch[offset] = CreateNode(
+						child.Name,
+						node.Hive,
+						child.Path,
+						FolderImageUri,
+						child.HasChildren,
+						computerName: node.ComputerName,
+						parent: node);
+				}
+
+				node.Children.AddRange(batch);
+				index += count;
+				double batchMilliseconds = Stopwatch.GetElapsedTime(batchStarted).TotalMilliseconds;
+				maxBatchMilliseconds = Math.Max(maxBatchMilliseconds, batchMilliseconds);
+				if (batchMilliseconds > targetBatchMilliseconds)
+					batchSize = Math.Max(1, batchSize / 2);
+
+				if (index >= nextProgress || index == children.Count)
+				{
+					operation.Write($"BatchProgress added={index}/{children.Count} nextBatchSize={batchSize} maxBatchMs={maxBatchMilliseconds:F1}");
+					nextProgress = index + 512;
+				}
+			}
+			operation.Write($"BatchesComplete count={node.Children.Count} maxBatchMs={maxBatchMilliseconds:F1}");
 
 			node.AreChildrenLoaded = true;
 			node.HasUnrealizedChildren = false;
+			operation.Write("LoadFlagsUpdated");
+			long queuedAt = Stopwatch.GetTimestamp();
+			bool queued = App.Window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low,
+				() => operation.Write($"LowPriorityCallback queueDelayMs={Stopwatch.GetElapsedTime(queuedAt).TotalMilliseconds:F1}"));
+			if (!queued)
+				operation.Write("LowPriorityCallback not queued: dispatcher shutting down");
 		}
-		catch (UnauthorizedAccessException)
+		catch (UnauthorizedAccessException exception)
 		{
+			operation.Write("Unable to load subkeys", LogLevel.Warning, exception);
 		}
-		catch (SecurityException)
+		catch (SecurityException exception)
 		{
+			operation.Write("Unable to load subkeys", LogLevel.Warning, exception);
 		}
-		catch (IOException)
+		catch (IOException exception)
 		{
+			operation.Write("Unable to load subkeys", LogLevel.Error, exception);
 		}
 		finally
 		{
 			node.IsChildrenLoading = false;
 		}
+	}
+
+	private static Task<bool> YieldToUiAsync()
+	{
+		// A low-priority callback lets pending input and layout run before the next batch.
+		TaskCompletionSource<bool> completion = new();
+		if (!App.Window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => completion.SetResult(true)))
+			completion.SetResult(false);
+		return completion.Task;
 	}
 
 	public async Task<IReadOnlyList<RegistryNodeViewModel>> GetBreadcrumbChildrenAsync(int index, bool isRootItem)
@@ -1734,6 +1797,9 @@ public sealed class RootViewModel : ObservableObject
 
 		if (target.Hive is not null)
 		{
+			if (target.ChildrenLoadingTask is { IsCompleted: false } pending)
+				await pending;
+
 			bool isExpanded = target.IsExpanded;
 			target.Children.Clear();
 			target.AreChildrenLoaded = false;
@@ -1750,6 +1816,9 @@ public sealed class RootViewModel : ObservableObject
 	{
 		if (node.Hive is null)
 			return;
+
+		if (node.ChildrenLoadingTask is { IsCompleted: false } pending)
+			await pending;
 
 		bool isExpanded = node.IsExpanded;
 		node.Children.Clear();
@@ -2206,8 +2275,9 @@ public sealed class RootViewModel : ObservableObject
 		RegistryNodeViewModel? parent = null)
 		=> new(name, hive, subKeyPath, iconUri, hasUnrealizedChildren, computerName, parent);
 
-	private static IReadOnlyList<RegistrySubKeyData>? ReadSubkeys(RegistryNodeViewModel node)
+	private static IReadOnlyList<RegistrySubKeyData>? ReadSubkeys(RegistryNodeViewModel node, int loadId)
 	{
+		using var operation = Logger.Measure("ReadSubkeys", $"loadId={loadId}");
 		try
 		{
 			using RegistryKey baseKey = RegistryFileService.OpenBaseKey(node);
@@ -2215,9 +2285,19 @@ public sealed class RootViewModel : ObservableObject
 				? null
 				: baseKey.OpenSubKey(node.SubKeyPath, writable: false);
 			RegistryKey key = subKey ?? baseKey;
+			operation.Write("KeyOpened");
 
+			string[] names;
+			using (Logger.Measure("ReadSubkeys.GetSubKeyNames", $"readId={operation.Id}"))
+				names = key.GetSubKeyNames();
+			operation.Write($"NamesEnumerated count={names.Length}");
+			string[] sortedNames;
+			using (Logger.Measure("ReadSubkeys.Sort", $"readId={operation.Id}"))
+				sortedNames = names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
+
+			operation.Write("ProbeChildCounts BEGIN");
 			List<RegistrySubKeyData> children = [];
-			foreach (string subKeyName in key.GetSubKeyNames().OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+			foreach (string subKeyName in sortedNames)
 			{
 				string path = string.IsNullOrEmpty(node.SubKeyPath)
 					? subKeyName
@@ -2237,20 +2317,26 @@ public sealed class RootViewModel : ObservableObject
 				}
 
 				children.Add(new RegistrySubKeyData(subKeyName, path, hasChildren));
+				if (children.Count % 1024 == 0)
+					operation.Write($"ProbeChildCounts progress={children.Count}/{names.Length}");
 			}
 
+			operation.Write($"ProbeChildCounts END count={children.Count}");
 			return children;
 		}
-		catch (UnauthorizedAccessException)
+		catch (UnauthorizedAccessException exception)
 		{
+			operation.Write("Unable to read subkeys", LogLevel.Warning, exception);
 			return null;
 		}
-		catch (SecurityException)
+		catch (SecurityException exception)
 		{
+			operation.Write("Unable to read subkeys", LogLevel.Warning, exception);
 			return null;
 		}
-		catch (IOException)
+		catch (IOException exception)
 		{
+			operation.Write("Unable to read subkeys", LogLevel.Error, exception);
 			return null;
 		}
 	}
